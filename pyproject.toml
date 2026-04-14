@@ -1,0 +1,48 @@
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "i18n-agent-skill"
+version = "0.1.0"
+description = "An AI-powered i18n automation toolset for React/Vue projects."
+readme = "README.md"
+requires-python = ">=3.9"
+license = {text = "MIT"}
+authors = [
+    {name = "Your Name", email = "your.email@example.com"}
+]
+keywords = ["i18n", "ai", "agent", "google-adk", "translation"]
+dependencies = [
+    "google-adk>=0.1.0",
+    "pydantic>=2.0.0",
+    "aiofiles>=23.0.0"
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "pytest-cov>=4.0",
+    "pytest-asyncio>=0.21.0",
+    "ruff>=0.3.0",
+    "mypy>=1.0"
+]
+
+[tool.setuptools]
+packages = ["i18n_agent_skill"]
+
+[tool.ruff]
+# 配置 Python 静态检查工具
+line-length = 100
+select = ["E", "F", "B", "I"] # 包含常规错误、格式、Bug、导入顺序检查
+target-version = "py39"
+
+[tool.mypy]
+# 类型检查配置
+python_version = "3.9"
+strict = true
+ignore_missing_imports = true
+
+[project.urls]
+"Homepage" = "https://github.com/yourusername/i18n-agent-skill"
+"Bug Tracker" = "https://github.com/yourusername/i18n-agent-skill/issues"

@@ -1,0 +1,6 @@
+{
+  "source_dirs": ["src"],
+  "ignore_dirs": ["node_modules", "dist", "build", "tests", "examples"],
+  "locales_dir": "locales",
+  "enabled_langs": ["en", "zh-CN", "ja"]
+}
