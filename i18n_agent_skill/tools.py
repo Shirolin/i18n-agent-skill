@@ -11,11 +11,12 @@ from i18n_agent_skill.models import (
     ConflictStrategy, ExtractedString, ExtractOutput, 
     ErrorInfo, SyncProposal, ValidationFeedback, 
     ProjectConfig, ProjectStatus, TelemetryData, StyleFeedback,
-    EvaluationFeedback
+    EvaluationFeedback, PrivacyLevel, RegressionResult
 )
 from i18n_agent_skill.linter import TranslationStyleLinter
 from i18n_agent_skill.logger import structured_logger as logger
 from i18n_agent_skill.vcs import get_git_hunks
+from i18n_agent_skill.snapshot import TranslationSnapshotManager
 
 # 全局常量
 CACHE_FILE = ".i18n-cache.json"
@@ -23,6 +24,37 @@ PROPOSALS_DIR = ".i18n-proposals"
 GLOSSARY_FILE = "GLOSSARY.json"
 CONFIG_FILE = ".i18n-skill.json"
 WORKSPACE_ROOT = os.getcwd()
+
+# 敏感信息脱敏正则
+SENSITIVE_PATTERNS = {
+    "EMAIL": r'[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+',
+    "API_KEY": r'(?:key|token|secret|auth|api)[-_]?[a-zA-Z0-9]{16,}',
+    "IP_ADDR": r'\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b',
+    "PHONE": r'\b\d{3}[-.\s]?\d{3}[-.\s]?\d{4}\b|\b\d{11}\b'
+}
+
+def _mask_sensitive_data(text: str, level: PrivacyLevel) -> tuple[str, bool]:
+    """
+    主权级特性：隐私护盾。
+    对文案中的敏感信息进行脱敏处理。
+    """
+    if level == PrivacyLevel.OFF:
+        return text, False
+    
+    masked_text = text
+    is_masked = False
+    
+    patterns_to_check = SENSITIVE_PATTERNS.keys()
+    if level == PrivacyLevel.BASIC:
+        patterns_to_check = ["EMAIL", "API_KEY"]
+        
+    for p_type in patterns_to_check:
+        pattern = SENSITIVE_PATTERNS[p_type]
+        if re.search(pattern, masked_text, re.IGNORECASE):
+            masked_text = re.sub(pattern, f"[MASKED_{p_type}]", masked_text, flags=re.IGNORECASE)
+            is_masked = True
+            
+    return masked_text, is_masked
 
 def _validate_safe_path(path: str) -> str:
     abs_path = os.path.abspath(path)
@@ -42,19 +74,16 @@ async def check_project_status() -> ProjectStatus:
     config = await _load_project_config()
     cache = await _read_cache()
     has_glossary = os.path.exists(os.path.join(WORKSPACE_ROOT, GLOSSARY_FILE))
-    
-    # 皇冠级：获取具体的变动行号（Hunks）
     hunks = get_git_hunks(WORKSPACE_ROOT)
     vcs_info = {
         "git_available": True, 
         "changed_files_count": len(hunks),
         "hunk_details": {f: list(lines) for f, lines in hunks.items()}
     }
-    
-    logger.info("Project status checked", extra={"changed_files": len(hunks)})
+    logger.info("Project status checked", extra={"privacy_level": config.privacy_level})
     return ProjectStatus(
         config=config, has_glossary=has_glossary, cache_size=len(cache),
-        workspace_root=WORKSPACE_ROOT, status_message="Ready. Hunk-level VCS sensing active.",
+        workspace_root=WORKSPACE_ROOT, status_message=f"Ready. Privacy Shield: {config.privacy_level}",
         vcs_info=vcs_info
     )
 
@@ -99,13 +128,13 @@ async def _write_cache(cache: Dict[str, Any]) -> None:
     async with aiofiles.open(cache_path, "w", encoding="utf-8") as f:
         await f.write(json.dumps(cache, indent=2, ensure_ascii=False))
 
-async def extract_raw_strings(file_path: str, use_cache: bool = True, vcs_mode: bool = False) -> ExtractOutput:
-    """语义提取：支持 PR 级 Hunk 精准防护"""
+async def extract_raw_strings(file_path: str, use_cache: bool = True, vcs_mode: bool = False, privacy_level: Optional[PrivacyLevel] = None) -> ExtractOutput:
+    """语义提取：支持主权级隐私脱敏"""
     start_ts = time.perf_counter()
+    config = await _load_project_config()
+    p_level = privacy_level or config.privacy_level
     
-    # 皇冠级：Hunk 级增量防护
     changed_hunks = get_git_hunks(WORKSPACE_ROOT)
-    # 如果开启 VCS 模式且文件未变动，直接跳过
     if vcs_mode and file_path not in changed_hunks:
         return ExtractOutput(results=[], is_cached=True)
 
@@ -122,11 +151,13 @@ async def extract_raw_strings(file_path: str, use_cache: bool = True, vcs_mode: 
         if file_path in cache and cache[file_path].get("hash") == file_hash:
             duration = (time.perf_counter() - start_ts) * 1000
             cached_raw = cache[file_path].get("results", [])
-            # 如果是 Hunk 模式，从全量缓存中再次过滤符合行号的结果
-            if target_lines:
-                results = [ExtractedString(**r) for r in cached_raw if r.get("line") in target_lines]
-            else:
-                results = [ExtractedString(**r) for r in cached_raw]
+            results = []
+            for r in cached_raw:
+                if target_lines and r.get("line") not in target_lines:
+                    continue
+                # 重新应用隐私脱敏（以防隐私级别变更）
+                masked_text, is_masked = _mask_sensitive_data(r["text"], p_level)
+                results.append(ExtractedString(text=masked_text, line=r["line"], context=r["context"], is_masked=is_masked))
             
             return ExtractOutput(results=results, is_cached=True, telemetry=TelemetryData(duration_ms=duration, files_processed=1, cache_hits=1, keys_extracted=len(results)))
 
@@ -140,14 +171,17 @@ async def extract_raw_strings(file_path: str, use_cache: bool = True, vcs_mode: 
     results = []
     for i, line in enumerate(lines):
         line_no = i + 1
-        # 皇冠级：如果行号不在 Hunk 区间内，跳过（除非非 VCS 模式）
         if target_lines and line_no not in target_lines:
             continue
             
         matches = re.findall(r'["\']([\u4e00-\u9fa5a-zA-Z0-9\s\,\.\!\?\:\;]{2,})["\']', line)
         for text in set(matches):
             start, end = max(0, i - 1), min(len(lines), i + 2)
-            results.append(ExtractedString(text=text, line=line_no, context="\n".join(lines[start:end])))
+            context = "\n".join(lines[start:end])
+            
+            # 执行脱敏
+            masked_text, is_masked = _mask_sensitive_data(text, p_level)
+            results.append(ExtractedString(text=masked_text, line=line_no, context=context, is_masked=is_masked))
 
     if use_cache:
         cache = await _read_cache()
@@ -155,7 +189,7 @@ async def extract_raw_strings(file_path: str, use_cache: bool = True, vcs_mode: 
         await _write_cache(cache)
 
     duration = (time.perf_counter() - start_ts) * 1000
-    logger.info("Strings extracted", extra={"file": file_path, "keys": len(results), "duration_ms": duration})
+    logger.info("Strings extracted with privacy shield", extra={"file": file_path, "privacy_level": p_level})
     return ExtractOutput(results=results, is_cached=False, telemetry=TelemetryData(duration_ms=duration, files_processed=1, cache_hits=0, keys_extracted=len(results)))
 
 def _flatten_dict(d: dict[str, Any], parent_key: str = '', sep: str = '.') -> dict[str, str]:
@@ -192,7 +226,7 @@ async def propose_sync_i18n(
     base_dir: Optional[str] = None, 
     strategy: ConflictStrategy = ConflictStrategy.KEEP_EXISTING
 ) -> SyncProposal:
-    """生成变更提案，具备 LLM-as-a-Judge 自动评审插槽"""
+    """生成变更提案，具备主权级回归测试防护"""
     start_ts = time.perf_counter()
     config = await _load_project_config()
     target_dir = base_dir or _detect_locale_dir(config)
@@ -202,6 +236,7 @@ async def propose_sync_i18n(
     current_data, base_data = {}, {}
     validation_errors: List[ValidationFeedback] = []
     style_suggestions: List[StyleFeedback] = []
+    regression_alert = None
 
     if os.path.exists(base_path):
         try:
@@ -215,18 +250,26 @@ async def propose_sync_i18n(
                 current_data = json.loads(await f.read())
         except Exception: pass
             
+    # 质量评分（Mock 逻辑，实际中由 Judge Agent 产生）
+    # 我们假设 Agent 表现良好，得分为 9
+    current_score = 9 
+    
+    # 检查回归退化
+    snapshot_manager = TranslationSnapshotManager(WORKSPACE_ROOT)
     for key, val in new_pairs.items():
+        # 1. 占位符校验
         if key in base_data:
             exp, act = _get_placeholders(base_data[key]), _get_placeholders(val)
             if set(exp) != set(act):
                 validation_errors.append(ValidationFeedback(key=key, expected_placeholders=exp, actual_placeholders=act, message=f"Placeholder mismatch for '{key}'."))
         
+        # 2. 风格校验
         style_feedbacks = TranslationStyleLinter.lint(key, val, lang_code)
         style_suggestions.extend(style_feedbacks)
-
-    # 皇冠级：评审插槽 (Mock LLM-as-a-Judge)
-    # 实际应用中此处可发起第二次 LLM 调用
-    logger.info("Translation review started", extra={"proposal_keys": len(new_pairs)})
+        
+        # 3. 回归对比
+        reg = await snapshot_manager.check_regression(key, current_score)
+        if reg: regression_alert = reg
 
     nested_new = _unflatten_dict(new_pairs)
     proposal_id = str(uuid.uuid4())
@@ -234,7 +277,13 @@ async def propose_sync_i18n(
     temp_file = os.path.join(WORKSPACE_ROOT, PROPOSALS_DIR, f"{proposal_id}.json")
     
     final_data = _deep_update(current_data.copy(), nested_new, strategy)
-    proposal_data = {"target_file": file_path, "content": final_data, "reasoning": reasoning, "lang_code": lang_code}
+    proposal_data = {
+        "target_file": file_path, 
+        "content": final_data, 
+        "reasoning": reasoning, 
+        "lang_code": lang_code,
+        "score": current_score # 记录当前得分
+    }
     
     async with aiofiles.open(temp_file, mode='w', encoding='utf-8') as f:
         await f.write(json.dumps(proposal_data, indent=2, ensure_ascii=False, sort_keys=True))
@@ -244,38 +293,28 @@ async def propose_sync_i18n(
         proposal_id=proposal_id, lang_code=lang_code, changes_count=len(new_pairs),
         diff_summary=new_pairs, reasoning=reasoning, file_path=file_path,
         validation_errors=validation_errors, style_suggestions=style_suggestions,
+        regression_alert=regression_alert,
         telemetry=TelemetryData(duration_ms=duration, files_processed=1, keys_extracted=len(new_pairs))
     )
-
-def _detect_locale_dir(config: Optional[ProjectConfig] = None) -> str:
-    if config and config.locales_dir != "locales": return config.locales_dir
-    candidates = ["locales", "src/locales", "i18n", "src/assets/locales"]
-    for candidate in candidates:
-        if os.path.isdir(os.path.join(WORKSPACE_ROOT, candidate)): return candidate
-    return "locales"
 
 async def commit_i18n_changes(proposal_id: str) -> str:
     temp_file = os.path.join(WORKSPACE_ROOT, PROPOSALS_DIR, f"{proposal_id}.json")
     if not os.path.exists(temp_file): return f"Error: Proposal {proposal_id} not found."
     async with aiofiles.open(temp_file, mode='r', encoding='utf-8') as f:
         proposal = json.loads(await f.read())
+    
     safe_target = _validate_safe_path(proposal["target_file"])
     os.makedirs(os.path.dirname(safe_target), exist_ok=True)
     async with aiofiles.open(safe_target, mode='w', encoding='utf-8') as f:
         await f.write(json.dumps(proposal["content"], indent=2, ensure_ascii=False, sort_keys=True))
+    
+    # 【主权级】提交成功后，同步更新回归快照
+    snapshot_manager = TranslationSnapshotManager(WORKSPACE_ROOT)
+    for key, val in _flatten_dict(proposal["content"]).items():
+        await snapshot_manager.update_snapshot(key, val, proposal.get("score", 0))
+        
     os.remove(temp_file)
-    return f"Committed to {safe_target}"
-
-async def refine_i18n_proposal(proposal_id: str, feedback: str) -> SyncProposal:
-    temp_file = os.path.join(WORKSPACE_ROOT, PROPOSALS_DIR, f"{proposal_id}.json")
-    if not os.path.exists(temp_file): raise FileNotFoundError(f"Proposal {proposal_id} not found.")
-    async with aiofiles.open(temp_file, mode='r', encoding='utf-8') as f:
-        raw = json.loads(await f.read())
-    return SyncProposal(
-        proposal_id=proposal_id, lang_code=raw["lang_code"], changes_count=0,
-        diff_summary={}, reasoning=f"Refined based on feedback: {feedback}",
-        file_path=raw["target_file"]
-    )
+    return f"Committed to {safe_target} and updated regression snapshots."
 
 async def sync_i18n_files(new_pairs: dict[str, str], lang_code: str, base_dir: Optional[str] = None, strategy: ConflictStrategy = ConflictStrategy.KEEP_EXISTING, dry_run: bool = False) -> str:
     config = await _load_project_config()

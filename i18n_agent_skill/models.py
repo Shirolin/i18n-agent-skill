@@ -3,86 +3,101 @@ from typing import Optional, Any, List, Dict
 from pydantic import BaseModel, Field
 
 class ConflictStrategy(str, Enum):
-    """冲突解决策略：定义当翻译后的 Key 在目标文件中已存在且值不同时的行为。"""
-    OVERWRITE = "overwrite"       # 覆盖已有翻译
-    KEEP_EXISTING = "keep"        # 保留已有翻译
+    """冲突解决策略"""
+    OVERWRITE = "overwrite"
+    KEEP_EXISTING = "keep"
 
 class StorageFormat(str, Enum):
-    """支持的存储格式。"""
+    """支持的存储格式"""
     JSON = "json"
     YAML = "yaml"
 
+class PrivacyLevel(str, Enum):
+    """脱敏级别"""
+    STRICT = "strict"   # 屏蔽邮箱、IP、API Key、电话
+    BASIC = "basic"    # 仅屏蔽 API Key 和 邮箱
+    OFF = "off"        # 不脱敏
+
 class TelemetryData(BaseModel):
-    """效能观测模型：量化 AI 的提效价值。"""
+    """效能观测模型"""
     duration_ms: float = Field(..., description="操作总耗时（毫秒）。")
     files_processed: int = Field(default=0, description="处理的文件数量。")
     cache_hits: int = Field(default=0, description="缓存命中次数。")
     keys_extracted: int = Field(default=0, description="提取到的词条总数。")
     tokens_saved_approx: int = Field(default=0, description="估算的节省 Token 数量。")
 
+class RegressionResult(BaseModel):
+    """质量退化警告模型"""
+    is_degraded: bool = Field(..., description="新翻译得分是否低于历史快照最高分。")
+    snapshot_score: int = Field(..., description="快照记录的历史最高得分。")
+    current_score: int = Field(..., description="本次翻译得到的评分。")
+    warning_message: str = Field(..., description="建议 Agent 重新审视的原因。")
+
 class ExtractedString(BaseModel):
-    """带语义上下文的提取字符串对象。"""
-    text: str = Field(..., description="文案原文。")
+    """带语义上下文的提取字符串对象"""
+    text: str = Field(..., description="原文。若包含敏感信息，则会被 [MASKED_XXX] 掩码。")
     line: int = Field(..., description="在源码中的行号。")
     context: str = Field(..., description="代码上下文。")
+    is_masked: bool = Field(default=False, description="是否已被脱敏。")
 
 class ErrorInfo(BaseModel):
-    """结构化错误信息。"""
-    error_code: str = Field(..., description="错误代码。")
+    """结构化错误信息"""
+    error_code: str = Field(..., description="内部错误代码。")
     message: str = Field(..., description="错误描述。")
-    suggested_action: str = Field(..., description="纠错建议。")
+    suggested_action: str = Field(..., description="给 Agent 的下一步操作建议。")
 
 class ValidationFeedback(BaseModel):
-    """自纠错反馈模型。"""
+    """自纠错反馈模型"""
     key: str = Field(..., description="失败的 Key。")
     expected_placeholders: List[str] = Field(..., description="期望包含的占位符。")
     actual_placeholders: List[str] = Field(..., description="实际包含的占位符。")
     message: str = Field(..., description="引导建议。")
 
 class EvaluationFeedback(BaseModel):
-    """AI 自动化评审反馈模型：用于 LLM-as-a-Judge 质量审计。"""
+    """AI 自动化评审反馈模型"""
     score: int = Field(..., ge=0, le=10, description="翻译质量得分（0-10）。")
-    地道度建议: str = Field(..., description="关于翻译是否符合当地语言习惯的专业建议。")
-    is_pass: bool = Field(..., description="是否通过质量红线。")
-
+    地道度建议: str = Field(..., description="评审建议。")
+    is_pass: bool = Field(..., description="是否通过。")
 
 class StyleFeedback(BaseModel):
-    """文案风格校验反馈模型。"""
+    """文案风格校验反馈模型"""
     key: str = Field(..., description="文案对应的 Key。")
-    violation: str = Field(..., description="违规类型（如：中英混排缺少空格、非法半角标点）。")
+    violation: str = Field(..., description="违规类型。")
     suggestion: str = Field(..., description="风格优化建议值。")
     message: str = Field(..., description="纠错指引。")
 
 class ExtractInput(BaseModel):
-    """提取文案的参数模型。"""
+    """提取文案的参数模型"""
     file_path: str = Field(..., description="待扫描路径。")
     use_cache: bool = Field(default=True, description="是否启用哈希缓存。")
-    vcs_mode: bool = Field(default=False, description="是否开启 VCS 感知模式（仅扫描 Git 变动文件）。")
+    vcs_mode: bool = Field(default=False, description="是否开启 VCS 感知模式。")
+    privacy_level: PrivacyLevel = Field(default=PrivacyLevel.BASIC, description="隐私脱敏级别。")
 
 class ExtractOutput(BaseModel):
-    """提取文案的输出模型。"""
+    """提取文案的输出模型"""
     results: List[ExtractedString] = Field(default_factory=list, description="提取结果。")
     is_cached: bool = Field(default=False, description="是否来自缓存。")
     telemetry: Optional[TelemetryData] = Field(None, description="效能指标。")
     error: Optional[ErrorInfo] = Field(None, description="错误信息。")
 
 class SyncInput(BaseModel):
-    """同步 i18n 文件的参数模型。"""
+    """同步 i18n 文件的参数模型"""
     new_pairs: Dict[str, str] = Field(..., description="准备写入的键值对。")
     lang_code: str = Field(..., description="目标语言。")
     base_dir: Optional[str] = Field(None, description="目标目录。")
     strategy: ConflictStrategy = Field(default=ConflictStrategy.KEEP_EXISTING, description="冲突策略。")
 
 class SyncProposal(BaseModel):
-    """变更提案模型。"""
+    """变更提案模型"""
     proposal_id: str = Field(..., description="唯一提案 ID。")
     lang_code: str = Field(..., description="语言。")
     changes_count: int = Field(..., description="词条数。")
     diff_summary: Dict[str, Any] = Field(..., description="变更明细。")
     reasoning: str = Field(..., description="推理依据。")
     file_path: str = Field(..., description="最终落盘路径。")
-    validation_errors: List[ValidationFeedback] = Field(default_factory=list, description="占位符校验失败反馈。")
+    validation_errors: List[ValidationFeedback] = Field(default_factory=list, description="校验失败反馈。")
     style_suggestions: List[StyleFeedback] = Field(default_factory=list, description="文案风格优化建议。")
+    regression_alert: Optional[RegressionResult] = Field(None, description="【主权级】检测到的质量退化告警。")
     telemetry: Optional[TelemetryData] = Field(None, description="效能指标。")
 
 class LearnTermInput(BaseModel):
@@ -92,13 +107,13 @@ class LearnTermInput(BaseModel):
     context: Optional[str] = Field(None, description="该词条生效的上下文。")
 
 class RefineProposalInput(BaseModel):
-    """提案微调模型：处理人类对提案的修改意见。"""
+    """提案微调模型"""
     proposal_id: str = Field(..., description="要微调的提案 ID。")
     feedback: str = Field(..., description="人类的修改意见。")
     instruction: str = Field(..., description="给 Agent 的微调指令建议。")
 
 class MissingKeysInput(BaseModel):
-    """差异对比的参数模型。"""
+    """差异对比的参数模型"""
     lang_code: str = Field(..., description="目标对比语言。")
     base_lang: str = Field(default="en", description="基准对照语言。")
     base_dir: Optional[str] = Field(None, description="locales 目录。")
@@ -109,6 +124,7 @@ class ProjectConfig(BaseModel):
     ignore_dirs: List[str] = Field(default_factory=lambda: ["node_modules", "dist", "build", "tests"], description="忽略目录。")
     locales_dir: str = Field(default="locales", description="i18n 目录。")
     enabled_langs: List[str] = Field(default_factory=lambda: ["en", "zh-CN"], description="启用语言列表。")
+    privacy_level: PrivacyLevel = Field(default=PrivacyLevel.BASIC, description="全局隐私脱敏级别。")
 
 class ProjectStatus(BaseModel):
     """预检报告模型。"""
