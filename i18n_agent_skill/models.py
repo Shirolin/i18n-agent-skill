@@ -39,6 +39,20 @@ class ValidationFeedback(BaseModel):
     actual_placeholders: List[str] = Field(..., description="实际包含的占位符。")
     message: str = Field(..., description="引导建议。")
 
+class EvaluationFeedback(BaseModel):
+    """AI 自动化评审反馈模型：用于 LLM-as-a-Judge 质量审计。"""
+    score: int = Field(..., ge=0, le=10, description="翻译质量得分（0-10）。")
+    地道度建议: str = Field(..., description="关于翻译是否符合当地语言习惯的专业建议。")
+    is_pass: bool = Field(..., description="是否通过质量红线。")
+
+
+class StyleFeedback(BaseModel):
+    """文案风格校验反馈模型。"""
+    key: str = Field(..., description="文案对应的 Key。")
+    violation: str = Field(..., description="违规类型（如：中英混排缺少空格、非法半角标点）。")
+    suggestion: str = Field(..., description="风格优化建议值。")
+    message: str = Field(..., description="纠错指引。")
+
 class ExtractInput(BaseModel):
     """提取文案的参数模型。"""
     file_path: str = Field(..., description="待扫描路径。")
@@ -67,13 +81,20 @@ class SyncProposal(BaseModel):
     diff_summary: Dict[str, Any] = Field(..., description="变更明细。")
     reasoning: str = Field(..., description="推理依据。")
     file_path: str = Field(..., description="最终落盘路径。")
-    validation_errors: List[ValidationFeedback] = Field(default_factory=list, description="自省反馈。")
+    validation_errors: List[ValidationFeedback] = Field(default_factory=list, description="占位符校验失败反馈。")
+    style_suggestions: List[StyleFeedback] = Field(default_factory=list, description="文案风格优化建议。")
     telemetry: Optional[TelemetryData] = Field(None, description="效能指标。")
+
+class LearnTermInput(BaseModel):
+    """进化型记忆：学习新术语。"""
+    term: str = Field(..., description="原文词条。")
+    translation: str = Field(..., description="确认的翻译。")
+    context: Optional[str] = Field(None, description="该词条生效的上下文。")
 
 class RefineProposalInput(BaseModel):
     """提案微调模型：处理人类对提案的修改意见。"""
     proposal_id: str = Field(..., description="要微调的提案 ID。")
-    feedback: str = Field(..., description="人类的修改意见（例如：“把提交改为发送”）。")
+    feedback: str = Field(..., description="人类的修改意见。")
     instruction: str = Field(..., description="给 Agent 的微调指令建议。")
 
 class MissingKeysInput(BaseModel):
@@ -87,7 +108,7 @@ class ProjectConfig(BaseModel):
     source_dirs: List[str] = Field(default_factory=lambda: ["src"], description="源码目录。")
     ignore_dirs: List[str] = Field(default_factory=lambda: ["node_modules", "dist", "build", "tests"], description="忽略目录。")
     locales_dir: str = Field(default="locales", description="i18n 目录。")
-    enabled_langs: List[str] = Field(default_factory=lambda: ["en", "zh-CN"], description="启用语言。")
+    enabled_langs: List[str] = Field(default_factory=lambda: ["en", "zh-CN"], description="启用语言列表。")
 
 class ProjectStatus(BaseModel):
     """预检报告模型。"""

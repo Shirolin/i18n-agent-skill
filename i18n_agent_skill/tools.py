@@ -1,22 +1,21 @@
 import json
 import re
 import os
-import logging
 import hashlib
 import uuid
 import aiofiles
 import time
-import subprocess
 from typing import Any, Optional, Dict, List, Set
+
 from i18n_agent_skill.models import (
     ConflictStrategy, ExtractedString, ExtractOutput, 
     ErrorInfo, SyncProposal, ValidationFeedback, 
-    ProjectConfig, ProjectStatus, TelemetryData
+    ProjectConfig, ProjectStatus, TelemetryData, StyleFeedback,
+    EvaluationFeedback
 )
-
-# 配置日志记录
-logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
-logger = logging.getLogger(__name__)
+from i18n_agent_skill.linter import TranslationStyleLinter
+from i18n_agent_skill.logger import structured_logger as logger
+from i18n_agent_skill.vcs import get_git_hunks
 
 # 全局常量
 CACHE_FILE = ".i18n-cache.json"
@@ -26,68 +25,54 @@ CONFIG_FILE = ".i18n-skill.json"
 WORKSPACE_ROOT = os.getcwd()
 
 def _validate_safe_path(path: str) -> str:
-    """路径沙箱校验"""
     abs_path = os.path.abspath(path)
     if not abs_path.startswith(WORKSPACE_ROOT):
         raise PermissionError(f"Access Denied: Path '{path}' is outside the project workspace.")
     return abs_path
 
 async def _load_project_config() -> ProjectConfig:
-    """加载配置契约"""
     config_path = os.path.join(WORKSPACE_ROOT, CONFIG_FILE)
-    if not os.path.exists(config_path):
-        return ProjectConfig()
+    if not os.path.exists(config_path): return ProjectConfig()
     try:
         async with aiofiles.open(config_path, "r", encoding="utf-8") as f:
-            content = await f.read()
-            return ProjectConfig(**json.loads(content))
-    except Exception:
-        return ProjectConfig()
-
-async def get_changed_files_vcs() -> List[str]:
-    """
-    终极效能：VCS 感知定位。
-    调用 Git 获取当前工作区已修改的文件列表。
-    """
-    try:
-        result = subprocess.run(
-            ["git", "diff", "--name-only"], 
-            capture_output=True, text=True, check=True, cwd=WORKSPACE_ROOT
-        )
-        return [f for f in result.stdout.splitlines() if f]
-    except Exception as e:
-        logger.warning(f"VCS sensing failed: {str(e)}. Falling back to full scan.")
-        return []
+            return ProjectConfig(**json.loads(await f.read()))
+    except Exception: return ProjectConfig()
 
 async def check_project_status() -> ProjectStatus:
-    """预检工具：带 VCS 信息搜集"""
-    start_time = time.perf_counter()
     config = await _load_project_config()
     cache = await _read_cache()
     has_glossary = os.path.exists(os.path.join(WORKSPACE_ROOT, GLOSSARY_FILE))
     
-    changed_files = await get_changed_files_vcs()
-    vcs_info = {"git_available": True, "changed_files_count": len(changed_files)}
+    # 皇冠级：获取具体的变动行号（Hunks）
+    hunks = get_git_hunks(WORKSPACE_ROOT)
+    vcs_info = {
+        "git_available": True, 
+        "changed_files_count": len(hunks),
+        "hunk_details": {f: list(lines) for f, lines in hunks.items()}
+    }
     
+    logger.info("Project status checked", extra={"changed_files": len(hunks)})
     return ProjectStatus(
-        config=config,
-        has_glossary=has_glossary,
-        cache_size=len(cache),
-        workspace_root=WORKSPACE_ROOT,
-        status_message="Ready. VCS sensing active.",
+        config=config, has_glossary=has_glossary, cache_size=len(cache),
+        workspace_root=WORKSPACE_ROOT, status_message="Ready. Hunk-level VCS sensing active.",
         vcs_info=vcs_info
     )
 
 async def load_project_glossary() -> Dict[str, str]:
     glossary_path = os.path.join(WORKSPACE_ROOT, GLOSSARY_FILE)
-    if not os.path.exists(glossary_path):
-        return {}
+    if not os.path.exists(glossary_path): return {}
     try:
         async with aiofiles.open(glossary_path, "r", encoding="utf-8") as f:
-            content = await f.read()
-            return json.loads(content)
-    except Exception:
-        return {}
+            return json.loads(await f.read())
+    except Exception: return {}
+
+async def update_project_glossary(term: str, translation: str) -> str:
+    glossary_path = os.path.join(WORKSPACE_ROOT, GLOSSARY_FILE)
+    glossary = await load_project_glossary()
+    glossary[term] = translation
+    async with aiofiles.open(glossary_path, "w", encoding="utf-8") as f:
+        await f.write(json.dumps(glossary, indent=2, ensure_ascii=False, sort_keys=True))
+    return f"Learned term: '{term}' -> '{translation}'"
 
 def _get_placeholders(text: str) -> List[str]:
     pattern = r'\{\{.*?\}\}|\{.*?\}'
@@ -115,15 +100,16 @@ async def _write_cache(cache: Dict[str, Any]) -> None:
         await f.write(json.dumps(cache, indent=2, ensure_ascii=False))
 
 async def extract_raw_strings(file_path: str, use_cache: bool = True, vcs_mode: bool = False) -> ExtractOutput:
-    """语义提取：带效能追踪打点"""
+    """语义提取：支持 PR 级 Hunk 精准防护"""
     start_ts = time.perf_counter()
-    cache_hits = 0
     
-    # VCS 过滤逻辑
-    if vcs_mode:
-        changed = await get_changed_files_vcs()
-        if file_path not in changed:
-            return ExtractOutput(results=[], is_cached=True)
+    # 皇冠级：Hunk 级增量防护
+    changed_hunks = get_git_hunks(WORKSPACE_ROOT)
+    # 如果开启 VCS 模式且文件未变动，直接跳过
+    if vcs_mode and file_path not in changed_hunks:
+        return ExtractOutput(results=[], is_cached=True)
+
+    target_lines = changed_hunks.get(file_path) if vcs_mode else None
 
     try:
         safe_path = _validate_safe_path(file_path)
@@ -134,13 +120,15 @@ async def extract_raw_strings(file_path: str, use_cache: bool = True, vcs_mode: 
         file_hash = await _get_file_hash(safe_path)
         cache = await _read_cache()
         if file_path in cache and cache[file_path].get("hash") == file_hash:
-            cached_results = [ExtractedString(**r) for r in cache[file_path].get("results", [])]
             duration = (time.perf_counter() - start_ts) * 1000
-            return ExtractOutput(
-                results=cached_results, 
-                is_cached=True,
-                telemetry=TelemetryData(duration_ms=duration, files_processed=1, cache_hits=1, keys_extracted=len(cached_results))
-            )
+            cached_raw = cache[file_path].get("results", [])
+            # 如果是 Hunk 模式，从全量缓存中再次过滤符合行号的结果
+            if target_lines:
+                results = [ExtractedString(**r) for r in cached_raw if r.get("line") in target_lines]
+            else:
+                results = [ExtractedString(**r) for r in cached_raw]
+            
+            return ExtractOutput(results=results, is_cached=True, telemetry=TelemetryData(duration_ms=duration, files_processed=1, cache_hits=1, keys_extracted=len(results)))
 
     try:
         async with aiofiles.open(safe_path, mode='r', encoding='utf-8') as f:
@@ -151,11 +139,15 @@ async def extract_raw_strings(file_path: str, use_cache: bool = True, vcs_mode: 
 
     results = []
     for i, line in enumerate(lines):
+        line_no = i + 1
+        # 皇冠级：如果行号不在 Hunk 区间内，跳过（除非非 VCS 模式）
+        if target_lines and line_no not in target_lines:
+            continue
+            
         matches = re.findall(r'["\']([\u4e00-\u9fa5a-zA-Z0-9\s\,\.\!\?\:\;]{2,})["\']', line)
         for text in set(matches):
-            start = max(0, i - 1)
-            end = min(len(lines), i + 2)
-            results.append(ExtractedString(text=text, line=i + 1, context="\n".join(lines[start:end])))
+            start, end = max(0, i - 1), min(len(lines), i + 2)
+            results.append(ExtractedString(text=text, line=line_no, context="\n".join(lines[start:end])))
 
     if use_cache:
         cache = await _read_cache()
@@ -163,20 +155,15 @@ async def extract_raw_strings(file_path: str, use_cache: bool = True, vcs_mode: 
         await _write_cache(cache)
 
     duration = (time.perf_counter() - start_ts) * 1000
-    return ExtractOutput(
-        results=results, 
-        is_cached=False,
-        telemetry=TelemetryData(duration_ms=duration, files_processed=1, cache_hits=0, keys_extracted=len(results))
-    )
+    logger.info("Strings extracted", extra={"file": file_path, "keys": len(results), "duration_ms": duration})
+    return ExtractOutput(results=results, is_cached=False, telemetry=TelemetryData(duration_ms=duration, files_processed=1, cache_hits=0, keys_extracted=len(results)))
 
 def _flatten_dict(d: dict[str, Any], parent_key: str = '', sep: str = '.') -> dict[str, str]:
     items: list[tuple[str, str]] = []
     for k, v in d.items():
         new_key = f"{parent_key}{sep}{k}" if parent_key else k
-        if isinstance(v, dict):
-            items.extend(_flatten_dict(v, new_key, sep=sep).items())
-        else:
-            items.append((new_key, str(v)))
+        if isinstance(v, dict): items.extend(_flatten_dict(v, new_key, sep=sep).items())
+        else: items.append((new_key, str(v)))
     return dict(items)
 
 def _unflatten_dict(d: dict[str, Any], sep: str = '.') -> dict[str, Any]:
@@ -192,8 +179,7 @@ def _unflatten_dict(d: dict[str, Any], sep: str = '.') -> dict[str, Any]:
 
 def _deep_update(d: dict[str, Any], u: dict[str, Any], strategy: ConflictStrategy = ConflictStrategy.KEEP_EXISTING) -> dict[str, Any]:
     for k, v in u.items():
-        if isinstance(v, dict) and k in d and isinstance(d[k], dict):
-            _deep_update(d[k], v, strategy)
+        if isinstance(v, dict) and k in d and isinstance(d[k], dict): _deep_update(d[k], v, strategy)
         else:
             if k in d and strategy == ConflictStrategy.KEEP_EXISTING: continue
             d[k] = v
@@ -206,16 +192,16 @@ async def propose_sync_i18n(
     base_dir: Optional[str] = None, 
     strategy: ConflictStrategy = ConflictStrategy.KEEP_EXISTING
 ) -> SyncProposal:
-    """生成变更提案，具备自纠错与效能采集"""
+    """生成变更提案，具备 LLM-as-a-Judge 自动评审插槽"""
     start_ts = time.perf_counter()
     config = await _load_project_config()
     target_dir = base_dir or _detect_locale_dir(config)
     file_path = os.path.join(target_dir, f"{lang_code}.json")
     base_path = os.path.join(target_dir, "en.json")
     
-    current_data = {}
-    base_data = {}
-    validation_errors = []
+    current_data, base_data = {}, {}
+    validation_errors: List[ValidationFeedback] = []
+    style_suggestions: List[StyleFeedback] = []
 
     if os.path.exists(base_path):
         try:
@@ -234,6 +220,13 @@ async def propose_sync_i18n(
             exp, act = _get_placeholders(base_data[key]), _get_placeholders(val)
             if set(exp) != set(act):
                 validation_errors.append(ValidationFeedback(key=key, expected_placeholders=exp, actual_placeholders=act, message=f"Placeholder mismatch for '{key}'."))
+        
+        style_feedbacks = TranslationStyleLinter.lint(key, val, lang_code)
+        style_suggestions.extend(style_feedbacks)
+
+    # 皇冠级：评审插槽 (Mock LLM-as-a-Judge)
+    # 实际应用中此处可发起第二次 LLM 调用
+    logger.info("Translation review started", extra={"proposal_keys": len(new_pairs)})
 
     nested_new = _unflatten_dict(new_pairs)
     proposal_id = str(uuid.uuid4())
@@ -250,32 +243,16 @@ async def propose_sync_i18n(
     return SyncProposal(
         proposal_id=proposal_id, lang_code=lang_code, changes_count=len(new_pairs),
         diff_summary=new_pairs, reasoning=reasoning, file_path=file_path,
-        validation_errors=validation_errors,
+        validation_errors=validation_errors, style_suggestions=style_suggestions,
         telemetry=TelemetryData(duration_ms=duration, files_processed=1, keys_extracted=len(new_pairs))
     )
 
-async def refine_i18n_proposal(proposal_id: str, feedback: str) -> SyncProposal:
-    """
-    大师级：交互式微调。
-    人类说：“把提案里的 A 改为 B”，Agent 执行局部修正。
-    """
-    temp_file = os.path.join(WORKSPACE_ROOT, PROPOSALS_DIR, f"{proposal_id}.json")
-    if not os.path.exists(temp_file): raise FileNotFoundError(f"Proposal {proposal_id} not found.")
-    
-    async with aiofiles.open(temp_file, mode='r', encoding='utf-8') as f:
-        raw_proposal = json.loads(await f.read())
-    
-    # 实际上，微调逻辑通常由 Agent 完成。Agent 拿到 feedback 后，
-    # 会调用 propose_sync_i18n 产生一个新的提案，或者我们在这里提供一个覆盖接口。
-    # 这里我们返回原提案内容，引导 Agent 重新生成。
-    return SyncProposal(
-        proposal_id=proposal_id,
-        lang_code=raw_proposal["lang_code"],
-        changes_count=0, # 待重新计算
-        diff_summary={}, # 待重新计算
-        reasoning=f"Refined based on feedback: {feedback}",
-        file_path=raw_proposal["target_file"]
-    )
+def _detect_locale_dir(config: Optional[ProjectConfig] = None) -> str:
+    if config and config.locales_dir != "locales": return config.locales_dir
+    candidates = ["locales", "src/locales", "i18n", "src/assets/locales"]
+    for candidate in candidates:
+        if os.path.isdir(os.path.join(WORKSPACE_ROOT, candidate)): return candidate
+    return "locales"
 
 async def commit_i18n_changes(proposal_id: str) -> str:
     temp_file = os.path.join(WORKSPACE_ROOT, PROPOSALS_DIR, f"{proposal_id}.json")
@@ -288,6 +265,17 @@ async def commit_i18n_changes(proposal_id: str) -> str:
         await f.write(json.dumps(proposal["content"], indent=2, ensure_ascii=False, sort_keys=True))
     os.remove(temp_file)
     return f"Committed to {safe_target}"
+
+async def refine_i18n_proposal(proposal_id: str, feedback: str) -> SyncProposal:
+    temp_file = os.path.join(WORKSPACE_ROOT, PROPOSALS_DIR, f"{proposal_id}.json")
+    if not os.path.exists(temp_file): raise FileNotFoundError(f"Proposal {proposal_id} not found.")
+    async with aiofiles.open(temp_file, mode='r', encoding='utf-8') as f:
+        raw = json.loads(await f.read())
+    return SyncProposal(
+        proposal_id=proposal_id, lang_code=raw["lang_code"], changes_count=0,
+        diff_summary={}, reasoning=f"Refined based on feedback: {feedback}",
+        file_path=raw["target_file"]
+    )
 
 async def sync_i18n_files(new_pairs: dict[str, str], lang_code: str, base_dir: Optional[str] = None, strategy: ConflictStrategy = ConflictStrategy.KEEP_EXISTING, dry_run: bool = False) -> str:
     config = await _load_project_config()
