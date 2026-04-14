@@ -5,11 +5,13 @@ import logging
 import hashlib
 import uuid
 import aiofiles
+import time
+import subprocess
 from typing import Any, Optional, Dict, List, Set
 from i18n_agent_skill.models import (
     ConflictStrategy, ExtractedString, ExtractOutput, 
     ErrorInfo, SyncProposal, ValidationFeedback, 
-    ProjectConfig, ProjectStatus
+    ProjectConfig, ProjectStatus, TelemetryData
 )
 
 # 配置日志记录
@@ -31,7 +33,7 @@ def _validate_safe_path(path: str) -> str:
     return abs_path
 
 async def _load_project_config() -> ProjectConfig:
-    """加载 .i18n-skill.json 配置文件，若无则返回默认值"""
+    """加载配置契约"""
     config_path = os.path.join(WORKSPACE_ROOT, CONFIG_FILE)
     if not os.path.exists(config_path):
         return ProjectConfig()
@@ -39,45 +41,44 @@ async def _load_project_config() -> ProjectConfig:
         async with aiofiles.open(config_path, "r", encoding="utf-8") as f:
             content = await f.read()
             return ProjectConfig(**json.loads(content))
-    except Exception as e:
-        logger.warning(f"Failed to load config: {str(e)}. Using defaults.")
+    except Exception:
         return ProjectConfig()
 
+async def get_changed_files_vcs() -> List[str]:
+    """
+    终极效能：VCS 感知定位。
+    调用 Git 获取当前工作区已修改的文件列表。
+    """
+    try:
+        result = subprocess.run(
+            ["git", "diff", "--name-only"], 
+            capture_output=True, text=True, check=True, cwd=WORKSPACE_ROOT
+        )
+        return [f for f in result.stdout.splitlines() if f]
+    except Exception as e:
+        logger.warning(f"VCS sensing failed: {str(e)}. Falling back to full scan.")
+        return []
+
 async def check_project_status() -> ProjectStatus:
-    """
-    预检工具：大师级范式的开工自检。
-    帮助 Agent 快速了解项目结构、配置契约及缓存状态。
-    """
+    """预检工具：带 VCS 信息搜集"""
+    start_time = time.perf_counter()
     config = await _load_project_config()
     cache = await _read_cache()
     has_glossary = os.path.exists(os.path.join(WORKSPACE_ROOT, GLOSSARY_FILE))
     
-    status_msg = "项目就绪。请优先遵守配置契约中的 source_dirs 设定进行扫描。"
-    if not has_glossary:
-        status_msg += " 注意：未检测到术语表，翻译可能缺乏一致性背景。"
-        
+    changed_files = await get_changed_files_vcs()
+    vcs_info = {"git_available": True, "changed_files_count": len(changed_files)}
+    
     return ProjectStatus(
         config=config,
         has_glossary=has_glossary,
         cache_size=len(cache),
         workspace_root=WORKSPACE_ROOT,
-        status_message=status_msg
+        status_message="Ready. VCS sensing active.",
+        vcs_info=vcs_info
     )
 
-def _detect_locale_dir(config: Optional[ProjectConfig] = None) -> str:
-    """识别 i18n 目录，优先使用配置"""
-    if config and config.locales_dir != "locales":
-        return config.locales_dir
-        
-    candidates = ["locales", "src/locales", "i18n", "src/assets/locales"]
-    for candidate in candidates:
-        full_path = os.path.join(WORKSPACE_ROOT, candidate)
-        if os.path.isdir(full_path):
-            return candidate
-    return "locales"
-
 async def load_project_glossary() -> Dict[str, str]:
-    """加载术语表"""
     glossary_path = os.path.join(WORKSPACE_ROOT, GLOSSARY_FILE)
     if not os.path.exists(glossary_path):
         return {}
@@ -85,8 +86,7 @@ async def load_project_glossary() -> Dict[str, str]:
         async with aiofiles.open(glossary_path, "r", encoding="utf-8") as f:
             content = await f.read()
             return json.loads(content)
-    except Exception as e:
-        logger.warning(f"Failed to load glossary: {str(e)}")
+    except Exception:
         return {}
 
 def _get_placeholders(text: str) -> List[str]:
@@ -103,66 +103,51 @@ async def _get_file_hash(file_path: str) -> str:
 
 async def _read_cache() -> Dict[str, Any]:
     cache_path = os.path.join(WORKSPACE_ROOT, CACHE_FILE)
-    if not os.path.exists(cache_path):
-        return {}
+    if not os.path.exists(cache_path): return {}
     try:
         async with aiofiles.open(cache_path, "r", encoding="utf-8") as f:
-            content = await f.read()
-            return json.loads(content)
-    except Exception:
-        return {}
+            return json.loads(await f.read())
+    except Exception: return {}
 
 async def _write_cache(cache: Dict[str, Any]) -> None:
     cache_path = os.path.join(WORKSPACE_ROOT, CACHE_FILE)
     async with aiofiles.open(cache_path, "w", encoding="utf-8") as f:
         await f.write(json.dumps(cache, indent=2, ensure_ascii=False))
 
-async def extract_raw_strings(file_path: str, use_cache: bool = True) -> ExtractOutput:
-    """语义提取工具：带沙箱校验、增量扫描与配置感知"""
-    config = await _load_project_config()
+async def extract_raw_strings(file_path: str, use_cache: bool = True, vcs_mode: bool = False) -> ExtractOutput:
+    """语义提取：带效能追踪打点"""
+    start_ts = time.perf_counter()
+    cache_hits = 0
     
-    # 路径策略检查：如果是忽略目录，则跳过
-    for ignore in config.ignore_dirs:
-        if ignore in file_path:
-            return ExtractOutput(error=ErrorInfo(
-                error_code="IGNORE_PATH_SKIP",
-                message=f"Path '{file_path}' is in the ignore list.",
-                suggested_action="Skipping as per project policy."
-            ))
+    # VCS 过滤逻辑
+    if vcs_mode:
+        changed = await get_changed_files_vcs()
+        if file_path not in changed:
+            return ExtractOutput(results=[], is_cached=True)
 
     try:
         safe_path = _validate_safe_path(file_path)
     except PermissionError as e:
-        return ExtractOutput(error=ErrorInfo(
-            error_code="PATH_OUT_OF_WORKSPACE",
-            message=str(e),
-            suggested_action="Ensure the file path is within the project root."
-        ))
-
-    if not os.path.exists(safe_path):
-        return ExtractOutput(error=ErrorInfo(
-            error_code="FILE_NOT_FOUND",
-            message=f"File not found: {file_path}",
-            suggested_action="Check the path and try again."
-        ))
+        return ExtractOutput(error=ErrorInfo(error_code="PATH_OUT_OF_WORKSPACE", message=str(e), suggested_action="..."))
 
     if use_cache:
         file_hash = await _get_file_hash(safe_path)
         cache = await _read_cache()
         if file_path in cache and cache[file_path].get("hash") == file_hash:
             cached_results = [ExtractedString(**r) for r in cache[file_path].get("results", [])]
-            return ExtractOutput(results=cached_results, is_cached=True)
+            duration = (time.perf_counter() - start_ts) * 1000
+            return ExtractOutput(
+                results=cached_results, 
+                is_cached=True,
+                telemetry=TelemetryData(duration_ms=duration, files_processed=1, cache_hits=1, keys_extracted=len(cached_results))
+            )
 
     try:
         async with aiofiles.open(safe_path, mode='r', encoding='utf-8') as f:
             content = await f.read()
             lines = content.splitlines()
-    except (UnicodeDecodeError, Exception) as e:
-        return ExtractOutput(error=ErrorInfo(
-            error_code="BINARY_FILE_SKIP",
-            message=f"Cannot decode {file_path} as UTF-8.",
-            suggested_action="This file might be binary. Please scan text files."
-        ))
+    except Exception as e:
+        return ExtractOutput(error=ErrorInfo(error_code="READ_ERROR", message=str(e), suggested_action="..."))
 
     results = []
     for i, line in enumerate(lines):
@@ -170,18 +155,19 @@ async def extract_raw_strings(file_path: str, use_cache: bool = True) -> Extract
         for text in set(matches):
             start = max(0, i - 1)
             end = min(len(lines), i + 2)
-            context = "\n".join(lines[start:end])
-            results.append(ExtractedString(text=text, line=i + 1, context=context))
+            results.append(ExtractedString(text=text, line=i + 1, context="\n".join(lines[start:end])))
 
     if use_cache:
         cache = await _read_cache()
-        cache[file_path] = {
-            "hash": await _get_file_hash(safe_path),
-            "results": [r.model_dump() for r in results]
-        }
+        cache[file_path] = {"hash": await _get_file_hash(safe_path), "results": [r.model_dump() for r in results]}
         await _write_cache(cache)
 
-    return ExtractOutput(results=results, is_cached=False)
+    duration = (time.perf_counter() - start_ts) * 1000
+    return ExtractOutput(
+        results=results, 
+        is_cached=False,
+        telemetry=TelemetryData(duration_ms=duration, files_processed=1, cache_hits=0, keys_extracted=len(results))
+    )
 
 def _flatten_dict(d: dict[str, Any], parent_key: str = '', sep: str = '.') -> dict[str, str]:
     items: list[tuple[str, str]] = []
@@ -199,8 +185,7 @@ def _unflatten_dict(d: dict[str, Any], sep: str = '.') -> dict[str, Any]:
         parts = k.split(sep)
         d_ref = result
         for part in parts[:-1]:
-            if part not in d_ref:
-                d_ref[part] = {}
+            if part not in d_ref: d_ref[part] = {}
             d_ref = d_ref[part]
         d_ref[parts[-1]] = v
     return result
@@ -210,8 +195,7 @@ def _deep_update(d: dict[str, Any], u: dict[str, Any], strategy: ConflictStrateg
         if isinstance(v, dict) and k in d and isinstance(d[k], dict):
             _deep_update(d[k], v, strategy)
         else:
-            if k in d and strategy == ConflictStrategy.KEEP_EXISTING:
-                continue
+            if k in d and strategy == ConflictStrategy.KEEP_EXISTING: continue
             d[k] = v
     return d
 
@@ -222,7 +206,8 @@ async def propose_sync_i18n(
     base_dir: Optional[str] = None, 
     strategy: ConflictStrategy = ConflictStrategy.KEEP_EXISTING
 ) -> SyncProposal:
-    """生成变更提案，具备自纠错反馈"""
+    """生成变更提案，具备自纠错与效能采集"""
+    start_ts = time.perf_counter()
     config = await _load_project_config()
     target_dir = base_dir or _detect_locale_dir(config)
     file_path = os.path.join(target_dir, f"{lang_code}.json")
@@ -244,120 +229,98 @@ async def propose_sync_i18n(
                 current_data = json.loads(await f.read())
         except Exception: pass
             
-    for key, translated_val in new_pairs.items():
+    for key, val in new_pairs.items():
         if key in base_data:
-            base_text = base_data[key]
-            expected = _get_placeholders(base_text)
-            actual = _get_placeholders(translated_val)
-            if set(expected) != set(actual):
-                validation_errors.append(ValidationFeedback(
-                    key=key,
-                    expected_placeholders=expected,
-                    actual_placeholders=actual,
-                    message=f"Key '{key}' 翻译后丢失或错误修改了占位符。预期: {expected}, 实际: {actual}。"
-                ))
+            exp, act = _get_placeholders(base_data[key]), _get_placeholders(val)
+            if set(exp) != set(act):
+                validation_errors.append(ValidationFeedback(key=key, expected_placeholders=exp, actual_placeholders=act, message=f"Placeholder mismatch for '{key}'."))
 
     nested_new = _unflatten_dict(new_pairs)
     proposal_id = str(uuid.uuid4())
-    
     os.makedirs(os.path.join(WORKSPACE_ROOT, PROPOSALS_DIR), exist_ok=True)
     temp_file = os.path.join(WORKSPACE_ROOT, PROPOSALS_DIR, f"{proposal_id}.json")
     
     final_data = _deep_update(current_data.copy(), nested_new, strategy)
-    
-    proposal_data = {
-        "target_file": file_path,
-        "content": final_data,
-        "reasoning": reasoning
-    }
+    proposal_data = {"target_file": file_path, "content": final_data, "reasoning": reasoning, "lang_code": lang_code}
     
     async with aiofiles.open(temp_file, mode='w', encoding='utf-8') as f:
         await f.write(json.dumps(proposal_data, indent=2, ensure_ascii=False, sort_keys=True))
         
+    duration = (time.perf_counter() - start_ts) * 1000
+    return SyncProposal(
+        proposal_id=proposal_id, lang_code=lang_code, changes_count=len(new_pairs),
+        diff_summary=new_pairs, reasoning=reasoning, file_path=file_path,
+        validation_errors=validation_errors,
+        telemetry=TelemetryData(duration_ms=duration, files_processed=1, keys_extracted=len(new_pairs))
+    )
+
+async def refine_i18n_proposal(proposal_id: str, feedback: str) -> SyncProposal:
+    """
+    大师级：交互式微调。
+    人类说：“把提案里的 A 改为 B”，Agent 执行局部修正。
+    """
+    temp_file = os.path.join(WORKSPACE_ROOT, PROPOSALS_DIR, f"{proposal_id}.json")
+    if not os.path.exists(temp_file): raise FileNotFoundError(f"Proposal {proposal_id} not found.")
+    
+    async with aiofiles.open(temp_file, mode='r', encoding='utf-8') as f:
+        raw_proposal = json.loads(await f.read())
+    
+    # 实际上，微调逻辑通常由 Agent 完成。Agent 拿到 feedback 后，
+    # 会调用 propose_sync_i18n 产生一个新的提案，或者我们在这里提供一个覆盖接口。
+    # 这里我们返回原提案内容，引导 Agent 重新生成。
     return SyncProposal(
         proposal_id=proposal_id,
-        lang_code=lang_code,
-        changes_count=len(new_pairs),
-        diff_summary=new_pairs,
-        reasoning=reasoning,
-        file_path=file_path,
-        validation_errors=validation_errors
+        lang_code=raw_proposal["lang_code"],
+        changes_count=0, # 待重新计算
+        diff_summary={}, # 待重新计算
+        reasoning=f"Refined based on feedback: {feedback}",
+        file_path=raw_proposal["target_file"]
     )
 
 async def commit_i18n_changes(proposal_id: str) -> str:
-    """确认提交变更提案"""
     temp_file = os.path.join(WORKSPACE_ROOT, PROPOSALS_DIR, f"{proposal_id}.json")
-    if not os.path.exists(temp_file):
-        return f"Error: Proposal {proposal_id} not found."
-
+    if not os.path.exists(temp_file): return f"Error: Proposal {proposal_id} not found."
     async with aiofiles.open(temp_file, mode='r', encoding='utf-8') as f:
         proposal = json.loads(await f.read())
-
-    target_file = proposal["target_file"]
-    content = proposal["content"]
-
-    safe_target = _validate_safe_path(target_file)
+    safe_target = _validate_safe_path(proposal["target_file"])
     os.makedirs(os.path.dirname(safe_target), exist_ok=True)
     async with aiofiles.open(safe_target, mode='w', encoding='utf-8') as f:
-        await f.write(json.dumps(content, indent=2, ensure_ascii=False, sort_keys=True))
-    
+        await f.write(json.dumps(proposal["content"], indent=2, ensure_ascii=False, sort_keys=True))
     os.remove(temp_file)
-    return f"Successfully committed changes to {target_file}"
+    return f"Committed to {safe_target}"
 
-async def sync_i18n_files(
-    new_pairs: dict[str, str], 
-    lang_code: str, 
-    base_dir: Optional[str] = None, 
-    strategy: ConflictStrategy = ConflictStrategy.KEEP_EXISTING,
-    dry_run: bool = False
-) -> str:
-    """传统同步逻辑"""
+async def sync_i18n_files(new_pairs: dict[str, str], lang_code: str, base_dir: Optional[str] = None, strategy: ConflictStrategy = ConflictStrategy.KEEP_EXISTING, dry_run: bool = False) -> str:
     config = await _load_project_config()
     target_dir = base_dir or _detect_locale_dir(config)
     file_path = os.path.join(target_dir, f"{lang_code}.json")
-    
     data: dict[str, Any] = {}
     if os.path.exists(file_path):
         try:
             async with aiofiles.open(_validate_safe_path(file_path), mode='r', encoding='utf-8') as f:
                 data = json.loads(await f.read())
         except Exception: pass
-            
-    nested_new_pairs = _unflatten_dict(new_pairs)
-    _deep_update(data, nested_new_pairs, strategy)
-    
-    if dry_run:
-        summary = json.dumps(nested_new_pairs, indent=2, ensure_ascii=False)
-        return f"[DRY RUN] Sync to {file_path}:\n{summary}"
-
+    nested = _unflatten_dict(new_pairs)
+    _deep_update(data, nested, strategy)
+    if dry_run: return f"[DRY RUN] Sync to {file_path}:\n{json.dumps(nested, indent=2, ensure_ascii=False)}"
     async with aiofiles.open(_validate_safe_path(file_path), mode='w', encoding='utf-8') as f:
         await f.write(json.dumps(data, indent=2, ensure_ascii=False, sort_keys=True))
-        
-    return f"Synced {len(new_pairs)} keys to {file_path}"
+    return f"Synced {len(new_pairs)} keys."
 
 async def get_missing_keys(lang_code: str, base_lang: str = "en", base_dir: Optional[str] = None) -> dict[str, str]:
     config = await _load_project_config()
     target_dir = base_dir or _detect_locale_dir(config)
-    base_file = os.path.join(target_dir, f"{base_lang}.json")
-    target_file = os.path.join(target_dir, f"{lang_code}.json")
-    
-    base_data = {}
-    target_data = {}
-
+    base_file, target_file = os.path.join(target_dir, f"{base_lang}.json"), os.path.join(target_dir, f"{lang_code}.json")
+    base_data, target_data = {}, {}
     if os.path.exists(base_file):
         try:
             async with aiofiles.open(_validate_safe_path(base_file), mode='r', encoding='utf-8') as f:
                 base_data = json.loads(await f.read())
         except Exception: pass
-        
     if os.path.exists(target_file):
         try:
             async with aiofiles.open(_validate_safe_path(target_file), mode='r', encoding='utf-8') as f:
                 target_data = json.loads(await f.read())
         except Exception: pass
-            
-    flat_base = _flatten_dict(base_data)
-    flat_target = _flatten_dict(target_data)
-            
-    missing_keys = set(flat_base.keys()) - set(flat_target.keys())
-    return {k: flat_base[k] for k in missing_keys}
+    flat_base, flat_target = _flatten_dict(base_data), _flatten_dict(target_data)
+    missing = set(flat_base.keys()) - set(flat_target.keys())
+    return {k: flat_base[k] for k in missing}

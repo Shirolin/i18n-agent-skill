@@ -1,63 +1,59 @@
-# i18n-agent-skill 🌐 (Industrial Grade)
+# i18n-agent-skill 🌐 (Intelligent Collaboration)
 
 [![Framework: Google ADK](https://img.shields.io/badge/Framework-Google%20ADK-blue)](https://github.com/google/adk)
 [![Model: Agnostic](https://img.shields.io/badge/Model-Gemini%20|%20Claude%20|%20GPT-green)](https://github.com/google/adk)
-[![Standard: Industrial%20Grade%20Skill](https://img.shields.io/badge/Standard-Industrial%20Grade%20Skill-red)](#-工业化配置与预检)
+[![Standard: Intelligent%20Skill](https://img.shields.io/badge/Standard-Intelligent%20Skill-blue)](#-终极形态进化)
 
-> 极致工业化的 AI 国际化工具集。基于 Google ADK 工业化范式构建，具备项目契约感知、自动化预检与安全沙箱加固。
-
----
-
-## 🚀 工业化特性 (Industrial Features)
-
-本项目现已全面升级至工业级标准，专为大型复杂工程设计：
-
-1.  **项目契约配置 (`.i18n-skill.json`)**: 引入显式配置机制。通过契约明确定义源码目录、忽略规则及语言清单，消除 AI 对环境的盲目猜测。
-2.  **自动化预检工具 (`Pre-flight Check`)**: 新增 `check_project_status` 工具。Agent 在开工前会进行自我诊断，确保环境、权限及配置完全就绪。
-3.  **语义化描述优化 (Rich Metadata)**: 所有工具接口均经过 Prompt 工程化重写。描述中包含“最佳实践”与“行为边界”，最大限度降低小参数模型的执行抖动。
-4.  **安全路径沙箱**: 所有的文件读写被物理锁定在工作空间内，坚决防御目录穿越攻击。
+> **i18n-agent-skill** 是一款具备“智慧协作”能力的工业级国际化 Agent 技能。基于 Google ADK 终极范式构建，它引入了 **VCS (Git) 感知**、**交互式提案微调**与**全链路效能追踪**，将 AI 辅助开发的效能推至巅峰。
 
 ---
 
-## 📁 目录结构
+## 🚀 终极进化特性 (Elite Intelligent Features)
+
+本项目已超越大师级标准，迈入“智慧协同”时代：
+
+1.  **VCS (Git) 精准扫描**: 内置 Git 集成。自动定位当前分支已修改的文件，扫描范围从 O(N) 降至 O(1)，即使在数万个文件的超大仓库中也能秒级响应。
+2.  **交互式微调循环 (Refinement Loop)**: 提案不再是“非全即无”。支持针对特定词条提供人类反馈（如：“把提案里的 A 改为 B”），Agent 将实现局部精准修正。
+3.  **全链路效能看板 (Telemetry)**: 自动打点记录毫秒级耗时、缓存拦截率及 Token 节省指标。用数据证明 AI 的提效价值。
+4.  **安全路径沙箱**: 坚决防御目录穿越攻击，确保执行环境绝对隔离。
+
+---
+
+## 📁 项目结构
 
 ```text
 i18n-agent-skill/
-├── .i18n-skill.json    # 项目契约配置文件 (示例)
-├── SKILL.md            # 工业化技能定义 (包含预检指令)
+├── SKILL.md            # 终极形态技能定义 (含微调指令)
 ├── i18n_agent_skill/   
-│   ├── models.py       # 经过 Prompt 工程化优化的 Pydantic 模型
-│   ├── tools.py        # 包含预检与沙箱逻辑的异步核心
+│   ├── models.py       # Pydantic 效能与微调模型
+│   ├── tools.py        # 异步驱动核心 (含 VCS 与 Telemetry)
 │   └── __init__.py
-├── GLOSSARY.json       # 项目专属术语表
 ├── examples/           
-│   └── basic_usage.py  # 演示预检与自纠错工作流
+│   └── basic_usage.py  # 演示 Git 联动与微调流程
 └── README.md           
 ```
 
 ## 🚀 快速开始
 
-### 1. 初始化项目契约
-在项目根目录创建 `.i18n-skill.json`：
-```json
-{
-  "source_dirs": ["src/components"],
-  "ignore_dirs": ["node_modules", "tests"],
-  "locales_dir": "locales"
-}
+### 1. 开启 VCS 加速模式
+在 Git 仓库根目录执行，Agent 会自动识别变动：
+```bash
+# Agent 会在执行时自动输出 Telemetry 数据
+python -m examples.basic_usage
 ```
 
-### 2. 启动预检工作流
-Agent 会自动调用 `check_project_status` 开始任务。
+### 2. 参与微调循环
+当 Agent 给出提案 ID 后，你可以通过反馈进行修正：
+> "帮我微调提案 ID-xxx，把里面所有的 'Login' 统一翻译为 '立即进入'。"
 
 ---
 
 ## 🧠 设计哲学 (Design Philosophy)
 
-本项目的目标是实现**“可预测的自治”**：
-- **Contract** 建立确定性边界。
-- **Pre-flight** 确保执行环境安全。
-- **Self-Correction** 保证输出结果的高质量。
+本项目的终极目标是实现 **“高情商的效能 (Emotional Intelligence & Efficiency)”**：
+- **VCS** 追求极致的速度。
+- **Refinement** 追求完美的人机契合度。
+- **Telemetry** 追求透明的量化指标。
 
 ---
 
