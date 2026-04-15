@@ -3,7 +3,7 @@
 [![Runtime: Python 3.9+](https://img.shields.io/badge/Runtime-Python%203.9%2B-blue)](https://www.python.org/)
 [![Framework: Google ADK](https://img.shields.io/badge/Framework-Google%20ADK-blue)](https://github.com/google/adk)
 [![Protocol: MCP](https://img.shields.io/badge/Protocol-MCP-orange)](https://modelcontextprotocol.io)
-[![License: MIT](https://img.shields.io/badge/License-MIT-green)](LICENSE)
+[![License: Apache-2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 
 **i18n-agent-skill** 是一款专为前端工程（React, Vue 等）设计的 **软件国际化（i18n）自动化工具**。它能自动从源码中提取硬编码字符串，在本地完成隐私脱敏后，由 AI 自动生成翻译并同步至项目语言包（JSON），实现从开发到多语言发布的工程闭环。
 
@@ -43,7 +43,7 @@ AI 助手将自动识别并完成配置。
 - **精准同步**: `"同步我刚才在 Git 里改动的文案。"`
   - *AI 将自动：基于增量 Hunk 提取 -> 隐私掩码 -> 生成高分翻译提案。*
 
-> **提示**: 你只需要在 AI 助手给出操作建议时点击“确认”，其余复杂的工程逻辑均由工具在后台自动编排。
+> **提示**: 你只需要在 AI 助手给出操作建议时点击“确认”，其余复杂的工程逻辑均由工具宣在后台自动编排。
 
 ---
 
@@ -83,4 +83,4 @@ AI 助手将自动识别并完成配置。
 ---
 
 ## 📄 License
-MIT
+Apache-2.0
