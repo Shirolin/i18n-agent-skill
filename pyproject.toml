@@ -7,7 +7,7 @@ name = "i18n-agent-skill"
 version = "0.1.0"
 description = "An AI-powered i18n automation toolset for React/Vue projects."
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 license = {text = "Apache-2.0"}
 authors = [
     {name = "Shirolin", email = "shiro@example.com"}
@@ -36,14 +36,14 @@ packages = ["i18n_agent_skill"]
 
 [tool.ruff]
 line-length = 100
-target-version = "py39"
+target-version = "py310"
 
 [tool.ruff.lint]
 select = ["E", "F", "B", "I"] # 包含常规错误、格式、Bug、导入顺序检查
 
 [tool.mypy]
-# 类型检查配置：保持 3.9 兼容，关闭过严模式并跳过依赖扫描以确保 CI 稳定
-python_version = "3.9"
+# 类型检查配置：保持 3.10 兼容
+python_version = "3.10"
 warn_return_any = true
 warn_unused_configs = true
 ignore_missing_imports = true

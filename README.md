@@ -1,6 +1,6 @@
 # i18n-agent-skill 🌐
 
-[![Runtime: Python 3.9+](https://img.shields.io/badge/Runtime-Python%203.9%2B-blue)](https://www.python.org/)
+[![Runtime: Python 3.10+](https://img.shields.io/badge/Runtime-Python%203.10%2B-blue)](https://www.python.org/)
 [![Framework: Google ADK](https://img.shields.io/badge/Framework-Google%20ADK-blue)](https://github.com/google/adk)
 [![Protocol: MCP](https://img.shields.io/badge/Protocol-MCP-orange)](https://modelcontextprotocol.io)
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
