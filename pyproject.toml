@@ -48,7 +48,7 @@ warn_return_any = true
 warn_unused_configs = true
 ignore_missing_imports = true
 follow_imports = "skip"
-exclude = ["tests", "examples"]
+exclude = ["tests", "examples", "build", "dist"]
 
 [project.urls]
 "Homepage" = "https://github.com/Shirolin/i18n-agent-skill"
