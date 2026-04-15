@@ -31,5 +31,11 @@ ENV/
 .vscode/
 .idea/
 
+# i18n-agent-skill Temporary & State
+.i18n-cache.json
+.i18n-proposals/
+.i18n-snapshots.json
+GLOSSARY.json
+
 # Locales (Generated)
 locales/
