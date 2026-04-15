@@ -18,19 +18,19 @@
 ### 1. 全量国际化改造 (`/i18n-refactor`)
 **意图**: 将一个硬编码项目彻底改造为 i18n 项目。
 **执行协议 (SOP)**:
-1.  **探测**: 调用 `get_status` 确认项目结构。若无 `locales/`，请先辅助用户创建。
+1.  **探测**: 调用 `get_status` 确认 `enabled_langs` 和目录结构。
 2.  **提取**: 调用 `scan_file` 对全量源码执行语义提取。
-3.  **提案**: 调用 `propose_sync` 生成 Key 和翻译。必须根据代码上下文（Context）生成语义化的 Key。
-4.  **重构**: 在用户确认提案后，调用 `commit_changes` 写入 JSON。
-5.  **替换**: 遍历源码，将硬编码字符串替换为 `t('key')` 或相应的 i18n 引用。
+3.  **翻译与 Key 生成**: 基于提取出的 `ExtractedString` 及其 `context`，由你（Agent）进行语义翻译并生成语义化 Key。
+4.  **同步提案**: 针对每种启用语言循环调用 `propose_sync` 提交提案。
+5.  **代码重构**: 在用户确认 `commit_changes` 后，利用你的 **代码编辑能力** 遍历源码，将硬编码替换为 i18n 引用。注意：一次只替换一个文件，并确保正确引入翻译函数。
 
 ### 2. 一键体检与同步 (`/i18n-audit`)
 **意图**: 寻找缺漏并同步变动。
 **执行协议 (SOP)**:
 1.  **扫描**: 调用 `scan_file` 配合 `vcs_mode=True` 提取当前 Git 变动。
-2.  **找茬**: 调用 `get_missing_keys` 对比不同语言包的差异。
-3.  **修正**: 调用 `propose_sync` 自动应用 `TranslationStyleLinter` 的修正建议（中英混排、标点全角化）。
-4.  **告警**: 如果返回结果包含 `regression_alert`，必须根据建议重新调整翻译，直到分数不再下降。
+2.  **缺漏检测**: 循环调用 `get_missing_keys` 找出所有启用语言相对于基准语言（en）缺失的翻译。
+3.  **自动修复**: 对缺失条目进行翻译，并调用 `propose_sync`。同时自动应用 `TranslationStyleLinter` 的风格修正。
+4.  **告警检查**: 若 `regression_alert` 触发，必须立即根据对比结果修正翻译质量，直到得分回升。
 
 ---
 
