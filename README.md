@@ -1,54 +1,68 @@
-# i18n-agent-skill 🌐 (Sovereign Edition)
+# i18n-agent-skill 🌐
 
+[![Runtime: Python 3.9+](https://img.shields.io/badge/Runtime-Python%203.9%2B-blue)](https://www.python.org/)
 [![Framework: Google ADK](https://img.shields.io/badge/Framework-Google%20ADK-blue)](https://github.com/google/adk)
-[![Governance: Sovereign](https://img.shields.io/badge/Governance-Sovereign-purple)](#-主权级加固特性)
-[![Safety: Sandboxed](https://img.shields.io/badge/Safety-Sandboxed-red)](README.md)
+[![Protocol: MCP](https://img.shields.io/badge/Protocol-MCP-orange)](https://modelcontextprotocol.io)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green)](LICENSE)
 
-> **i18n-agent-skill** 是一款进化到“主权级”形态的企业级国际化智能中枢。它不仅支持极致的工程治理，更引入了 **隐私护盾 (Privacy Shield)** 与 **快照回归 (Snapshot Regression)**，满足金融、医疗等行业对数据主权与资产稳定性的终极苛求。
-
----
-
-## 🚀 主权级加固特性 (Sovereign Governance)
-
-本项目现已站在 Agent 技能开发的巅峰，具备守护企业核心资产的能力：
-
-1.  **隐私护盾 (Privacy Shield)**: 自动敏感信息脱敏。内置启发式脱敏引擎，在将文案发送至外部大模型前，自动对 API Key、邮箱、Token 等进行掩码处理（如 `[MASKED_API_KEY]`），确保合规性。
-2.  **质量快照回归 (Snapshot Regression)**: 语言资产水位线。系统自动记录历史上得分最高（最地道）的翻译。当新模型或新上下文导致翻译质量退化时，自动触发 `regression_alert` 告警。
-3.  **PR 级 Hunk 精准提取**: 手术刀级别的增量防护。仅处理当前分支真正变动的代码行，将大文件处理的风险降至零。
-4.  **云原生结构化观测**: 全量导出 JSON 格式日志，支持企业级全链路追踪。
+**i18n-agent-skill** 是一款专为前端工程（React, Vue 等）设计的 **软件国际化（i18n）自动化工具**。它能自动从源码中提取硬编码字符串，在本地完成隐私脱敏后，由 AI 自动生成翻译并同步至项目语言包（JSON），实现从开发到多语言发布的工程闭环。
 
 ---
 
-## 📁 项目结构
+## 🚀 快速集成 (Quick Start)
 
-```text
-i18n-agent-skill/
-├── i18n_agent_skill/   
-│   ├── snapshot.py     # [新] 主权级快照回归管理器
-│   ├── logger.py       # 企业级结构化日志
-│   ├── vcs.py          # Hunk 级解析引擎
-│   ├── prompts.py      # 指令管理工厂
-│   ├── models.py       # Pydantic 主权级数据模型
-│   └── tools.py        # 集成隐私护盾的核心工具
-└── README.md           
+### 1. 自然语言安装 (推荐)
+直接将本项目 GitHub 链接粘贴给你的 AI 助手（如 Cursor, Gemini CLI, Claude），并发送指令：
+> **“安装这个技能：https://github.com/Shirolin/i18n-agent-skill”**
+
+AI 助手将自动识别并完成配置。
+
+### 2. 标准集成规范 (面向 AI 与高级用户)
+如果需要手动配置或引导 AI 执行特定安装逻辑，请参考以下规范：
+
+*   **Gemini CLI**:
+    ```bash
+    gemini skill install https://github.com/Shirolin/i18n-agent-skill
+    ```
+*   **IDE (Cursor/VS Code/Claude) - MCP 配置**:
+    - **运行时**: Python 3.9+
+    - **集成命令**: `python -m i18n_agent_skill`
+    - **说明**: 将此命令添加为 MCP 服务器，AI 助手即可获得扫描源码并同步翻译的能力。
+
+---
+
+## 🔑 关于 API Key (核心说明)
+
+| 场景 | 是否需要配置 API Key | 说明 |
+| :--- | :--- | :--- |
+| **本地提取/扫描/检查** | ❌ **不需要** | 纯本地 Python 逻辑。 |
+| **通过 IDE (Cursor/Claude) 调用** | ❌ **不需要** | **推荐。** 直接复用 IDE 自身的 AI 额度。 |
+| **通过 Gemini CLI 调用** | ❌ **不需要** | **推荐。** 复用 CLI 宿主环境的授权。 |
+| **手动运行 Python 翻译脚本** | ✅ **需要** | 仅当你直接运行代码且需要 AI 生成翻译时。 |
+
+---
+
+## ✨ 核心特性
+
+*   **🔍 自动化提取与同步**: 自动识别源码硬编码，并与 `locales/*.json` 进行增量比对。
+*   **🛡️ 本地隐私脱敏**: 文案外发前自动本地识别并屏蔽 API Key、Email、Token 等。
+*   **🌿 VCS 增量感知**: 基于 `git diff` 实现 Hunk 级精准提取，仅处理变动行。
+*   **📈 质量回归检测**: 自动对比历史翻译得分，拦截任何质量退化的翻译结果。
+
+---
+
+## ⚙️ 配置参考 (Optional)
+
+本工具默认支持 **零配置启动**（自动探测 `src/` 与 `locales/`）。
+如需覆盖默认逻辑，请在根目录创建 `.i18n-skill.json`：
+```json
+{
+  "source_dirs": ["src"],
+  "locales_dir": "locales",
+  "privacy_level": "basic",
+  "enabled_langs": ["en", "zh-CN"]
+}
 ```
-
----
-
-## 🛠 隐私护盾演示
-
-工具会自动识别代码中的敏感字符串并替换：
--   **源码**: `const apiKey = "sk-1234567890abcdef";`
--   **提取结果**: `{"text": "[MASKED_API_KEY]", "is_masked": true}`
--   **价值**: 保护企业密钥不流入外部 AI 训练集。
-
----
-
-## 🔄 质量回归保护
-系统会自动拦截“退化”的翻译提议：
--   **快照**: `"Submit"` -> `"立即提交"` (得分: 10)
--   **新模型提议**: `"Submit"` -> `"确定"` (得分: 7)
--   **动作**: 系统抛出警告并建议 Agent 重新审视决策。
 
 ---
 
