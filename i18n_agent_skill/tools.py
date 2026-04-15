@@ -28,7 +28,8 @@ WORKSPACE_ROOT = os.getcwd()
 # 敏感信息脱敏正则
 SENSITIVE_PATTERNS = {
     "EMAIL": r'[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+',
-    "API_KEY": r'(?:key|token|secret|auth|api)[:\s=\'"]+[a-zA-Z0-9\-_]{16,}',
+    # API_KEY: 支持带前缀的赋值场景，以及常见的独立 Key 格式（如 OpenAI sk-, AWS AKIA 等）
+    "API_KEY": r'(?:(?:key|token|secret|auth|api)[:\s=\'"]+)?\b(?:sk-[a-zA-Z0-9]{20,}|AKIA[a-zA-Z0-9]{16}|[a-zA-Z0-9]{32,})\b',
     "IP_ADDR": r'\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b',
     "PHONE": r'\b\d{3}[-.\s]?\d{3}[-.\s]?\d{4}\b|\b\d{11}\b'
 }
@@ -51,16 +52,26 @@ def _mask_sensitive_data(text: str, level: PrivacyLevel) -> tuple[str, bool]:
     for p_type in patterns_to_check:
         pattern = SENSITIVE_PATTERNS[p_type]
         if re.search(pattern, masked_text, re.IGNORECASE):
-            masked_text = re.sub(pattern, f"[MASKED_{p_type}]", masked_text, flags=re.IGNORECASE)
-            is_masked = True
+            # 使用 sub 的 count 来检测是否有替换发生
+            new_text, count = re.subn(pattern, f"[MASKED_{p_type}]", masked_text, flags=re.IGNORECASE)
+            if count > 0:
+                masked_text = new_text
+                is_masked = True
             
     return masked_text, is_masked
 
 def _validate_safe_path(path: str) -> str:
-    abs_path = os.path.abspath(path)
-    if not abs_path.startswith(WORKSPACE_ROOT):
+    """跨平台路径安全校验：防止路径穿越，解决 Windows 盘符大小写问题"""
+    # 确保 WORKSPACE_ROOT 是绝对路径且规范化
+    ws_root = os.path.normpath(os.path.abspath(WORKSPACE_ROOT)).lower()
+    
+    # 获取目标路径的规范化绝对路径
+    target_path = os.path.normpath(os.path.abspath(os.path.join(WORKSPACE_ROOT, path)))
+    target_path_lower = target_path.lower()
+    
+    if not target_path_lower.startswith(ws_root):
         raise PermissionError(f"Access Denied: Path '{path}' is outside the project workspace.")
-    return abs_path
+    return target_path
 
 async def _load_project_config() -> ProjectConfig:
     config_path = os.path.join(WORKSPACE_ROOT, CONFIG_FILE)
@@ -106,6 +117,17 @@ async def update_project_glossary(term: str, translation: str) -> str:
 def _get_placeholders(text: str) -> List[str]:
     pattern = r'\{\{.*?\}\}|\{.*?\}'
     return re.findall(pattern, text)
+
+def _detect_locale_dir(config: Optional[ProjectConfig] = None) -> str:
+    """自动感知 i18n 目录：优先使用配置，其次探测标准路径"""
+    if config and config.locales_dir != "locales":
+        return config.locales_dir
+    
+    # 探测顺序：locales/ -> src/locales/
+    for candidate in ["locales", os.path.join("src", "locales")]:
+        if os.path.isdir(os.path.join(WORKSPACE_ROOT, candidate)):
+            return candidate
+    return "locales" # 默认值
 
 async def _get_file_hash(file_path: str) -> str:
     safe_path = _validate_safe_path(file_path)
@@ -174,7 +196,7 @@ async def extract_raw_strings(file_path: str, use_cache: bool = True, vcs_mode: 
         if target_lines and line_no not in target_lines:
             continue
             
-        matches = re.findall(r'["\']([\u4e00-\u9fa5a-zA-Z0-9\s\,\.\!\?\:\;]{2,})["\']', line)
+        matches = re.findall(r'["\']([\u4e00-\u9fa5a-zA-Z0-9\s\-_/\@\.!\?\:\;]{2,})["\']', line)
         for text in set(matches):
             start, end = max(0, i - 1), min(len(lines), i + 2)
             context = "\n".join(lines[start:end])
@@ -321,31 +343,38 @@ async def sync_i18n_files(new_pairs: dict[str, str], lang_code: str, base_dir: O
     target_dir = base_dir or _detect_locale_dir(config)
     file_path = os.path.join(target_dir, f"{lang_code}.json")
     data: dict[str, Any] = {}
-    if os.path.exists(file_path):
+    
+    # 始终使用安全路径获取绝对路径
+    safe_file_path = _validate_safe_path(file_path)
+    
+    if os.path.exists(safe_file_path):
         try:
-            async with aiofiles.open(_validate_safe_path(file_path), mode='r', encoding='utf-8') as f:
+            async with aiofiles.open(safe_file_path, mode='r', encoding='utf-8') as f:
                 data = json.loads(await f.read())
         except Exception: pass
     nested = _unflatten_dict(new_pairs)
     _deep_update(data, nested, strategy)
     if dry_run: return f"[DRY RUN] Sync to {file_path}:\n{json.dumps(nested, indent=2, ensure_ascii=False)}"
-    async with aiofiles.open(_validate_safe_path(file_path), mode='w', encoding='utf-8') as f:
+    async with aiofiles.open(safe_file_path, mode='w', encoding='utf-8') as f:
         await f.write(json.dumps(data, indent=2, ensure_ascii=False, sort_keys=True))
     return f"Synced {len(new_pairs)} keys."
 
 async def get_missing_keys(lang_code: str, base_lang: str = "en", base_dir: Optional[str] = None) -> dict[str, str]:
     config = await _load_project_config()
     target_dir = base_dir or _detect_locale_dir(config)
-    base_file, target_file = os.path.join(target_dir, f"{base_lang}.json"), os.path.join(target_dir, f"{lang_code}.json")
+    
+    base_path = _validate_safe_path(os.path.join(target_dir, f"{base_lang}.json"))
+    target_path = _validate_safe_path(os.path.join(target_dir, f"{lang_code}.json"))
+    
     base_data, target_data = {}, {}
-    if os.path.exists(base_file):
+    if os.path.exists(base_path):
         try:
-            async with aiofiles.open(_validate_safe_path(base_file), mode='r', encoding='utf-8') as f:
+            async with aiofiles.open(base_path, mode='r', encoding='utf-8') as f:
                 base_data = json.loads(await f.read())
         except Exception: pass
-    if os.path.exists(target_file):
+    if os.path.exists(target_path):
         try:
-            async with aiofiles.open(_validate_safe_path(target_file), mode='r', encoding='utf-8') as f:
+            async with aiofiles.open(target_path, mode='r', encoding='utf-8') as f:
                 target_data = json.loads(await f.read())
         except Exception: pass
     flat_base, flat_target = _flatten_dict(base_data), _flatten_dict(target_data)
