@@ -1,7 +1,7 @@
-import subprocess
 import re
-import os
+import subprocess
 from typing import Dict, Set
+
 
 def get_git_hunks(workspace_root: str) -> Dict[str, Set[int]]:
     """
