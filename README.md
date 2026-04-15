@@ -25,7 +25,7 @@ AI 助手将自动识别并完成配置。
     gemini skill install https://github.com/Shirolin/i18n-agent-skill
     ```
 *   **IDE (Cursor/VS Code/Claude) - MCP 配置**:
-    - **运行时**: Python 3.9+
+    - **运行时**: Python 3.10+
     - **集成命令**: `python -m i18n_agent_skill`
     - **说明**: 将此命令添加为 MCP 服务器，AI 助手即可获得扫描源码并同步翻译的能力。
 
@@ -78,6 +78,34 @@ AI 助手将自动识别并完成配置。
   "privacy_level": "basic",
   "enabled_langs": ["en", "zh-CN"]
 }
+```
+
+---
+
+## 📂 项目结构 (Structure)
+
+- `i18n_agent_skill/snapshot.py`: 翻译质量快照与回归管理。
+- `i18n_agent_skill/vcs.py`: 基于 Git Hunk 的增量解析引擎。
+- `i18n_agent_skill/linter.py`: 中英混排空格与标点校验规则。
+- `i18n_agent_skill/tools.py`: 核心原子工具集。
+- `i18n_agent_skill/models.py`: 强类型 Pydantic 数据模型。
+
+---
+
+## 🛠 本地开发 (Development)
+
+若需进行本地调试或参与贡献，请参考以下指令：
+
+```bash
+# 安装开发依赖
+pip install -e ".[dev]"
+
+# 运行全量单元与集成测试
+python -m pytest
+
+# 执行代码风格与静态检查
+ruff check .
+mypy .
 ```
 
 ---
