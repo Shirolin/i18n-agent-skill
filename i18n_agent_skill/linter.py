@@ -16,22 +16,20 @@ class TranslationStyleLinter:
         
         # 仅针对中文语境执行风格校验
         if "zh" in lang_code.lower():
-            # 规则 1：中英混排缺失空格
+            # 规则 1：中英混排缺失空格 (全局替换)
+            new_text = text
             # 中文紧跟英文
-            if re.search(r'[\u4e00-\u9fa5][a-zA-Z0-9]', text):
-                feedbacks.append(StyleFeedback(
-                    key=key,
-                    violation="MISSING_SPACE_ZH_EN",
-                    suggestion=re.sub(r'([\u4e00-\u9fa5])([a-zA-Z0-9])', r'\1 \2', text),
-                    message="中英文混排建议在中文与英文/数字之间添加空格。"
-                ))
+            new_text = re.sub(r'([\u4e00-\u9fa5])([a-zA-Z0-9])', r'\1 \2', new_text)
             # 英文紧跟中文
-            elif re.search(r'[a-zA-Z0-9][\u4e00-\u9fa5]', text):
+            new_text = re.sub(r'([a-zA-Z0-9])([\u4e00-\u9fa5])', r'\1 \2', new_text)
+            
+            if new_text != text:
+                violation_type = "MISSING_SPACE_ZH_EN" if re.search(r'[\u4e00-\u9fa5][a-zA-Z0-9]', text) else "MISSING_SPACE_EN_ZH"
                 feedbacks.append(StyleFeedback(
                     key=key,
-                    violation="MISSING_SPACE_EN_ZH",
-                    suggestion=re.sub(r'([a-zA-Z0-9])([\u4e00-\u9fa5])', r'\1 \2', text),
-                    message="中英文混排建议在英文/数字与中文之间添加空格。"
+                    violation=violation_type,
+                    suggestion=new_text,
+                    message="中英文混排建议在中文与英文/数字之间添加空格。"
                 ))
                 
             # 规则 2：非法半角标点

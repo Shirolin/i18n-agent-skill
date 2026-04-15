@@ -28,7 +28,7 @@ WORKSPACE_ROOT = os.getcwd()
 # 敏感信息脱敏正则
 SENSITIVE_PATTERNS = {
     "EMAIL": r'[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+',
-    "API_KEY": r'(?:key|token|secret|auth|api)[-_]?[a-zA-Z0-9]{16,}',
+    "API_KEY": r'(?:key|token|secret|auth|api)[:\s=\'"]+[a-zA-Z0-9\-_]{16,}',
     "IP_ADDR": r'\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b',
     "PHONE": r'\b\d{3}[-.\s]?\d{3}[-.\s]?\d{4}\b|\b\d{11}\b'
 }
