@@ -338,6 +338,27 @@ async def commit_i18n_changes(proposal_id: str) -> str:
     os.remove(temp_file)
     return f"Committed to {safe_target} and updated regression snapshots."
 
+async def refine_i18n_proposal(proposal_id: str, feedback: str) -> str:
+    """
+    交互微调：Agent 根据用户反馈修改提案。
+    此处仅作为状态更新标识，实际的重生成逻辑由 Agent (LLM) 调用 propose_sync 完成。
+    """
+    temp_file = os.path.join(WORKSPACE_ROOT, PROPOSALS_DIR, f"{proposal_id}.json")
+    if not os.path.exists(temp_file): return f"Error: Proposal {proposal_id} not found."
+    
+    # 在实际场景中，Agent 会读取此提案内容，结合 feedback，再次调用 propose_sync。
+    # 这里我们模拟记录反馈。
+    async with aiofiles.open(temp_file, mode='r', encoding='utf-8') as f:
+        data = json.loads(await f.read())
+    
+    data["feedback_history"] = data.get("feedback_history", [])
+    data["feedback_history"].append(feedback)
+    
+    async with aiofiles.open(temp_file, mode='w', encoding='utf-8') as f:
+        await f.write(json.dumps(data, indent=2, ensure_ascii=False))
+        
+    return f"Feedback recorded for proposal {proposal_id}. Please re-generate the proposal based on this input."
+
 async def sync_i18n_files(new_pairs: dict[str, str], lang_code: str, base_dir: Optional[str] = None, strategy: ConflictStrategy = ConflictStrategy.KEEP_EXISTING, dry_run: bool = False) -> str:
     config = await _load_project_config()
     target_dir = base_dir or _detect_locale_dir(config)
