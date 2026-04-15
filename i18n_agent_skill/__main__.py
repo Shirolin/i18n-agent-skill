@@ -1,11 +1,17 @@
-import asyncio
-import sys
 import os
+
 from mcp.server.fastmcp import FastMCP
+
 from i18n_agent_skill.tools import (
-    check_project_status, extract_raw_strings, propose_sync_i18n,
-    commit_i18n_changes, refine_i18n_proposal, update_project_glossary,
-    load_project_glossary, get_missing_keys, WORKSPACE_ROOT, GLOSSARY_FILE
+    WORKSPACE_ROOT,
+    check_project_status,
+    commit_i18n_changes,
+    extract_raw_strings,
+    get_missing_keys,
+    load_project_glossary,
+    propose_sync_i18n,
+    refine_i18n_proposal,
+    update_project_glossary,
 )
 
 # 创建 MCP Server 实例
@@ -57,7 +63,10 @@ async def find_missing(lang_code: str, base_lang: str = "en"):
 async def propose_sync(new_pairs: dict, lang_code: str, reasoning: str, strategy: str = "keep"):
     """变更提议：生成翻译提案。包含占位符校验、文案风格 Linter 与 AI 评审插槽。"""
     from i18n_agent_skill.models import ConflictStrategy
-    strat = ConflictStrategy.OVERWRITE if strategy == "overwrite" else ConflictStrategy.KEEP_EXISTING
+    strat = (
+        ConflictStrategy.OVERWRITE if strategy == "overwrite" 
+        else ConflictStrategy.KEEP_EXISTING
+    )
     return await propose_sync_i18n(new_pairs, lang_code, reasoning, strategy=strat)
 
 @mcp.tool()

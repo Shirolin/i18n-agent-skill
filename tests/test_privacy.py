@@ -1,6 +1,6 @@
-import pytest
-from i18n_agent_skill.tools import _mask_sensitive_data
 from i18n_agent_skill.models import PrivacyLevel
+from i18n_agent_skill.tools import _mask_sensitive_data
+
 
 def test_mask_sensitive_email():
     """验证邮箱脱敏"""

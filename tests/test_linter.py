@@ -1,5 +1,5 @@
-import pytest
 from i18n_agent_skill.linter import TranslationStyleLinter
+
 
 def test_linter_missing_space_zh_en():
     """测试中文后紧跟英文缺失空格"""

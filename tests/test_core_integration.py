@@ -1,9 +1,11 @@
-import pytest
-import os
 import json
+
 import aiofiles
+import pytest
+
 from i18n_agent_skill import tools
-from i18n_agent_skill.models import PrivacyLevel, ConflictStrategy
+from i18n_agent_skill.models import PrivacyLevel
+
 
 @pytest.fixture
 def mock_workspace(tmp_path, monkeypatch):
@@ -19,7 +21,11 @@ def mock_workspace(tmp_path, monkeypatch):
     
     # 写入带敏感信息的源码
     source_file = src_dir / "index.js"
-    source_file.write_text("const apiKey = 'sk-1234567890abcdef12345678'; console.log('Hello World');", encoding="utf-8")
+    source_content = (
+        "const apiKey = 'sk-1234567890abcdef12345678'; "
+        "console.log('Hello World');"
+    )
+    source_file.write_text(source_content, encoding="utf-8")
     
     # 写入基础语言包
     en_json = locales_dir / "en.json"
@@ -38,8 +44,11 @@ async def test_extract_integration_with_privacy(mock_workspace):
     file_path = str(mock_workspace / "src" / "index.js")
     
     # 第一次提取 (冷启动)
-    output = await tools.extract_raw_strings(file_path, use_cache=True, privacy_level=PrivacyLevel.BASIC)
-    
+    output = await tools.extract_raw_strings(
+        file_path, 
+        use_cache=True, 
+        privacy_level=PrivacyLevel.BASIC
+    )
     assert output.error is None
     assert output.is_cached is False
     assert output.telemetry.keys_extracted >= 1
@@ -77,9 +86,11 @@ async def test_proposal_lifecycle_integration(mock_workspace):
     """
     # 1. 生成提案
     new_pairs = {"ui.welcome": "欢迎 {{name}}"}
-    # 故意制造一个占位符缺失错误（en.json 中没有此 Key，所以目前不会触发占位符校验，但我们可以测试逻辑）
-    
+    # 故意制造一个占位符缺失错误
+    # （en.json 中没有此 Key，所以目前不会触发占位符校验，但我们可以测试逻辑）
+
     proposal = await tools.propose_sync_i18n(
+
         new_pairs=new_pairs,
         lang_code="zh-CN",
         reasoning="Test integration"

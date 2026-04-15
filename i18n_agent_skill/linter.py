@@ -1,6 +1,8 @@
 import re
 from typing import List
+
 from i18n_agent_skill.models import StyleFeedback
+
 
 class TranslationStyleLinter:
     """
@@ -24,7 +26,8 @@ class TranslationStyleLinter:
             new_text = re.sub(r'([a-zA-Z0-9])([\u4e00-\u9fa5])', r'\1 \2', new_text)
             
             if new_text != text:
-                violation_type = "MISSING_SPACE_ZH_EN" if re.search(r'[\u4e00-\u9fa5][a-zA-Z0-9]', text) else "MISSING_SPACE_EN_ZH"
+                has_zh_en = re.search(r'[\u4e00-\u9fa5][a-zA-Z0-9]', text)
+                violation_type = "MISSING_SPACE_ZH_EN" if has_zh_en else "MISSING_SPACE_EN_ZH"
                 feedbacks.append(StyleFeedback(
                     key=key,
                     violation=violation_type,

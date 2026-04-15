@@ -1,6 +1,8 @@
 from enum import Enum
-from typing import Optional, Any, List, Dict
+from typing import Any, Dict, List, Optional
+
 from pydantic import BaseModel, Field
+
 
 class ConflictStrategy(str, Enum):
     """冲突解决策略"""
@@ -85,20 +87,31 @@ class SyncInput(BaseModel):
     new_pairs: Dict[str, str] = Field(..., description="准备写入的键值对。")
     lang_code: str = Field(..., description="目标语言。")
     base_dir: Optional[str] = Field(None, description="目标目录。")
-    strategy: ConflictStrategy = Field(default=ConflictStrategy.KEEP_EXISTING, description="冲突策略。")
+    strategy: ConflictStrategy = Field(
+        default=ConflictStrategy.KEEP_EXISTING, 
+        description="冲突策略"
+    )
 
 class SyncProposal(BaseModel):
-    """变更提案模型"""
-    proposal_id: str = Field(..., description="唯一提案 ID。")
-    lang_code: str = Field(..., description="语言。")
-    changes_count: int = Field(..., description="词条数。")
-    diff_summary: Dict[str, Any] = Field(..., description="变更明细。")
-    reasoning: str = Field(..., description="推理依据。")
-    file_path: str = Field(..., description="最终落盘路径。")
-    validation_errors: List[ValidationFeedback] = Field(default_factory=list, description="校验失败反馈。")
-    style_suggestions: List[StyleFeedback] = Field(default_factory=list, description="文案风格优化建议。")
-    regression_alert: Optional[RegressionResult] = Field(None, description="【主权级】检测到的质量退化告警。")
-    telemetry: Optional[TelemetryData] = Field(None, description="效能指标。")
+    proposal_id: str = Field(..., description="唯一 ID")
+    lang_code: str = Field(..., description="目标语言")
+    changes_count: int = Field(..., description="变更条数")
+    diff_summary: Dict[str, Any] = Field(..., description="变更明细")
+    reasoning: str = Field(..., description="推理依据")
+    file_path: str = Field(..., description="落盘路径")
+    validation_errors: List[ValidationFeedback] = Field(
+        default_factory=list, 
+        description="校验失败"
+    )
+    style_suggestions: List[StyleFeedback] = Field(
+        default_factory=list, 
+        description="风格建议"
+    )
+    regression_alert: Optional[RegressionResult] = Field(
+        None, 
+        description="质量退化"
+    )
+    telemetry: Optional[TelemetryData] = Field(None, description="效能指标")
 
 class LearnTermInput(BaseModel):
     """进化型记忆：学习新术语。"""
@@ -121,10 +134,16 @@ class MissingKeysInput(BaseModel):
 class ProjectConfig(BaseModel):
     """项目专属配置契约。"""
     source_dirs: List[str] = Field(default_factory=lambda: ["src"], description="源码目录。")
-    ignore_dirs: List[str] = Field(default_factory=lambda: ["node_modules", "dist", "build", "tests"], description="忽略目录。")
+    ignore_dirs: List[str] = Field(
+        default_factory=lambda: ["node_modules", "dist", "build", "tests"], 
+        description="忽略目录"
+    )
     locales_dir: str = Field(default="locales", description="i18n 目录。")
-    enabled_langs: List[str] = Field(default_factory=lambda: ["en", "zh-CN"], description="启用语言列表。")
-    privacy_level: PrivacyLevel = Field(default=PrivacyLevel.BASIC, description="全局隐私脱敏级别。")
+    enabled_langs: List[str] = Field(
+        default_factory=lambda: ["en", "zh-CN"], 
+        description="启用语言"
+    )
+    privacy_level: PrivacyLevel = Field(default=PrivacyLevel.BASIC, description="隐私级别")
 
 class ProjectStatus(BaseModel):
     """预检报告模型。"""

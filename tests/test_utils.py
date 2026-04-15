@@ -1,6 +1,6 @@
-import pytest
-from i18n_agent_skill.tools import _flatten_dict, _unflatten_dict, _deep_update
 from i18n_agent_skill.models import ConflictStrategy
+from i18n_agent_skill.tools import _deep_update, _flatten_dict, _unflatten_dict
+
 
 def test_flatten_basic():
     """测试基础字典拍平"""

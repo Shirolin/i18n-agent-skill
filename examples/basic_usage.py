@@ -1,16 +1,17 @@
 import asyncio
 import os
 import sys
-import json
+
 from google.adk.agents import Agent, SequentialAgent
 from google.adk.runners import Runner
 from google.adk.sessions import InMemorySessionService
 
 # 引入核心工具与大师级范式
 from i18n_agent_skill.tools import (
-    extract_raw_strings, propose_sync_i18n, commit_i18n_changes, load_project_glossary
+    extract_raw_strings,
+    load_project_glossary,
+    propose_sync_i18n,
 )
-from i18n_agent_skill.models import ConflictStrategy
 
 # 校验 API Key
 if not os.environ.get("GOOGLE_API_KEY"):

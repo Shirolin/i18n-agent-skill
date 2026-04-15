@@ -1,6 +1,8 @@
 import logging
 import sys
+
 from pythonjsonlogger import jsonlogger
+
 
 def setup_logger(name: str = "i18n-agent"):
     """

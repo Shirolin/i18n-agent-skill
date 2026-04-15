@@ -1,7 +1,9 @@
 import json
 import os
+from typing import Any, Dict, Optional
+
 import aiofiles
-from typing import Dict, Any, Optional
+
 from i18n_agent_skill.models import RegressionResult
 
 SNAPSHOT_FILE = ".i18n-snapshots.json"
@@ -21,7 +23,8 @@ class TranslationSnapshotManager:
         try:
             async with aiofiles.open(self.path, "r", encoding="utf-8") as f:
                 content = await f.read()
-                return json.loads(content)
+                data: Dict[str, Any] = json.loads(content)
+                return data
         except Exception:
             return {}
 
@@ -39,12 +42,17 @@ class TranslationSnapshotManager:
         
         snapshot_score = snapshots[key].get("score", 0)
         if current_score < snapshot_score:
+            msg = (
+                f"质量退化告警：词条 '{key}' 的当前评分 ({current_score}) "
+                f"低于历史最高快照得分 ({snapshot_score})。请检查是否存在翻译退化。"
+            )
             return RegressionResult(
                 is_degraded=True,
                 snapshot_score=snapshot_score,
                 current_score=current_score,
-                warning_message=f"Key '{key}' 的翻译得分 ({current_score}) 低于历史最高快照得分 ({snapshot_score})。请检查是否存在翻译退化。"
+                warning_message=msg
             )
+
         return None
 
     async def update_snapshot(self, key: str, translation: str, score: int):
