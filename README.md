@@ -17,10 +17,10 @@
 
 AI 助手将根据协议规范自动执行依赖安装、环境感知与功能配置。
 
-#### 已验证兼容的生态系统 (2026.04)
-- **AI IDEs**: Cursor, Windsurf, Trae, Roo Code (VS Code), JetBrains AI
-- **Autonomous Agents**: Gemini CLI, GPT-o1 Agent, Claude Engineer, Auto-GPT
-- **Collaborative Platforms**: Bolt.new, v0.dev, Replit Agent, Lovable
+#### 已验证兼容的环境 (2026.04)
+本工具遵循 **MCP** 与 **Google ADK** 规范，已在以下环境完成深度验证：
+- **IDE**: Cursor, Windsurf, VS Code (Roo Code / Cline)
+- **CLI/Agent**: Gemini CLI, GPT-o1 Agent (MCP 适配)
 
 ### 2. 标准集成规范 (面向 AI 读取)
 若需手动引导 AI 或执行特定逻辑，可参考以下标准化参数：
