@@ -18,7 +18,11 @@ dependencies = [
     "pydantic>=2.0.0",
     "aiofiles>=23.0.0",
     "mcp>=1.0.0",
-    "python-json-logger>=2.0.7"
+    "python-json-logger>=2.0.7",
+    "tree-sitter>=0.21.3",
+    "tree-sitter-javascript",
+    "tree-sitter-typescript",
+    "tree-sitter-vue"
 ]
 
 [project.optional-dependencies]
