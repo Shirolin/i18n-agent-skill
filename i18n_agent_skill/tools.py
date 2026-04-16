@@ -4,7 +4,7 @@ import os
 import re
 import time
 import uuid
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Set
 
 import aiofiles
 
@@ -33,111 +33,65 @@ GLOSSARY_FILE = "GLOSSARY.json"
 CONFIG_FILE = ".i18n-skill.json"
 WORKSPACE_ROOT = os.getcwd()
 
-def _is_likely_ui_string(text: str, source_type: str) -> bool:
-    """[v0.6.0] 语义前置过滤：区分自然语言与工程噪声"""
+# 工程噪声拦截 (针对 ASCII 字符串)
+ENG_NOISE_PATTERNS = [
+    r'^[a-z0-9\-]+$',                   # Kebap-case (CSS)
+    r'^[a-z]+[A-Z][a-zA-Z0-9]*$',       # CamelCase (Variables)
+    r'^#([A-Fa-f0-9]{3,8})$',           # Colors
+    r'^[MmLlHhVvCcSsQqTtAaZz0-9\s,\.\-]+$', # SVG
+    r'^[A-Za-z0-9+/=]+$',               # Base64
+    r'^(?:https?|ftp|tel|mailto):',     # Protocols
+    r'^/|^\./|^\.\./'                   # Paths
+]
+
+UI_ATTRS = {"placeholder", "title", "label", "aria-label", "alt", "value"}
+
+def _is_likely_ui(text: str, origin: str) -> bool:
+    """[v1.0] 全球化 UI 文案判定逻辑。"""
     t = text.strip()
     if not t or len(t) < 2: return False
-    # 1. 物理放行：包含非 ASCII (中/日/韩/俄/德变音) 100% 是 UI
+    
+    # 1. 物理放行：非 ASCII (日语/中文/法语变音等) -> 100% 提取
     if re.search(r'[^\x00-\x7f]', t):
-        # 排除纯标点
-        if not re.search(r'[\w\u4e00-\u9fa5\u3040-\u30ff]', t): return False
+        return bool(re.search(r'[\w\u4e00-\u9fa5\u3040-\u30ff]', t))
+    
+    # 2. 来源补偿：如果是标签间文本或专用属性 -> 高召回 (处理短英文)
+    if origin in ("text_node", "ui_attr"):
+        if re.match(r'^[0-9\s.,:\-_]+$', t): return False
         return True
     
-    # 2. 结构放行：如果是标签间的纯文本 (TEXT_NODE)，即便很短大概率也是 UI
-    if source_type == "TEXT_NODE":
-        if re.match(r'^[A-Z][a-z]+$', t): return True # "Save", "Add"
-        if " " in t: return True
-        return len(t) > 3
-
-    # 3. 拦截：排除明显的代码特征
-    if re.match(r'^[a-z0-9\-]+$', t) and ("-" in t): return False # CSS 类名
-    if re.match(r'^[a-z]+[A-Z][a-zA-Z0-9]*$', t): return False # CamelCase 变量
-    if t.startswith(("/", "./", "http", "tel:", "mailto:")): return False
+    # 3. 代码字符串 -> 高精过滤
+    if " " in t or re.search(r'[.!?:]$', t): return True
+    if t[0].isupper() and not t.isupper() and len(t) > 2: return True
     
-    # 4. 黑名单过滤
-    if t.lower() in {"id", "class", "style", "key", "v-model", "json", "utf-8"}: return False
+    return False
 
-    return " " in t or t[0].isupper() or re.search(r'[.!?:]$', t)
-
-def _scanner(content: str):
-    """[v0.6.0] 流式扫描器：通过有限状态机(FSM)物理隔离注释，支持转义与无引号文本。"""
-    i, n = 0, len(content)
-    line_no = 1
-    
-    while i < n:
-        char = content[i]
+def _lex_scan(content: str):
+    """[v1.0] 词法扫描器：互斥捕获 注释/属性/文本/引号。"""
+    # 1. 注释 (Skip) | 2. 属性 (attr=val) | 3. 文本节点 (>Text<) | 4. 引号字符串 | 5. 模板字符串
+    PATTERN = r'(?m)' \
+              r'(//.*|/\*[\s\S]*?\*/)|' \
+              r'(\w+)=["\']((?:\\.|[^"\'])*?)["\']|' \
+              r'>\s*([^<>\r\n]+?)\s*<|' \
+              r'["\']((?:\\.|[^"\'])*?)["\']|' \
+              r'`([\s\S]*?)`'
+              
+    for m in re.finditer(PATTERN, content):
+        if m.group(1): continue # 注释
         
-        # 1. 处理换行
-        if char == '\n':
-            line_no += 1
-            i += 1
-            continue
-            
-        # 2. 处理注释（物理跳过，不伤及字符串内的 //）
-        if char == '/' and i + 1 < n:
-            if content[i+1] == '/': # 行注释
-                while i < n and content[i] != '\n': i += 1
-                continue
-            if content[i+1] == '*': # 块注释
-                i += 2
-                while i + 1 < n and not (content[i] == '*' and content[i+1] == '/'):
-                    if content[i] == '\n': line_no += 1
-                    i += 1
-                i += 2
-                continue
-
-        # 3. 处理引号字符串 (', ") - 支持转义
-        if char in ("'", '"'):
-            quote_type = char
-            i += 1
-            text = ""
-            while i < n:
-                if content[i] == '\\' and i + 1 < n: # 处理转义
-                    text += content[i:i+2]
-                    i += 2
-                    continue
-                if content[i] == quote_type:
-                    yield "STRING", text, line_no
-                    i += 1
-                    break
-                if content[i] == '\n': line_no += 1
-                text += content[i]
-                i += 1
-            continue
-
-        # 4. 处理模板字符串 (`)
-        if char == '`':
-            i += 1
-            text = ""
-            while i < n:
-                if content[i] == '`':
-                    yield "TEMPLATE", text, line_no
-                    i += 1
-                    break
-                if content[i] == '\n': line_no += 1
-                text += content[i]
-                i += 1
-            continue
-
-        # 5. 处理标签间文本节点 (JSX/Vue Text) - 解决无引号盲区
-        if char == '>':
-            i += 1
-            text = ""
-            start_line = line_no
-            while i < n and content[i] != '<':
-                if content[i] == '\n': line_no += 1
-                text += content[i]
-                i += 1
-            # 过滤掉明显的逻辑括号块
-            t_strip = text.strip()
-            if t_strip and not t_strip.startswith(('{', '}', '(', ')')):
-                yield "TEXT_NODE", t_strip, start_line
-            continue
-
-        i += 1
+        start_pos = m.start()
+        line_no = content.count('\n', 0, start_pos) + 1
+        
+        if m.group(2) and m.group(3): # Attributes
+            attr = m.group(2).lower()
+            yield (m.group(3), "ui_attr" if attr in UI_ATTRS else "code", line_no)
+        elif m.group(4): # Text Node
+            yield (m.group(4).strip(), "text_node", line_no)
+        elif m.group(5) or m.group(6): # Strings
+            yield (m.group(5) or m.group(6), "code", line_no)
 
 async def extract_raw_strings(file_path: str, use_cache: bool = True, vcs_mode: bool = False, privacy_level: Optional[PrivacyLevel] = None) -> ExtractOutput:
-    """[v0.6.0] 架构级重构：模拟 AST 的分词提取引擎。"""
+    """[v1.0 Final] 来源感知型全球化提取引擎。"""
     start_ts = time.perf_counter()
     config = await _load_project_config()
     p_level = privacy_level or config.privacy_level
@@ -145,37 +99,40 @@ async def extract_raw_strings(file_path: str, use_cache: bool = True, vcs_mode: 
 
     try:
         safe_p = _validate_safe_path(file_path)
-        if os.path.isdir(safe_p): return ExtractOutput(error=ErrorInfo(error_code="DIR_ERR", message="Folder scan not supported."))
         async with aiofiles.open(safe_p, mode='r', encoding='utf-8') as f:
             content = await f.read()
     except Exception as e:
-        return ExtractOutput(error=ErrorInfo(error_code="READ_ERR", message=str(e)))
+        return ExtractOutput(error=ErrorInfo(error_code="IO_ERR", message=str(e)))
 
-    all_lines = content.splitlines()
-    extracted_keys = set()
+    lines = content.splitlines()
+    extracted_set: Set[tuple] = set()
     
-    for stype, text, line in _scanner(content):
-        # 标准化占位符
-        processed = re.sub(r'\$\{(.*?)\}', r'{\1}', text) if stype == "TEMPLATE" else text
+    for text, origin, line in _lex_scan(content):
+        if not text: continue
         
-        if _is_likely_ui_string(processed, stype):
-            if (processed, line) in extracted_keys: continue
+        # 模板变量标准化处理
+        processed = re.sub(r'\$\{(.*?)\}', r'{\1}', text)
+        
+        if _is_likely_ui(processed, origin):
+            if (processed, line) in extracted_set: continue
             
-            ctx = "\n".join(all_lines[max(0, line-2):min(len(all_lines), line+1)])
+            ctx = "\n".join(lines[max(0, line-2):min(len(lines), line+1)])
             masked, is_m = _mask_sensitive_data(processed, p_level)
             if is_m: privacy_hits += 1
             results.append(ExtractedString(text=masked, line=line, context=ctx, is_masked=is_m))
-            extracted_keys.add((processed, line))
+            extracted_set.add((processed, line))
 
     glossary = await load_project_glossary()
     glossary_ctx = {r.text: glossary[r.text] for r in results if r.text in glossary}
     
     return ExtractOutput(results=results, is_cached=False, telemetry=TelemetryData(duration_ms=(time.perf_counter()-start_ts)*1000, files_processed=1, keys_extracted=len(results), privacy_shield_hits=privacy_hits), glossary_context=glossary_ctx)
 
+# ----------------- 后续辅助逻辑 -----------------
+
 def _validate_safe_path(path: str) -> str:
     ws_root = os.path.normpath(os.path.abspath(WORKSPACE_ROOT)).lower()
     target_path = os.path.normpath(os.path.abspath(os.path.join(WORKSPACE_ROOT, path)))
-    if not target_path.lower().startswith(ws_root): raise PermissionError("Outside workspace.")
+    if not target_path.lower().startswith(ws_root): raise PermissionError("Access Denied.")
     return target_path
 
 async def _load_project_config() -> ProjectConfig:
@@ -242,7 +199,8 @@ async def propose_sync_i18n(new_pairs: dict[str, str], lang_code: str, reasoning
     file_path = os.path.join(target_dir, f"{lang_code}.json")
     proposal_id = str(uuid.uuid4())
     os.makedirs(os.path.join(WORKSPACE_ROOT, PROPOSALS_DIR), exist_ok=True)
-    async with aiofiles.open(os.path.join(WORKSPACE_ROOT, PROPOSALS_DIR, f"{proposal_id}.json"), "w", encoding="utf-8") as f:
+    temp_file = os.path.join(WORKSPACE_ROOT, PROPOSALS_DIR, f"{proposal_id}.json")
+    async with aiofiles.open(temp_file, mode='w', encoding='utf-8') as f:
         await f.write(json.dumps({"target_file": file_path, "content": new_pairs, "reasoning": reasoning, "lang_code": lang_code}, indent=2, ensure_ascii=False))
     return SyncProposal(proposal_id=proposal_id, lang_code=lang_code, changes_count=len(new_pairs), diff_summary=new_pairs, reasoning=reasoning, file_path=file_path)
 
@@ -258,7 +216,7 @@ async def commit_i18n_changes(proposal_id: str) -> str:
 async def get_missing_keys(lang_code: str, base_lang: str = "en", base_dir: Optional[str] = None) -> dict[str, str]:
     config = await _load_project_config()
     target_dir = base_dir or _detect_locale_dir(config)
-    base_p, target_p = os.path.join(target_dir, f"{base_lang}.json"), os.path.join(target_dir, f"{lang_code}.json")
+    base_p, target_p = _validate_safe_path(os.path.join(target_dir, f"{base_lang}.json")), _validate_safe_path(os.path.join(target_dir, f"{lang_code}.json"))
     try:
         async with aiofiles.open(base_p, "r", encoding="utf-8") as f: b_d = json.loads(await f.read())
         async with aiofiles.open(target_p, "r", encoding="utf-8") as f: t_d = json.loads(await f.read())
