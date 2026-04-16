@@ -11,20 +11,19 @@
 
 ## 🚀 集成与安装 (Setup)
 
-你可以根据你目前使用的 AI 助手环境选择最快的集成方式：
+### 1. 快速赋能 (推荐)
+直接将本项目 GitHub 链接发送给你的 AI 助手（如 **Cursor, Windsurf, Gemini CLI, Claude**），并指令它：
+> **“帮我安装这个 i18n 技能：https://github.com/Shirolin/i18n-agent-skill”**
 
-### 1. 如果你在用 IDE (Cursor / VS Code / Claude)
-将本项目链接发送给你的 AI 助手，并指令它：
-> **“安装这个 i18n 技能：https://github.com/Shirolin/i18n-agent-skill，集成命令是 `python -m i18n_agent_skill`。”**
-*注：本项目支持 MCP 协议，配置完成后 AI 助手将直接具备扫描与翻译能力。*
+AI 助手将自动根据你的环境完成配置。这是最省心、也是最推荐的集成方式。
 
-### 2. 如果你在用命令行 (Gemini CLI)
-在终端直接执行一键安装：
-```bash
-gemini skill install https://github.com/Shirolin/i18n-agent-skill
-```
+### 2. 标准集成规范
+如果需要手动引导 AI 或执行特定安装逻辑，请参考以下规范：
 
-### 3. 如果你想作为本地工具 (Python / CI)
+- **Gemini CLI**: 执行 `gemini skill install https://github.com/Shirolin/i18n-agent-skill`。
+- **IDE MCP 配置**: 集成命令为 `python -m i18n_agent_skill`。添加为 MCP 服务器后，AI 助手即可获得扫描与翻译能力。
+
+### 3. 开发者本地模式
 ```bash
 pip install -e .
 python examples/basic_usage.py
