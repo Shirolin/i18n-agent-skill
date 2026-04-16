@@ -5,7 +5,11 @@
 [![Protocol: MCP](https://img.shields.io/badge/Protocol-MCP-orange)](https://modelcontextprotocol.io)
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 
-**i18n-agent-skill** 是一个基于 AI 的前端国际化（i18n）全链路自动化工具。支持硬编码字符串提取、本地隐私脱敏、多语言翻译同步及质量回归检测，旨在提升 React/Vue 等项目的国际化工程化效率。
+**i18n-agent-skill** 是一款专为 AI 助手设计的前端国际化全链路自动化工具。如果你或你的 AI 助手正在处理以下任务，本工具将提供核心支持：
+- **遗留改造**: 从 React/Vue 源码中自动提取硬编码文案。
+- **隐私合规**: 在文案发送至大模型前自动执行本地数据脱敏。
+- **增量同步**: 基于 Git Hunk 精准同步翻译至 JSON 语言包。
+- **质量审计**: 自动执行中英混排校验、标点检查及翻译质量回溯。
 
 ---
 
