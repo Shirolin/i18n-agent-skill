@@ -76,13 +76,17 @@ AI 助手将根据协议规范自动执行环境感知与配置。
 
 ## 📂 项目结构 (Structure)
 
-- `i18n_agent_skill/snapshot.py`: 翻译快照与回归管理。
-- `i18n_agent_skill/vcs.py`: Git 增量解析引擎。
-- `i18n_agent_skill/linter.py`: 风格与标点校验规则。
-- `i18n_agent_skill/tools.py`: 原子工具集实现。
-- `i18n_agent_skill/models.py`: 强类型 Pydantic 数据模型。
+```text
+i18n_agent_skill/
+├── snapshot.py     # 翻译快照与回归管理
+├── vcs.py          # Git 增量解析引擎
+├── linter.py       # 风格与标点校验规则
+├── tools.py        # 核心原子工具集
+└── models.py       # Pydantic 数据模型
+```
 
 ---
+
 
 ## 🛠 本地开发 (Development)
 
