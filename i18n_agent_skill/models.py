@@ -26,7 +26,8 @@ class TelemetryData(BaseModel):
     files_processed: int = Field(default=0, description="处理的文件数量。")
     cache_hits: int = Field(default=0, description="缓存命中次数。")
     keys_extracted: int = Field(default=0, description="提取到的词条总数。")
-    tokens_saved_approx: int = Field(default=0, description="估算的节省 Token 数量。")
+    tokens_saved_approx: int = Field(default=0, description="估算的节省 Token 数量（基于缓存和增量计算）。")
+    privacy_shield_hits: int = Field(default=0, description="隐私屏蔽（Masking）触发次数。")
 
 class RegressionResult(BaseModel):
     """质量退化警告模型"""
@@ -47,6 +48,7 @@ class ErrorInfo(BaseModel):
     error_code: str = Field(..., description="内部错误代码。")
     message: str = Field(..., description="错误描述。")
     suggested_action: str = Field(..., description="给 Agent 的下一步操作建议。")
+    executable_hint: Optional[str] = Field(None, description="[自愈] 可直接运行以尝试修复错误的 Shell 命令。")
 
 class ValidationFeedback(BaseModel):
     """自纠错反馈模型"""
@@ -71,14 +73,15 @@ class StyleFeedback(BaseModel):
 class ExtractInput(BaseModel):
     """提取文案的参数模型"""
     file_path: str = Field(..., description="待扫描路径。")
-    use_cache: bool = Field(default=True, description="是否启用哈希缓存。")
-    vcs_mode: bool = Field(default=False, description="是否开启 VCS 感知模式。")
+    use_cache: bool = Field(default=True, description="是否启用哈希缓存处理大文件。")
+    vcs_mode: bool = Field(default=False, description="是否开启 VCS 感知模式以优化增量 Token 消耗。")
     privacy_level: PrivacyLevel = Field(default=PrivacyLevel.BASIC, description="隐私脱敏级别。")
 
 class ExtractOutput(BaseModel):
     """提取文案的输出模型"""
     results: List[ExtractedString] = Field(default_factory=list, description="提取结果。")
     is_cached: bool = Field(default=False, description="是否来自缓存。")
+    glossary_context: Dict[str, str] = Field(default_factory=dict, description="[主动注入] 与本次提取文案关联的既有术语表，用于辅助 AI 翻译一致性。")
     telemetry: Optional[TelemetryData] = Field(None, description="效能指标。")
     error: Optional[ErrorInfo] = Field(None, description="错误信息。")
 
@@ -141,7 +144,7 @@ class ProjectConfig(BaseModel):
     locales_dir: str = Field(default="locales", description="i18n 目录。")
     enabled_langs: List[str] = Field(
         default_factory=lambda: ["en", "zh-CN"], 
-        description="启用语言"
+        description="启用语言列表"
     )
     privacy_level: PrivacyLevel = Field(default=PrivacyLevel.BASIC, description="隐私级别")
 

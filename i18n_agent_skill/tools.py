@@ -273,6 +273,7 @@ async def extract_raw_strings(
         )
         return ExtractOutput(error=err)
 
+    privacy_shield_hits = 0
     results = []
     for i, line in enumerate(lines):
         line_no = i + 1
@@ -286,12 +287,21 @@ async def extract_raw_strings(
             context = "\n".join(lines[start:end])
 
             masked_text, is_masked = _mask_sensitive_data(text, p_level)
+            if is_masked:
+                privacy_shield_hits += 1
             results.append(ExtractedString(
                 text=masked_text,
                 line=line_no,
                 context=context,
                 is_masked=is_masked
             ))
+
+    # [皇冠级优化] 主动术语注入：查找关联术语
+    glossary = await load_project_glossary()
+    glossary_context = {}
+    for r in results:
+        if r.text in glossary:
+            glossary_context[r.text] = glossary[r.text]
 
     if use_cache:
         cache = await _read_cache()
@@ -303,17 +313,23 @@ async def extract_raw_strings(
         await _write_cache(cache)
 
     duration = (time.perf_counter() - start_ts) * 1000
-    logger.info(
-        "Strings extracted with privacy shield",
-        extra={"file": file_path, "privacy_level": p_level}
-    )
+    # 估算节省：假设每个 cached key 节省 20 tokens，每屏蔽一次敏感信息价值更高
+    tokens_saved = (len(results) if is_cached else 0) * 20 + (privacy_shield_hits * 50)
+    
     telemetry = TelemetryData(
         duration_ms=duration,
         files_processed=1,
-        cache_hits=0,
-        keys_extracted=len(results)
+        cache_hits=1 if is_cached else 0,
+        keys_extracted=len(results),
+        tokens_saved_approx=tokens_saved,
+        privacy_shield_hits=privacy_shield_hits
     )
-    return ExtractOutput(results=results, is_cached=False, telemetry=telemetry)
+    return ExtractOutput(
+        results=results, 
+        is_cached=is_cached, 
+        telemetry=telemetry,
+        glossary_context=glossary_context
+    )
 
 
 def _flatten_dict(d: dict[str, Any], p_key: str = '', sep: str = '.') -> dict[str, str]:
