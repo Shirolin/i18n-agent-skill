@@ -18,8 +18,7 @@
 AI 助手将根据协议规范自动执行依赖安装、环境感知与功能配置。
 
 #### 已验证兼容的环境 (2026.04)
-- **IDE**: Cursor, Windsurf, Trae, VS Code (Roo Code / Cline)
-- **CLI/Agent**: Gemini CLI, GPT-4o/o1 Agent, Claude Engineer, Bolt
+**Cursor**, **Windsurf**, **Trae**, **Roo Code (VS Code)**, **Gemini CLI**, **GPT-4o/o1 Agent**, **Claude Engineer**, **Bolt.new**
 
 ### 2. 标准集成规范 (面向 AI 读取)
 若需手动引导 AI 或执行特定逻辑，可参考以下标准化参数：
