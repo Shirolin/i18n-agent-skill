@@ -101,6 +101,26 @@ async def _load_project_config() -> ProjectConfig:
 
 async def check_project_status() -> ProjectStatus:
     config = await _load_project_config()
+    
+    # 动态探测语言：如果 enabled_langs 是默认的，或者为空，则去 locales 目录下“数一数”
+    locales_dir = _detect_locale_dir(config)
+    full_locales_path = os.path.join(WORKSPACE_ROOT, locales_dir)
+    detected_langs = []
+    if os.path.exists(full_locales_path):
+        detected_langs = [
+            f.replace(".json", "") 
+            for f in os.listdir(full_locales_path) 
+            if f.endswith(".json")
+        ]
+    
+    # 如果探测到的语言更丰富，则自动同步到配置中，确保审计覆盖全量语言
+    if len(detected_langs) > 0:
+        # 保持顺序并去重
+        current_langs = set(config.enabled_langs)
+        for lang in detected_langs:
+            if lang not in current_langs:
+                config.enabled_langs.append(lang)
+
     cache = await _read_cache()
     has_glossary = os.path.exists(os.path.join(WORKSPACE_ROOT, GLOSSARY_FILE))
     hunks = get_git_hunks(WORKSPACE_ROOT)
