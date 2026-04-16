@@ -11,21 +11,24 @@
 
 ## 🚀 集成与安装 (Setup)
 
-### 1. 快速赋能 (推荐)
-直接将本项目 GitHub 链接发送给你的 AI 助手（如 **Cursor, Windsurf, VS Code (Cline), Gemini CLI, GPT-4o** 等），并指令它：
-> **“帮我安装这个 i18n 技能：https://github.com/Shirolin/i18n-agent-skill”**
+### 1. 自动集成 (推荐)
+直接将本项目 GitHub 链接发送给你的 AI 助手（无论是 IDE 插件还是命令行 Agent），并发送如下指令：
+> **“请安装并配置此 i18n 技能：https://github.com/Shirolin/i18n-agent-skill”**
 
-AI 助手将自动根据你的环境完成配置。这是最省心、也是最推荐的集成方式。
+AI 助手将根据协议规范自动执行依赖安装、环境感知与功能配置。
 
-### 2. 标准集成规范
-如果需要手动引导 AI 或执行特定安装逻辑，请参考以下规范：
+#### 已验证兼容的环境 (2026.04)
+- **IDE**: Cursor, Windsurf, Trae, VS Code (Roo Code / Cline)
+- **CLI/Agent**: Gemini CLI, GPT-4o/o1 Agent, Claude Engineer, Bolt
 
-- **Gemini CLI**: 执行 `gemini skill install https://github.com/Shirolin/i18n-agent-skill`。
-- **IDE MCP 配置**: 集成命令为 `python -m i18n_agent_skill`。添加为 MCP 服务器后，AI 助手即可获得扫描与翻译能力。
+### 2. 标准集成规范 (面向 AI 读取)
+若需手动引导 AI 或执行特定逻辑，可参考以下标准化参数：
+- **Entry Command**: `python -m i18n_agent_skill`
+- **Gemini CLI**: `gemini skill install https://github.com/Shirolin/i18n-agent-skill`
 
-### 3. 开发者本地模式
+### 3. 本地开发模式
 ```bash
-pip install -e .
+pip install -e ".[dev]"
 python examples/basic_usage.py
 ```
 
