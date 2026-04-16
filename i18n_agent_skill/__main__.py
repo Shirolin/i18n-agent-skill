@@ -32,7 +32,7 @@ async def cli_main():
 
     # 3. audit
     audit_parser = subparsers.add_parser("audit", help="比对语言包差异，查找缺失的 Key")
-    audit_parser.add_argument("lang", help="目标对比语言代码 (如 en, ja)")
+    audit_parser.add_argument("lang", help="目标对比语言代码 (如 en, ja) 或使用 'all' 执行全量体检")
     audit_parser.add_argument("--base", default="en", help="基准语言代码 (默认 en)")
 
     # 4. sync
@@ -45,11 +45,8 @@ async def cli_main():
     commit_parser = subparsers.add_parser("commit", help="正式提交并应用指定的提案")
     commit_parser.add_argument("proposal_id", help="提案 ID")
 
-    # 6. mcp (旧模式，保持兼容)
-    subparsers.add_parser("mcp", help="以 MCP Server 模式运行（兼容 Cursor/Cline）")
-
-    # 7. update
-    subparsers.add_parser("update", help="[Internal] AI 内部调用的更新入口")
+    # 6. mcp
+    subparsers.add_parser("mcp", help="以 MCP Server 模式运行")
 
     args = parser.parse_args()
 
@@ -62,14 +59,27 @@ async def cli_main():
         _print_json(res.model_dump())
 
     elif args.command == "audit":
-        res = await get_missing_keys(args.lang, base_lang=args.base)
-        _print_json(res)
+        if args.lang == "all":
+            # [核心修复] 实现 audit all 逻辑
+            status = await check_project_status()
+            langs = status.config.enabled_langs
+            results = {}
+            for lang in langs:
+                if lang == args.base: continue
+                missing = await get_missing_keys(lang, base_lang=args.base)
+                results[lang] = {
+                    "missing_count": len(missing),
+                    "missing_keys": missing
+                }
+            _print_json(results)
+        else:
+            res = await get_missing_keys(args.lang, base_lang=args.base)
+            _print_json(res)
 
     elif args.command == "sync":
         try:
             new_pairs = json.loads(args.data)
         except json.JSONDecodeError:
-            # 尝试作为文件读取
             with open(args.data, 'r', encoding='utf-8') as f:
                 new_pairs = json.load(f)
         res = await propose_sync_i18n(new_pairs, args.lang, args.reason)
@@ -84,7 +94,6 @@ async def cli_main():
         mcp.run()
 
     elif not args.command:
-        # 如果没有任何参数，默认运行 MCP 以保持向后兼容性
         from i18n_agent_skill.mcp_server import mcp
         mcp.run()
 

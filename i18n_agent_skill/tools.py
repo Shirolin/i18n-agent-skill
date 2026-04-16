@@ -36,7 +36,6 @@ WORKSPACE_ROOT = os.getcwd()
 # 敏感信息脱敏正则
 SENSITIVE_PATTERNS = {
     "EMAIL": r'[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+',
-    # API_KEY: 支持带前缀的赋值场景，以及常见的独立 Key 格式
     "API_KEY": (
         r'(?:(?:key|token|secret|auth|api)[:\s=\'"]+)?'
         r'\b(?:sk-[a-zA-Z0-9]{20,}|AKIA[a-zA-Z0-9]{16}|[a-zA-Z0-9]{32,})\b'
@@ -46,426 +45,253 @@ SENSITIVE_PATTERNS = {
 }
 
 
+def _is_likely_ui_string(text: str) -> bool:
+    """启发式过滤：识别真正需要国际化的 UI 文案，排除 CSS 类名和逻辑 Token"""
+    # 1. 包含中文的必然是 UI 文案
+    if re.search(r'[\u4e00-\u9fa5]', text):
+        return True
+    
+    # 2. 排除明显的 CSS 类名 (kebap-case 且不含空格)
+    if re.match(r'^[a-z0-9\-]+$', text) and "-" in text:
+        return False
+    
+    # 3. 排除单个单词的逻辑 Token (如 "done", "error", "success")
+    if " " not in text and len(text) < 10 and text.islower():
+        return False
+
+    # 4. 包含空格且首字母大写，或带有标点的英文，大概率是 UI
+    if " " in text or re.search(r'[.!?]$', text):
+        return True
+        
+    return False
+
+
 def _mask_sensitive_data(text: str, level: PrivacyLevel) -> tuple[str, bool]:
-    """
-    对文案中的敏感信息进行脱敏处理。
-    """
-    if level == PrivacyLevel.OFF:
-        return text, False
-
-    masked_text = text
-    is_masked = False
-
-    patterns_to_check: List[str] = list(SENSITIVE_PATTERNS.keys())
-    if level == PrivacyLevel.BASIC:
-        patterns_to_check = ["EMAIL", "API_KEY"]
+    if level == PrivacyLevel.OFF: return text, False
+    masked_text, is_masked = text, False
+    patterns_to_check = ["EMAIL", "API_KEY"] if level == PrivacyLevel.BASIC else list(SENSITIVE_PATTERNS.keys())
     for p_type in patterns_to_check:
         pattern = SENSITIVE_PATTERNS[p_type]
         if re.search(pattern, masked_text, re.IGNORECASE):
-            # 使用 sub 的 count 来检测是否有替换发生
-            new_text, count = re.subn(
-                pattern, f"[MASKED_{p_type}]", masked_text, flags=re.IGNORECASE
-            )
-            if count > 0:
-                masked_text = new_text
-                is_masked = True
-
+            masked_text, count = re.subn(pattern, f"[MASKED_{p_type}]", masked_text, flags=re.IGNORECASE)
+            if count > 0: is_masked = True
     return masked_text, is_masked
 
 
 def _validate_safe_path(path: str) -> str:
-    """跨平台路径安全校验：防止路径穿越，解决 Windows 盘符大小写问题"""
-    # 确保 WORKSPACE_ROOT 是绝对路径且规范化
     ws_root = os.path.normpath(os.path.abspath(WORKSPACE_ROOT)).lower()
-
-    # 获取目标路径的规范化绝对路径
     target_path = os.path.normpath(os.path.abspath(os.path.join(WORKSPACE_ROOT, path)))
-    target_path_lower = target_path.lower()
-
-    if not target_path_lower.startswith(ws_root):
-        msg = f"Access Denied: Path '{path}' is outside the project workspace."
-        raise PermissionError(msg)
+    if not target_path.lower().startswith(ws_root):
+        raise PermissionError(f"Access Denied: '{path}' is outside workspace.")
     return target_path
 
 
 async def _load_project_config() -> ProjectConfig:
     config_path = os.path.join(WORKSPACE_ROOT, CONFIG_FILE)
-    if not os.path.exists(config_path):
-        return ProjectConfig()
+    if not os.path.exists(config_path): return ProjectConfig()
     try:
         async with aiofiles.open(config_path, "r", encoding="utf-8") as f:
             return ProjectConfig(**json.loads(await f.read()))
-    except Exception:
-        return ProjectConfig()
+    except Exception: return ProjectConfig()
 
 
 async def check_project_status() -> ProjectStatus:
     config = await _load_project_config()
-    
-    # 动态探测语言
     locales_dir = _detect_locale_dir(config)
     full_locales_path = os.path.join(WORKSPACE_ROOT, locales_dir)
     detected_langs = []
     if os.path.exists(full_locales_path):
-        detected_langs = [
-            f.replace(".json", "") 
-            for f in os.listdir(full_locales_path) 
-            if f.endswith(".json")
-        ]
-    
+        detected_langs = [f.replace(".json", "") for f in os.listdir(full_locales_path) if f.endswith(".json")]
     if len(detected_langs) > 0:
         current_langs = set(config.enabled_langs)
         for lang in detected_langs:
-            if lang not in current_langs:
-                config.enabled_langs.append(lang)
-
+            if lang not in current_langs: config.enabled_langs.append(lang)
     cache = await _read_cache()
-    has_glossary = os.path.exists(os.path.join(WORKSPACE_ROOT, GLOSSARY_FILE))
     hunks = get_git_hunks(WORKSPACE_ROOT)
-    vcs_info = {
-        "git_available": True,
-        "changed_files_count": len(hunks),
-        "hunk_details": {f: list(lines) for f, lines in hunks.items()}
-    }
-    logger.info("Project status checked", extra={"privacy_level": config.privacy_level})
-    status_msg = f"Ready. Privacy Shield: {config.privacy_level}"
-    return ProjectStatus(
-        config=config,
-        has_glossary=has_glossary,
-        cache_size=len(cache),
-        workspace_root=WORKSPACE_ROOT,
-        status_message=status_msg,
-        vcs_info=vcs_info
-    )
+    vcs_info = {"git_available": True, "changed_files_count": len(hunks), "hunk_details": {f: list(lines) for f, lines in hunks.items()}}
+    return ProjectStatus(config=config, has_glossary=os.path.exists(os.path.join(WORKSPACE_ROOT, GLOSSARY_FILE)), cache_size=len(cache), workspace_root=WORKSPACE_ROOT, status_message=f"Ready. Privacy Shield: {config.privacy_level}", vcs_info=vcs_info)
 
 
 async def load_project_glossary() -> Dict[str, str]:
     glossary_path = os.path.join(WORKSPACE_ROOT, GLOSSARY_FILE)
-    if not os.path.exists(glossary_path):
-        return {}
+    if not os.path.exists(glossary_path): return {}
     try:
-        async with aiofiles.open(glossary_path, "r", encoding="utf-8") as f:
-            data: Dict[str, str] = json.loads(await f.read())
-            return data
-    except Exception:
-        return {}
+        async with aiofiles.open(glossary_path, "r", encoding="utf-8") as f: return json.loads(await f.read())
+    except Exception: return {}
 
 
 async def update_project_glossary(term: str, translation: str) -> str:
-    glossary_path = os.path.join(WORKSPACE_ROOT, GLOSSARY_FILE)
     glossary = await load_project_glossary()
     glossary[term] = translation
-    async with aiofiles.open(glossary_path, "w", encoding="utf-8") as f:
-        content = json.dumps(glossary, indent=2, ensure_ascii=False, sort_keys=True)
-        await f.write(content)
-    return f"Learned term: '{term}' -> '{translation}'"
-
-
-def _get_placeholders(text: str) -> List[str]:
-    pattern = r'\{\{.*?\}\}|\{.*?\}'
-    return re.findall(pattern, text)
+    async with aiofiles.open(os.path.join(WORKSPACE_ROOT, GLOSSARY_FILE), "w", encoding="utf-8") as f:
+        await f.write(json.dumps(glossary, indent=2, ensure_ascii=False, sort_keys=True))
+    return f"Learned: '{term}' -> '{translation}'"
 
 
 def _detect_locale_dir(config: Optional[ProjectConfig] = None) -> str:
-    """自动感知 i18n 目录"""
-    if config and config.locales_dir != "locales":
-        return config.locales_dir
+    if config and config.locales_dir != "locales": return config.locales_dir
     for candidate in ["locales", os.path.join("src", "locales")]:
-        if os.path.isdir(os.path.join(WORKSPACE_ROOT, candidate)):
-            return candidate
+        if os.path.isdir(os.path.join(WORKSPACE_ROOT, candidate)): return candidate
     return "locales"
 
 
 async def _get_file_hash(file_path: str) -> str:
-    safe_path = _validate_safe_path(file_path)
     hash_md5 = hashlib.md5()
-    async with aiofiles.open(safe_path, "rb") as f:
-        while chunk := await f.read(4096):
-            hash_md5.update(chunk)
+    async with aiofiles.open(_validate_safe_path(file_path), "rb") as f:
+        while chunk := await f.read(4096): hash_md5.update(chunk)
     return hash_md5.hexdigest()
 
 
 async def _read_cache() -> Dict[str, Any]:
     cache_path = os.path.join(WORKSPACE_ROOT, CACHE_FILE)
-    if not os.path.exists(cache_path):
-        return {}
+    if not os.path.exists(cache_path): return {}
     try:
-        async with aiofiles.open(cache_path, "r", encoding="utf-8") as f:
-            data: Dict[str, Any] = json.loads(await f.read())
-            return data
-    except Exception:
-        return {}
+        async with aiofiles.open(cache_path, "r", encoding="utf-8") as f: return json.loads(await f.read())
+    except Exception: return {}
 
 
 async def _write_cache(cache: Dict[str, Any]) -> None:
-    cache_path = os.path.join(WORKSPACE_ROOT, CACHE_FILE)
-    async with aiofiles.open(cache_path, "w", encoding="utf-8") as f:
+    async with aiofiles.open(os.path.join(WORKSPACE_ROOT, CACHE_FILE), "w", encoding="utf-8") as f:
         await f.write(json.dumps(cache, indent=2, ensure_ascii=False))
 
 
-async def extract_raw_strings(
-    file_path: str,
-    use_cache: bool = True,
-    vcs_mode: bool = False,
-    privacy_level: Optional[PrivacyLevel] = None
-) -> ExtractOutput:
-    """语义提取：支持本地隐私脱敏逻辑与缓存效能度量"""
+async def extract_raw_strings(file_path: str, use_cache: bool = True, vcs_mode: bool = False, privacy_level: Optional[PrivacyLevel] = None) -> ExtractOutput:
+    """精细化提取引擎：支持注释过滤、CSS类名剔除及术语主动注入。"""
     start_ts = time.perf_counter()
     config = await _load_project_config()
     p_level = privacy_level or config.privacy_level
-    
-    # 初始化度量指标，防止路径异常导致变量未定义
-    privacy_shield_hits = 0
-    is_cached_hit = False
-    results = []
+    privacy_shield_hits, results, is_cached_hit = 0, [], False
 
     try:
         safe_path = _validate_safe_path(file_path)
         if os.path.isdir(safe_path):
-            return ExtractOutput(error=ErrorInfo(
-                error_code="DIRECTORY_NOT_SUPPORTED",
-                message=f"Path '{file_path}' is a directory. Please scan individual files.",
-                suggested_action="Use a glob pattern or scan files individually.",
-                executable_hint=f"ls {file_path}"
-            ))
+            return ExtractOutput(error=ErrorInfo(error_code="DIRECTORY_NOT_SUPPORTED", message=f"Path '{file_path}' is a directory.", suggested_action="Scan files individually.", executable_hint=f"ls {file_path}"))
     except Exception as e:
-        return ExtractOutput(error=ErrorInfo(
-            error_code="PATH_ERROR",
-            message=str(e),
-            suggested_action="Check if the path exists and is within the workspace."
-        ))
+        return ExtractOutput(error=ErrorInfo(error_code="PATH_ERROR", message=str(e), suggested_action="Verify path."))
 
     changed_hunks = get_git_hunks(WORKSPACE_ROOT)
-    if vcs_mode and file_path not in changed_hunks:
-        return ExtractOutput(results=[], is_cached=True)
-
+    if vcs_mode and file_path not in changed_hunks: return ExtractOutput(results=[], is_cached=True)
     target_lines = changed_hunks.get(file_path) if vcs_mode else None
 
     if use_cache:
-        file_hash = await _get_file_hash(safe_path)
+        file_hash = await _get_file_hash(file_path)
         cache = await _read_cache()
         if file_path in cache and cache[file_path].get("hash") == file_hash:
             is_cached_hit = True
             cached_raw = cache[file_path].get("results", [])
             for r in cached_raw:
-                if target_lines and r.get("line") not in target_lines:
-                    continue
+                if target_lines and r.get("line") not in target_lines: continue
                 masked_text, is_masked = _mask_sensitive_data(r["text"], p_level)
                 if is_masked: privacy_shield_hits += 1
-                results.append(ExtractedString(
-                    text=masked_text,
-                    line=r["line"],
-                    context=r["context"],
-                    is_masked=is_masked
-                ))
-            
-            # 预计算术语注入
+                results.append(ExtractedString(text=masked_text, line=r["line"], context=r["context"], is_masked=is_masked))
             glossary = await load_project_glossary()
             glossary_ctx = {r.text: glossary[r.text] for r in results if r.text in glossary}
-            
-            duration = (time.perf_counter() - start_ts) * 1000
-            telemetry = TelemetryData(
-                duration_ms=duration,
-                files_processed=1,
-                cache_hits=1,
-                keys_extracted=len(results),
-                tokens_saved_approx=len(results) * 20 + (privacy_shield_hits * 50),
-                privacy_shield_hits=privacy_shield_hits
-            )
-            return ExtractOutput(results=results, is_cached=True, telemetry=telemetry, glossary_context=glossary_ctx)
+            return ExtractOutput(results=results, is_cached=True, telemetry=TelemetryData(duration_ms=(time.perf_counter()-start_ts)*1000, files_processed=1, cache_hits=1, keys_extracted=len(results), tokens_saved_approx=len(results)*20, privacy_shield_hits=privacy_shield_hits), glossary_context=glossary_ctx)
 
-    try:
-        async with aiofiles.open(safe_path, mode='r', encoding='utf-8') as f:
-            content = await f.read()
-            lines = content.splitlines()
-    except Exception as e:
-        return ExtractOutput(error=ErrorInfo(error_code="READ_ERROR", message=str(e), suggested_action="Check file encoding and permissions."))
+    async with aiofiles.open(_validate_safe_path(file_path), mode='r', encoding='utf-8') as f:
+        lines = (await f.read()).splitlines()
 
     for i, line in enumerate(lines):
         line_no = i + 1
-        if target_lines and line_no not in target_lines:
-            continue
-        ptr = r'["\']([\u4e00-\u9fa5a-zA-Z0-9\s\-_/\@\.!\?\:\;]{2,})["\']'
-        matches = re.findall(ptr, line)
+        if target_lines and line_no not in target_lines: continue
+        stripped = line.strip()
+        if stripped.startswith(("//", "/*", "*", "#")): continue
+        matches = re.findall(r'["\']([\u4e00-\u9fa5a-zA-Z0-9\s\-_/\@\.!\?\:\;]{2,})["\']', line)
         for text in set(matches):
-            start, end = max(0, i - 1), min(len(lines), i + 2)
-            context = "\n".join(lines[start:end])
+            if not _is_likely_ui_string(text): continue
             masked_text, is_masked = _mask_sensitive_data(text, p_level)
             if is_masked: privacy_shield_hits += 1
-            results.append(ExtractedString(text=masked_text, line=line_no, context=context, is_masked=is_masked))
+            results.append(ExtractedString(text=masked_text, line=line_no, context="\n".join(lines[max(0, i-1):min(len(lines), i+2)]), is_masked=is_masked))
 
     glossary = await load_project_glossary()
     glossary_ctx = {r.text: glossary[r.text] for r in results if r.text in glossary}
-
     if use_cache:
         cache = await _read_cache()
-        file_hash = await _get_file_hash(safe_path)
-        cache[file_path] = {"hash": file_hash, "results": [r.model_dump() for r in results]}
+        cache[file_path] = {"hash": await _get_file_hash(file_path), "results": [r.model_dump() for r in results]}
         await _write_cache(cache)
 
-    duration = (time.perf_counter() - start_ts) * 1000
-    telemetry = TelemetryData(
-        duration_ms=duration,
-        files_processed=1,
-        cache_hits=0,
-        keys_extracted=len(results),
-        tokens_saved_approx=privacy_shield_hits * 50,
-        privacy_shield_hits=privacy_shield_hits
-    )
-    return ExtractOutput(results=results, is_cached=False, telemetry=telemetry, glossary_context=glossary_ctx)
+    return ExtractOutput(results=results, is_cached=False, telemetry=TelemetryData(duration_ms=(time.perf_counter()-start_ts)*1000, files_processed=1, cache_hits=0, keys_extracted=len(results), tokens_saved_approx=privacy_shield_hits*50, privacy_shield_hits=privacy_shield_hits), glossary_context=glossary_ctx)
 
 
 def _flatten_dict(d: dict[str, Any], p_key: str = '', sep: str = '.') -> dict[str, str]:
-    items: list[tuple[str, str]] = []
+    items = []
     for k, v in d.items():
         new_key = f"{p_key}{sep}{k}" if p_key else k
-        if isinstance(v, dict):
-            items.extend(_flatten_dict(v, new_key, sep=sep).items())
-        else:
-            items.append((new_key, str(v)))
+        if isinstance(v, dict): items.extend(_flatten_dict(v, new_key, sep=sep).items())
+        else: items.append((new_key, str(v)))
     return dict(items)
 
 
 def _unflatten_dict(d: dict[str, Any], sep: str = '.') -> dict[str, Any]:
-    result: dict[str, Any] = {}
+    res = {}
     for k, v in d.items():
-        parts = k.split(sep)
-        d_ref = result
+        parts, d_ref = k.split(sep), res
         for part in parts[:-1]:
-            if part not in d_ref:
-                d_ref[part] = {}
+            if part not in d_ref: d_ref[part] = {}
             d_ref = d_ref[part]
         d_ref[parts[-1]] = v
-    return result
+    return res
 
 
-def _deep_update(
-    d: dict[str, Any],
-    u: dict[str, Any],
-    strategy: ConflictStrategy = ConflictStrategy.KEEP_EXISTING
-) -> dict[str, Any]:
+def _deep_update(d: dict[str, Any], u: dict[str, Any], strategy: ConflictStrategy = ConflictStrategy.KEEP_EXISTING) -> dict[str, Any]:
     for k, v in u.items():
-        if isinstance(v, dict) and k in d and isinstance(d[k], dict):
-            _deep_update(d[k], v, strategy)
+        if isinstance(v, dict) and k in d and isinstance(d[k], dict): _deep_update(d[k], v, strategy)
         else:
-            if k in d and strategy == ConflictStrategy.KEEP_EXISTING:
-                continue
+            if k in d and strategy == ConflictStrategy.KEEP_EXISTING: continue
             d[k] = v
     return d
 
 
-async def propose_sync_i18n(
-    new_pairs: dict[str, str],
-    lang_code: str,
-    reasoning: str,
-    base_dir: Optional[str] = None,
-    strategy: ConflictStrategy = ConflictStrategy.KEEP_EXISTING
-) -> SyncProposal:
-    """生成变更提案，具备自动化回归测试防护"""
+async def propose_sync_i18n(new_pairs: dict[str, str], lang_code: str, reasoning: str, base_dir: Optional[str] = None, strategy: ConflictStrategy = ConflictStrategy.KEEP_EXISTING) -> SyncProposal:
     start_ts = time.perf_counter()
     config = await _load_project_config()
     target_dir = base_dir or _detect_locale_dir(config)
-    file_path = os.path.join(target_dir, f"{lang_code}.json")
-    base_path = os.path.join(target_dir, "en.json")
-
-    current_data, base_data = {}, {}
-    validation_errors: List[ValidationFeedback] = []
-    style_suggestions: List[StyleFeedback] = []
-    regression_alert = None
-
+    file_path, base_path = os.path.join(target_dir, f"{lang_code}.json"), os.path.join(target_dir, "en.json")
+    current_data, base_data, val_errs, style_suggs = {}, {}, [], []
     if os.path.exists(base_path):
         try:
-            async with aiofiles.open(base_path, mode='r', encoding='utf-8') as f:
-                base_data = _flatten_dict(json.loads(await f.read()))
-        except Exception:
-            pass
-
+            async with aiofiles.open(base_path, "r", encoding="utf-8") as f: base_data = _flatten_dict(json.loads(await f.read()))
+        except Exception: pass
     if os.path.exists(file_path):
         try:
-            async with aiofiles.open(file_path, mode='r', encoding='utf-8') as f:
-                current_data = json.loads(await f.read())
-        except Exception:
-            pass
-
-    current_score = 9
-    snapshot_manager = TranslationSnapshotManager(WORKSPACE_ROOT)
+            async with aiofiles.open(file_path, "r", encoding="utf-8") as f: current_data = json.loads(await f.read())
+        except Exception: pass
+    snapshot_mgr = TranslationSnapshotManager(WORKSPACE_ROOT)
     for key, val in new_pairs.items():
         if key in base_data:
-            exp = _get_placeholders(base_data[key])
-            act = _get_placeholders(val)
-            if set(exp) != set(act):
-                validation_errors.append(ValidationFeedback(
-                    key=key, expected_placeholders=exp, actual_placeholders=act,
-                    message=f"Placeholder mismatch for '{key}'."
-                ))
-        style_suggestions.extend(TranslationStyleLinter.lint(key, val, lang_code))
-        reg = await snapshot_manager.check_regression(key, current_score)
-        if reg: regression_alert = reg
-
-    nested_new = _unflatten_dict(new_pairs)
+            exp, act = re.findall(r'\{\{.*?\}\}|\{.*?\}', base_data[key]), re.findall(r'\{\{.*?\}\}|\{.*?\}', val)
+            if set(exp) != set(act): val_errs.append(ValidationFeedback(key=key, expected_placeholders=exp, actual_placeholders=act, message=f"Mismatch for '{key}'."))
+        style_suggs.extend(TranslationStyleLinter.lint(key, val, lang_code))
     proposal_id = str(uuid.uuid4())
     os.makedirs(os.path.join(WORKSPACE_ROOT, PROPOSALS_DIR), exist_ok=True)
-    temp_file = os.path.join(WORKSPACE_ROOT, PROPOSALS_DIR, f"{proposal_id}.json")
-    final_data = _deep_update(current_data.copy(), nested_new, strategy)
-    proposal_data = {"target_file": file_path, "content": final_data, "reasoning": reasoning, "lang_code": lang_code, "score": current_score}
-    async with aiofiles.open(temp_file, mode='w', encoding='utf-8') as f:
-        await f.write(json.dumps(proposal_data, indent=2, ensure_ascii=False, sort_keys=True))
-
-    duration = (time.perf_counter() - start_ts) * 1000
-    telemetry = TelemetryData(duration_ms=duration, files_processed=1, keys_extracted=len(new_pairs))
-    return SyncProposal(
-        proposal_id=proposal_id, lang_code=lang_code, changes_count=len(new_pairs),
-        diff_summary=new_pairs, reasoning=reasoning, file_path=file_path,
-        validation_errors=validation_errors, style_suggestions=style_suggestions,
-        regression_alert=regression_alert, telemetry=telemetry
-    )
+    async with aiofiles.open(os.path.join(WORKSPACE_ROOT, PROPOSALS_DIR, f"{proposal_id}.json"), "w", encoding="utf-8") as f: await f.write(json.dumps({"target_file": file_path, "content": _deep_update(current_data.copy(), _unflatten_dict(new_pairs), strategy), "reasoning": reasoning, "lang_code": lang_code, "score": 9}, indent=2, ensure_ascii=False, sort_keys=True))
+    return SyncProposal(proposal_id=proposal_id, lang_code=lang_code, changes_count=len(new_pairs), diff_summary=new_pairs, reasoning=reasoning, file_path=file_path, validation_errors=val_errs, style_suggestions=style_suggs, telemetry=TelemetryData(duration_ms=(time.perf_counter()-start_ts)*1000, files_processed=1, keys_extracted=len(new_pairs)))
 
 
 async def commit_i18n_changes(proposal_id: str) -> str:
-    temp_file = os.path.join(WORKSPACE_ROOT, PROPOSALS_DIR, f"{proposal_id}.json")
-    if not os.path.exists(temp_file):
-        return f"Error: Proposal {proposal_id} not found."
-    async with aiofiles.open(temp_file, mode='r', encoding='utf-8') as f:
-        proposal = json.loads(await f.read())
+    temp_p = os.path.join(WORKSPACE_ROOT, PROPOSALS_DIR, f"{proposal_id}.json")
+    if not os.path.exists(temp_p): return f"Error: Proposal {proposal_id} not found."
+    async with aiofiles.open(temp_p, "r", encoding="utf-8") as f: proposal = json.loads(await f.read())
     safe_target = _validate_safe_path(proposal["target_file"])
     os.makedirs(os.path.dirname(safe_target), exist_ok=True)
-    async with aiofiles.open(safe_target, mode='w', encoding='utf-8') as f:
-        await f.write(json.dumps(proposal["content"], indent=2, ensure_ascii=False, sort_keys=True))
-    snapshot_manager = TranslationSnapshotManager(WORKSPACE_ROOT)
-    for key, val in _flatten_dict(proposal["content"]).items():
-        await snapshot_manager.update_snapshot(key, val, proposal.get("score", 0))
-    os.remove(temp_file)
-    return f"Committed to {safe_target} and updated regression snapshots."
-
-
-async def refine_i18n_proposal(proposal_id: str, feedback: str) -> str:
-    temp_file = os.path.join(WORKSPACE_ROOT, PROPOSALS_DIR, f"{proposal_id}.json")
-    if not os.path.exists(temp_file): return f"Error: Proposal {proposal_id} not found."
-    async with aiofiles.open(temp_file, mode='r', encoding='utf-8') as f:
-        data = json.loads(await f.read())
-    data["feedback_history"] = data.get("feedback_history", [])
-    data["feedback_history"].append(feedback)
-    async with aiofiles.open(temp_file, mode='w', encoding='utf-8') as f:
-        await f.write(json.dumps(data, indent=2, ensure_ascii=False))
-    return f"Feedback recorded for proposal {proposal_id}. Please re-generate based on this input."
+    async with aiofiles.open(safe_target, "w", encoding="utf-8") as f: await f.write(json.dumps(proposal["content"], indent=2, ensure_ascii=False, sort_keys=True))
+    snapshot_mgr = TranslationSnapshotManager(WORKSPACE_ROOT)
+    for k, v in _flatten_dict(proposal["content"]).items(): await snapshot_mgr.update_snapshot(k, v, 9)
+    os.remove(temp_p)
+    return f"Committed: {safe_target}."
 
 
 async def get_missing_keys(lang_code: str, base_lang: str = "en", base_dir: Optional[str] = None) -> dict[str, str]:
     config = await _load_project_config()
     target_dir = base_dir or _detect_locale_dir(config)
-    base_p = _validate_safe_path(os.path.join(target_dir, f"{base_lang}.json"))
-    target_p = _validate_safe_path(os.path.join(target_dir, f"{lang_code}.json"))
-    base_data, target_data = {}, {}
+    base_p, target_p = _validate_safe_path(os.path.join(target_dir, f"{base_lang}.json")), _validate_safe_path(os.path.join(target_dir, f"{lang_code}.json"))
+    base_d, target_d = {}, {}
     if os.path.exists(base_p):
         try:
-            async with aiofiles.open(base_p, mode='r', encoding='utf-8') as f:
-                base_data = _flatten_dict(json.loads(await f.read()))
+            async with aiofiles.open(base_p, "r", encoding="utf-8") as f: base_d = _flatten_dict(json.loads(await f.read()))
         except Exception: pass
     if os.path.exists(target_p):
         try:
-            async with aiofiles.open(target_p, mode='r', encoding='utf-8') as f:
-                target_data = json.loads(await f.read())
+            async with aiofiles.open(target_p, "r", encoding="utf-8") as f: target_d = _flatten_dict(json.loads(await f.read()))
         except Exception: pass
-    flat_base, flat_target = _flatten_dict(base_data), _flatten_dict(target_data)
-    missing = set(flat_base.keys()) - set(flat_target.keys())
-    return {k: flat_base[k] for k in missing}
+    return {k: base_d[k] for k in set(base_d.keys()) - set(target_d.keys())}
