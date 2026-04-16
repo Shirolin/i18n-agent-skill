@@ -7,10 +7,16 @@ import uuid
 from typing import Any, Dict, List, Optional, Set, Tuple
 
 import aiofiles
-import tree_sitter_javascript as ts_js
-import tree_sitter_typescript as ts_ts
-import tree_sitter_vue as ts_vue
-from tree_sitter import Language, Parser
+
+# 延迟导入 Tree-sitter 以支持自愈提示
+try:
+    import tree_sitter_javascript as ts_js
+    import tree_sitter_typescript as ts_ts
+    import tree_sitter_vue as ts_vue
+    from tree_sitter import Language, Parser
+    DEPENDENCIES_INSTALLED = True
+except ImportError:
+    DEPENDENCIES_INSTALLED = False
 
 from i18n_agent_skill.linter import TranslationStyleLinter
 from i18n_agent_skill.logger import structured_logger as logger
@@ -38,20 +44,21 @@ CONFIG_FILE = ".i18n-skill.json"
 WORKSPACE_ROOT = os.getcwd()
 
 # 初始化语言包
-LANGUAGES = {
-    "javascript": Language(ts_js.language()),
-    "tsx": Language(ts_ts.language_tsx()),
-    "vue": Language(ts_vue.language())
-}
+if DEPENDENCIES_INSTALLED:
+    LANGUAGES = {
+        "javascript": Language(ts_js.language()),
+        "tsx": Language(ts_ts.language_tsx()),
+        "vue": Language(ts_vue.language())
+    }
+else:
+    LANGUAGES = {}
 
-# [v1.2] 核心查询定义：精准狙击 UI 文案
+# [v1.2.1] 深度查询定义
 QUERY_STRINGS = {
-    # 通用 JS/TS 查询
     "js": """
         (string) @string_literal
         (template_string) @template_string
     """,
-    # JSX/TSX 专供：增加文本节点和特定属性识别
     "jsx": """
         (string) @string_literal
         (template_string) @template_string
@@ -62,7 +69,6 @@ QUERY_STRINGS = {
             (string) @ui_attr_value
         )
     """,
-    # Vue 模板专供
     "vue": """
         (text) @vue_text
         (attribute 
@@ -70,42 +76,51 @@ QUERY_STRINGS = {
             (#match? @attr_name "^(placeholder|title|label|alt)$")
             (quoted_attribute_value) @ui_attr_value
         )
+        (script_element (raw_text) @script_content)
     """
 }
 
 class TreeSitterScanner:
     """
-    [v1.2 AST 提取引擎] 
-    基于语法树的像素级扫描，完美处理注释隔离、嵌套模板及无引号文本。
+    [v1.2.1 强化版] 
+    解决 Vue 脚本区块漏判问题，支持结构化自愈与多层解析。
     """
     def __init__(self, content: str, file_ext: str):
-        self.content = content.encode('utf-8')
+        self.content_str = content
+        self.content_bytes = content.encode('utf-8')
         self.file_ext = file_ext
         self.parser = Parser()
-        self.lang_key, self.query_key = self._map_lang()
-        self.parser.set_language(LANGUAGES[self.lang_key])
 
-    def _map_lang(self) -> Tuple[str, str]:
-        if self.file_ext in (".js", ".jsx"): return "javascript", "jsx"
-        if self.file_ext in (".ts", ".tsx"): return "tsx", "jsx"
-        if self.file_ext == ".vue": return "vue", "vue"
+    def _map_lang(self, ext: str) -> Tuple[str, str]:
+        if ext in (".js", ".jsx"): return "javascript", "jsx"
+        if ext in (".ts", ".tsx"): return "tsx", "jsx"
+        if ext == ".vue": return "vue", "vue"
         return "javascript", "js"
 
-    def scan(self) -> List[Tuple[str, int, str]]:
-        tree = self.parser.parse(self.content)
-        query = LANGUAGES[self.lang_key].query(QUERY_STRINGS[self.query_key])
+    def scan(self, target_content: Optional[bytes] = None, target_ext: Optional[str] = None) -> List[Tuple[str, int, str]]:
+        if not DEPENDENCIES_INSTALLED: return []
+        
+        current_content = target_content or self.content_bytes
+        current_ext = target_ext or self.file_ext
+        lang_key, query_key = self._map_lang(current_ext)
+        
+        self.parser.set_language(LANGUAGES[lang_key])
+        tree = self.parser.parse(current_content)
+        query = LANGUAGES[lang_key].query(QUERY_STRINGS[query_key])
         captures = query.captures(tree.root_node)
         
         results = []
         for node, capture_name in captures:
-            # 过滤逻辑属性名本身，只留值
             if capture_name in ("prop_name", "attr_name"): continue
             
+            # [核心自查修正] 处理 Vue 脚本区块：递归调用 JS 解析器
+            if capture_name == "script_content":
+                results.extend(self.scan(node.text, ".js"))
+                continue
+
             text = node.text.decode('utf-8').strip('"\'`')
-            # 过滤空白文本节点
             if not text or text.isspace(): continue
             
-            # 获取行号与上下文
             line_no = node.start_point[0] + 1
             origin = "text_node" if capture_name in ("jsx_text", "vue_text") else "code"
             if capture_name == "ui_attr_value": origin = "ui_attr"
@@ -114,33 +129,28 @@ class TreeSitterScanner:
         return results
 
 def _is_natural_language(text: str, origin: str) -> bool:
-    """[v1.2] 来源感知型过滤模型"""
     t = text.strip()
     if not t or len(t) < 2: return False
-    
-    # 1. 物理放行：非 ASCII (日语/中文等) 100% 召回
     if re.search(r'[^\x00-\x7f]', t):
         return bool(re.search(r'[\w\u4e00-\u9fa5\u3040-\u30ff]', t))
-    
-    # 2. 来源补偿：来自 UI 属性或文本节点的英文直接放行 (解决 "OK", "Save")
     if origin in ("text_node", "ui_attr"):
-        # 排除纯数字/符号和 CSS 类名
         if re.match(r'^[0-9\s.,:\-_]+$', t): return False
         if re.match(r'^[a-z0-9\-]+$', t) and "-" in t: return False
         return True
-    
-    # 3. 代码中字符串的高精过滤
-    # - 包含空格 (句子)
-    if " " in t: return True
-    # - 包含结尾标点 (语气)
-    if re.search(r'[.!?:]$', t): return True
-    # - 首字母大写 (标题/按钮特征)
+    if " " in t or re.search(r'[.!?:]$', t): return True
     if t[0].isupper() and not t.isupper() and len(t) > 2: return True
-    
     return False
 
 async def extract_raw_strings(file_path: str, use_cache: bool = True, vcs_mode: bool = False, privacy_level: Optional[PrivacyLevel] = None) -> ExtractOutput:
-    """[v1.2 Final] 工业级 AST 提取引擎。"""
+    """[v1.2.1 Final] 工业级 AST 提取引擎：全区域覆盖与环境自愈。"""
+    if not DEPENDENCIES_INSTALLED:
+        return ExtractOutput(error=ErrorInfo(
+            error_code="DEP_MISSING",
+            message="Tree-sitter dependencies not found.",
+            suggested_action="Please run the installation command to activate AST engine.",
+            executable_hint="pip install tree-sitter tree-sitter-javascript tree-sitter-typescript tree-sitter-vue"
+        ))
+
     start_ts = time.perf_counter()
     config = await _load_project_config()
     p_level = privacy_level or config.privacy_level
@@ -154,18 +164,14 @@ async def extract_raw_strings(file_path: str, use_cache: bool = True, vcs_mode: 
     except Exception as e:
         return ExtractOutput(error=ErrorInfo(error_code="IO_ERR", message=str(e)))
 
-    # 执行 AST 扫描
     scanner = TreeSitterScanner(content, ext)
     all_lines = content.splitlines()
     extracted_set = set()
 
     for text, line, origin in scanner.scan():
-        # 模板变量标准化
         processed = re.sub(r'\$\{(.*?)\}', r'{\1}', text)
-        
         if _is_natural_language(processed, origin):
             if (processed, line) in extracted_set: continue
-            
             ctx = "\n".join(all_lines[max(0, line-2):min(len(all_lines), line+1)])
             masked, is_m = _mask_sensitive_data(processed, p_level)
             if is_m: privacy_hits += 1
@@ -174,10 +180,9 @@ async def extract_raw_strings(file_path: str, use_cache: bool = True, vcs_mode: 
 
     glossary = await load_project_glossary()
     glossary_ctx = {r.text: glossary[r.text] for r in results if r.text in glossary}
-    
     return ExtractOutput(results=results, is_cached=False, telemetry=TelemetryData(duration_ms=(time.perf_counter()-start_ts)*1000, files_processed=1, keys_extracted=len(results), privacy_shield_hits=privacy_hits), glossary_context=glossary_ctx)
 
-# ----------------- 基础支撑逻辑 (保持稳定) -----------------
+# ----------------- 基础逻辑保持稳定 -----------------
 
 def _mask_sensitive_data(text: str, level: PrivacyLevel) -> tuple[str, bool]:
     if level == PrivacyLevel.OFF: return text, False
