@@ -12,11 +12,12 @@
       "检查项目里的 i18n 质量",
       "i18n refactor legacy project",
       "sync i18n translations with git diff",
-      "audit my i18n files for missing keys"
+      "audit my i18n files for missing keys",
+      "执行隐私脱敏提取"
     ],
     "triggers": {
       "file_patterns": ["**/*.js", "**/*.jsx", "**/*.ts", "**/*.tsx", "**/*.vue", "**/locales/*.json"],
-      "context_keywords": ["i18n", "translation", "locale", "internationalization"]
+      "context_keywords": ["i18n", "translation", "locale", "internationalization", "privacy", "masking"]
     }
   },
   "mcp_entry": "python -m i18n_agent_skill"
