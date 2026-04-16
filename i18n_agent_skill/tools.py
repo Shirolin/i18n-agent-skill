@@ -12,7 +12,7 @@ import aiofiles
 try:
     import tree_sitter_javascript as ts_js
     import tree_sitter_typescript as ts_ts
-    import tree_sitter_vue as ts_vue
+    from tree_sitter_languages import get_language, get_parser
     from tree_sitter import Language, Parser
     DEPENDENCIES_INSTALLED = True
 except ImportError:
@@ -45,15 +45,23 @@ WORKSPACE_ROOT = os.getcwd()
 
 # 初始化语言包
 if DEPENDENCIES_INSTALLED:
-    LANGUAGES = {
-        "javascript": Language(ts_js.language()),
-        "tsx": Language(ts_ts.language_tsx()),
-        "vue": Language(ts_vue.language())
-    }
+    try:
+        LANGUAGES = {
+            "javascript": Language(ts_js.language()),
+            "tsx": Language(ts_ts.language_tsx()),
+            "vue": get_language("vue")
+        }
+    except Exception:
+        # Fallback to js if vue specific is not loaded
+        LANGUAGES = {
+            "javascript": Language(ts_js.language()),
+            "tsx": Language(ts_ts.language_tsx()),
+            "vue": Language(ts_js.language())
+        }
 else:
     LANGUAGES = {}
 
-# [v1.2.1] 深度查询定义
+# [v1.2.2] 优化查询定义
 QUERY_STRINGS = {
     "js": """
         (string) @string_literal
@@ -82,8 +90,8 @@ QUERY_STRINGS = {
 
 class TreeSitterScanner:
     """
-    [v1.2.1 强化版] 
-    解决 Vue 脚本区块漏判问题，支持结构化自愈与多层解析。
+    [v1.2.2 强化版] 
+    使用 tree-sitter-languages 兼容性加载器。
     """
     def __init__(self, content: str, file_ext: str):
         self.content_str = content
@@ -104,16 +112,17 @@ class TreeSitterScanner:
         current_ext = target_ext or self.file_ext
         lang_key, query_key = self._map_lang(current_ext)
         
+        if lang_key not in LANGUAGES: return []
+        
         self.parser.set_language(LANGUAGES[lang_key])
         tree = self.parser.parse(current_content)
-        query = LANGUAGES[lang_key].query(QUERY_STRINGS[query_key])
+        query = LANGUAGES[lang_key].query(QUERY_STRINGS.get(query_key, QUERY_STRINGS["js"]))
         captures = query.captures(tree.root_node)
         
         results = []
         for node, capture_name in captures:
             if capture_name in ("prop_name", "attr_name"): continue
             
-            # [核心自查修正] 处理 Vue 脚本区块：递归调用 JS 解析器
             if capture_name == "script_content":
                 results.extend(self.scan(node.text, ".js"))
                 continue
@@ -142,13 +151,12 @@ def _is_natural_language(text: str, origin: str) -> bool:
     return False
 
 async def extract_raw_strings(file_path: str, use_cache: bool = True, vcs_mode: bool = False, privacy_level: Optional[PrivacyLevel] = None) -> ExtractOutput:
-    """[v1.2.1 Final] 工业级 AST 提取引擎：全区域覆盖与环境自愈。"""
     if not DEPENDENCIES_INSTALLED:
         return ExtractOutput(error=ErrorInfo(
             error_code="DEP_MISSING",
             message="Tree-sitter dependencies not found.",
-            suggested_action="Please run the installation command to activate AST engine.",
-            executable_hint="pip install tree-sitter tree-sitter-javascript tree-sitter-typescript tree-sitter-vue"
+            suggested_action="Please run: pip install -e .",
+            executable_hint="pip install -e ."
         ))
 
     start_ts = time.perf_counter()
@@ -182,7 +190,37 @@ async def extract_raw_strings(file_path: str, use_cache: bool = True, vcs_mode: 
     glossary_ctx = {r.text: glossary[r.text] for r in results if r.text in glossary}
     return ExtractOutput(results=results, is_cached=False, telemetry=TelemetryData(duration_ms=(time.perf_counter()-start_ts)*1000, files_processed=1, keys_extracted=len(results), privacy_shield_hits=privacy_hits), glossary_context=glossary_ctx)
 
-# ----------------- 基础逻辑保持稳定 -----------------
+# ----------------- 恢复缺失的 API 函数 -----------------
+
+async def sync_i18n_files(new_pairs: dict[str, str], lang_code: str, base_dir: Optional[str] = None, strategy: ConflictStrategy = ConflictStrategy.KEEP_EXISTING) -> str:
+    """[RESTORED] 快速同步函数，主要用于简单的一键写入。"""
+    config = await _load_project_config()
+    target_dir = base_dir or _detect_locale_dir(config)
+    file_path = os.path.join(target_dir, f"{lang_code}.json")
+    
+    current_data = {}
+    if os.path.exists(file_path):
+        async with aiofiles.open(file_path, "r", encoding="utf-8") as f:
+            current_data = json.loads(await f.read())
+            
+    final_data = _deep_update(current_data, _unflatten_dict(new_pairs), strategy)
+    async with aiofiles.open(file_path, "w", encoding="utf-8") as f:
+        await f.write(json.dumps(final_data, indent=2, ensure_ascii=False, sort_keys=True))
+    return f"Synced {len(new_pairs)} keys to {file_path}"
+
+async def refine_i18n_proposal(proposal_id: str, feedback: str) -> str:
+    """[RESTORED] 交互微调：Agent 根据用户反馈修改提案。"""
+    temp_file = os.path.join(WORKSPACE_ROOT, PROPOSALS_DIR, f"{proposal_id}.json")
+    if not os.path.exists(temp_file): return f"Error: Proposal {proposal_id} not found."
+    async with aiofiles.open(temp_file, mode='r', encoding='utf-8') as f:
+        data = json.loads(await f.read())
+    data["feedback_history"] = data.get("feedback_history", [])
+    data["feedback_history"].append(feedback)
+    async with aiofiles.open(temp_file, mode='w', encoding='utf-8') as f:
+        await f.write(json.dumps(data, indent=2, ensure_ascii=False))
+    return f"Feedback recorded for proposal {proposal_id}. Please adjust the plan."
+
+# ----------------- 其他基础逻辑 -----------------
 
 def _mask_sensitive_data(text: str, level: PrivacyLevel) -> tuple[str, bool]:
     if level == PrivacyLevel.OFF: return text, False
@@ -256,10 +294,14 @@ async def commit_i18n_changes(proposal_id: str) -> str:
     temp_p = os.path.join(WORKSPACE_ROOT, PROPOSALS_DIR, f"{proposal_id}.json")
     if not os.path.exists(temp_p): return "Proposal not found."
     async with aiofiles.open(temp_p, "r", encoding="utf-8") as f: data = json.loads(await f.read())
-    async with aiofiles.open(data["target_file"], "w", encoding="utf-8") as f:
+    safe_target = _validate_safe_path(data["target_file"])
+    os.makedirs(os.path.dirname(safe_target), exist_ok=True)
+    async with aiofiles.open(safe_target, "w", encoding="utf-8") as f:
         await f.write(json.dumps(data["content"], indent=2, ensure_ascii=False, sort_keys=True))
+    snapshot_mgr = TranslationSnapshotManager(WORKSPACE_ROOT)
+    for k, v in _flatten_dict(data["content"]).items(): await snapshot_mgr.update_snapshot(k, v, 9)
     os.remove(temp_p)
-    return "Committed."
+    return f"Committed: {safe_target}."
 
 async def get_missing_keys(lang_code: str, base_lang: str = "en", base_dir: Optional[str] = None) -> dict[str, str]:
     config = await _load_project_config()
@@ -270,6 +312,32 @@ async def get_missing_keys(lang_code: str, base_lang: str = "en", base_dir: Opti
         async with aiofiles.open(target_p, "r", encoding="utf-8") as f: t_d = json.loads(await f.read())
     except: return {}
     return {k: v for k, v in b_d.items() if k not in t_d}
+
+def _flatten_dict(d: dict[str, Any], p_key: str = '', sep: str = '.') -> dict[str, str]:
+    items = []
+    for k, v in d.items():
+        new_key = f"{p_key}{sep}{k}" if p_key else k
+        if isinstance(v, dict): items.extend(_flatten_dict(v, new_key, sep=sep).items())
+        else: items.append((new_key, str(v)))
+    return dict(items)
+
+def _unflatten_dict(d: dict[str, Any], sep: str = '.') -> dict[str, Any]:
+    res = {}
+    for k, v in d.items():
+        parts, d_ref = k.split(sep), res
+        for part in parts[:-1]:
+            if part not in d_ref: d_ref[part] = {}
+            d_ref = d_ref[part]
+        d_ref[parts[-1]] = v
+    return res
+
+def _deep_update(d: dict[str, Any], u: dict[str, Any], strategy: ConflictStrategy = ConflictStrategy.KEEP_EXISTING) -> dict[str, Any]:
+    for k, v in u.items():
+        if isinstance(v, dict) and k in d and isinstance(d[k], dict): _deep_update(d[k], v, strategy)
+        else:
+            if k in d and strategy == ConflictStrategy.KEEP_EXISTING: continue
+            d[k] = v
+    return d
 
 async def _get_file_hash(file_path: str) -> str:
     hash_md5 = hashlib.md5()

@@ -22,7 +22,7 @@ dependencies = [
     "tree-sitter>=0.21.3",
     "tree-sitter-javascript",
     "tree-sitter-typescript",
-    "tree-sitter-vue"
+    "tree-sitter-languages"
 ]
 
 [project.optional-dependencies]
