@@ -1,10 +1,16 @@
+---
+name: i18n-agent-skill
+description: 专门用于前端 i18n 工程化任务。功能涵盖：从源码提取(extract)硬编码中文、重构(refactor)为 i18n 变量、同步(sync)多语言翻译包、审计(audit)翻译质量及执行隐私脱敏(privacy)。
+---
+
 # i18n-agent-skill 执行协议 (Orchestration Specification)
 
-**元数据:**
-- **名称**: i18n-agent-skill
-- **描述**: 前端项目国际化（i18n）全链路自动化工具。
-- **意图关键词**: `extract`, `translate`, `sync`, `audit`, `privacy`, `refactor`, `locales`
-- **支持场景**: 遗留代码 i18n 改造、日常翻译同步、翻译包体检、自动化隐私脱敏。
+## 🎯 激活场景 (Trigger Scenarios)
+本技能主要用于处理以下意图：
+- **文案提取**: 扫描 `.js/ts/jsx/tsx/vue` 文件中的硬编码中文并转换为 i18n 变量。
+- **自动化重构**: 批量替换源码为 `t('key')` 或 `$t('key')` 格式。
+- **翻译审计**: 检查各语言包的 Key 是否缺失、占位符是否一致、是否存在隐私泄露风险。
+- **增量同步**: 结合 Git Diff 仅处理变更部分的文案翻译，避免全量处理的成本浪费。
 
 ---
 
