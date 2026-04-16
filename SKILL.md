@@ -43,6 +43,13 @@ description: 专门用于前端 i18n 工程化任务。核心优势：具备 AST
 2.  **语义 Key 生成**: 基于工具返回的上下文生成 Key。
 3.  **原子提交**: 必须通过 `commit_i18n_changes` 确保快照更新。
 
+### 3. 技能自更新 SOP (`/i18n-update`)
+**适用场景**: 用户要求更新技能或发现版本落后。
+**执行协议**:
+1. **获取源**: 从 `skill.json` 的 `homepage` 获取 GitHub 地址。
+2. **执行安装**: 运行 `gemini skills install <URL> --consent --scope workspace`。
+3. **环境重载**: 运行 `/skills reload` 并重新执行 `check_project_status`。
+
 ---
 
 ## 🔒 指令约束 (Guardrails)
@@ -50,6 +57,11 @@ description: 专门用于前端 i18n 工程化任务。核心优势：具备 AST
 2.  **质量回路**: 必须通过 `propose_sync` 的 `regression_alert` 反馈来优化翻译结果。
 3.  **编码一致性**: 所有文件读写均强制使用 UTF-8，杜绝乱码。
 
+---
+
 ## 💡 快捷指令
-- `/i18n-audit`: 调用 `get_missing_keys` + `scan_file`。
-- `/i18n-fix`: 执行审计并自动生成修复提案。
+- `/i18n-audit`: 执行差异审计。
+- `/i18n-fix`: 执行审计并修复。
+- `/i18n-sync`: 执行增量同步。
+- `/i18n-update`: 自动更新本技能至最新版本。
+- `/i18n-terms`: 术语库维护。
