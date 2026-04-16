@@ -17,10 +17,11 @@
 
 AI 助手将根据协议规范自动执行依赖安装、环境感知与功能配置。
 
-#### 已验证兼容的环境 (2026.04)
-本工具遵循 **MCP** 与 **Google ADK** 规范，已在以下环境完成深度验证：
-- **IDE**: Cursor, Windsurf, VS Code (Roo Code / Cline)
-- **CLI/Agent**: Claude Code, Gemini CLI, Codex, GPT-o1 Agent
+#### 环境与协议兼容性 (2026.04)
+本工具基于 **MCP** 与 **Google ADK** 标准构建，旨在兼容各类现代 AI 助手：
+- **核心适配**: Cursor, Gemini CLI, VS Code (Roo Code / Cline)
+- **理论支持**: Claude Code, Codex, Windsurf 等支持标准 MCP 协议的环境
+
 
 ### 2. 标准集成规范 (面向 AI 读取)
 若需手动引导 AI 或执行特定逻辑，可参考以下标准化参数：
