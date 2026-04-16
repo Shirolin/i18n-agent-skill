@@ -1,6 +1,6 @@
 ---
 name: i18n-agent-skill
-description: 专门用于前端 i18n 工程化任务。核心优势：具备 AST 级源码提取、自动化隐私脱敏（Privacy Shield）、多语言 Key 差异精算以及翻译质量回归保护。
+description: 专门用于前端 i18n 工程化任务。核心优势：具备 AST 级源码提取、自动化隐私脱敏、翻译缺失审计及质量回归保护。支持完整的 CLI 调用接口。
 ---
 
 # i18n-agent-skill 执行协议 (Orchestration Specification)
@@ -8,60 +8,49 @@ description: 专门用于前端 i18n 工程化任务。核心优势：具备 AST
 ## 🛠️ 环境预要求 (Prerequisites)
 - **环境**: 需要 Python 3.10+。
 - **依赖**: 首次安装后，必须在技能根目录执行 `pip install -e .`。
-- **配置**: `.i18n-skill.json` 可选，若缺失则启用启发式探测。
+- **验证**: 运行 `python -m i18n_agent_skill --help` 确认 CLI 可用。
 
-## 🎯 工具能级矩阵 (Tool Capabilities Matrix)
-在决策任务路径时，请参考下表：
+## 🎯 任务蓝图 (Blueprint) 与工具选择
+当用户提出 i18n 相关需求时，你必须使用 **CLI 优先策略**。通过 `run_shell_command` 调用具体的子命令。
 
-| 任务类型 | 通用方法 (原生工具) | 本技能专用工具 (MCP) | 结论 |
-| :--- | :--- | :--- | :--- |
-| **文案扫描** | `grep_search` (简单正则) | `scan_file` (AST 探测 + **隐私脱敏**) | **必须使用 MCP**: 通用搜索无法处理敏感信息风险。 |
-| **差异比对** | `read_file` (人工比对) | `get_missing_keys` (集合算法) | **必须使用 MCP**: 大文件人工比对极易漏项且浪费 Token。 |
-| **同步写入** | 手写文件覆盖 | `propose_sync` (**回归保护 + 占位符校验**) | **必须使用 MCP**: 手写无法检测占位符不一致导致的线上 Bug。 |
+| 任务类型 | 推荐 CLI 指令 | 预期输出 |
+| :--- | :--- | :--- |
+| **项目预检** | `python -m i18n_agent_skill status` | 项目配置、已启用语言、Git 变更摘要。 |
+| **文案扫描** | `python -m i18n_agent_skill scan <path> [--vcs]` | 包含行号、上下文及隐私屏蔽标识的 JSON 列表。 |
+| **差异审计** | `python -m i18n_agent_skill audit <target_lang>` | 基准语言与目标语言的 Key 差异集合。 |
+| **生成提案** | `python -m i18n_agent_skill sync <lang> <json_data>` | 包含 `proposal_id` 和质量评估的同步提案。 |
+| **应用变更** | `python -m i18n_agent_skill commit <proposal_id>` | 变更正式落盘并更新回归快照。 |
 
 ---
 
 ## ⚡ 任务流编排 (Workflows)
 
-处理任何请求前，你必须先生成 **操作蓝图 (Blueprint)**：
-1. **意图**: [如：审计 zh-CN 缺失]
-2. **风险评估**: [如：文件超过 500 行，手动比对存在高失误率]
-3. **选定工具**: [必须从 MCP 工具集中选择]
+### 1. 自动化翻译体检与审计
+**意图**: “检查翻译缺失”、“翻译体检”。
+**SOP**:
+1. **获取状态**: 执行 `python -m i18n_agent_skill status` 确认当前项目语言。
+2. **执行审计**: 对每一门启用语言，执行 `python -m i18n_agent_skill audit <lang>`。
+3. **扫描源码**: 执行 `python -m i18n_agent_skill scan src --vcs` 查找未提取的硬编码。
+4. **生成报告**: 汇总以上 JSON 结果提供给用户。
 
-### 1. 国际化审计与同步 SOP
-**适用场景**: 检查翻译缺失、同步变动。
-**步骤**:
-1.  **探测**: 调用 `check_project_status` 获取当前隐私等级和 VCS 状态。
-2.  **精算差异**: 调用 `get_missing_keys` 获取底层算出的差异集。**严禁手动读取文件比对**。
-3.  **增量扫描**: 调用 `scan_file` 配合 `vcs_mode=True` 获取 Git 变动中的残留硬编码。
-4.  **安全同步**: 调用 `propose_sync` 生成带 `proposal_id` 的提案。
-
-### 2. 全量重构重塑 SOP
-**适用场景**: 遗留代码 i18n 化。
-**步骤**:
-1.  **脱敏提取**: 调用 `scan_file` 必须开启隐私盾。
-2.  **语义 Key 生成**: 基于工具返回的上下文生成 Key。
-3.  **原子提交**: 必须通过 `commit_i18n_changes` 确保快照更新。
-
-### 3. 技能自更新 SOP (`/i18n-update`)
-**适用场景**: 用户要求更新技能或发现版本落后。
-**执行协议**:
-1. **获取源**: 从 `skill.json` 的 `homepage` 获取 GitHub 地址。
-2. **执行安装**: 运行 `gemini skills install <URL> --consent --scope workspace`。
-3. **环境重载**: 运行 `/skills reload` 并重新执行 `check_project_status`。
+### 2. 自动化国际化重构
+**意图**: “提取中文”、“重构代码”。
+**SOP**:
+1. **精准扫描**: 执行 `python -m i18n_agent_skill scan <file_path>` 获取提取结果。
+2. **翻译并同步**: 
+    - 结合提取结果生成翻译。
+    - 执行 `python -m i18n_agent_skill sync <lang> '<json_data>'` 生成提案。
+3. **应用重构**: 得到用户确认后，执行 `python -m i18n_agent_skill commit <proposal_id>`。
 
 ---
 
 ## 🔒 指令约束 (Guardrails)
-1.  **隐私第一**: 所有外传到翻译接口的文案，必须经过 `scan_file` 的脱敏过滤。
-2.  **质量回路**: 必须通过 `propose_sync` 的 `regression_alert` 反馈来优化翻译结果。
-3.  **编码一致性**: 所有文件读写均强制使用 UTF-8，杜绝乱码。
+1. **严禁手写逻辑**: **禁止**使用手写正则或 `read_file` 自行比对 JSON。必须调用上述 CLI 命令并解析返回的 JSON。
+2. **自愈能力**: 如果命令返回错误或超时，请尝试运行 `python -m i18n_agent_skill --help` 查看最新参数说明。
+3. **隐私合规**: 必须确保 `scan` 命令的隐私屏蔽逻辑正常工作，严禁将未脱敏的 API Key 发送至翻译接口。
 
 ---
 
 ## 💡 快捷指令
-- `/i18n-audit`: 执行差异审计。
-- `/i18n-fix`: 执行审计并修复。
-- `/i18n-sync`: 执行增量同步。
-- `/i18n-update`: 自动更新本技能至最新版本。
-- `/i18n-terms`: 术语库维护。
+- `/i18n-audit`: 执行全量 CLI 审计。
+- `/i18n-update`: 运行 `gemini skills install https://github.com/Shirolin/i18n-agent-skill --consent --scope workspace`。

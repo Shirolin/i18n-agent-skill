@@ -2,39 +2,32 @@
 
 本项目记录了 AI 助手在人类指引下，经历数百轮对话、数千次逻辑修正所达成的工程化成果。每一行代码背后都是一次思维的对齐与迭代。
 
-## 📍 [Phase 4] 协议主权与架构博弈 (Turns 251 - 320+)
-**当前阶段：解决“最后一公里”的落地痛点，确立 AI 执行的边界感。**
+## 📍 [Phase 5] 架构降维与 CLI 优先 (Turns 321 - 350+)
+**当前阶段：针对 AI “执行盲区”进行架构降维打击，回归确定性最高的 Shell 接口。**
 
-- **SKILL.md 准入大修 (Iter-315)**: 经历了 3 次安装失败后，定位并修复了 YAML Frontmatter 缺失问题，补全 `name` 和 `description`，通过 Gemini CLI 准入测试。
-- **意图导向重构 (Iter-310)**: 摒弃了描述性的术语，重写了 `description` 的 **Action-Object-Scope** 语义。将 `extract/sync/audit` 设为核心唤醒词。
-- **“操作蓝图”制衡机制 (Iter-305)**: 针对 AI “走捷径”绕过工具手写正则的问题，引入了 `Blueprint` 强制步骤。模型必须先进行“风险评估”并列出“选定工具”才能执行。
-- **动态环境感知 (Iter-300)**: 彻底重写了 `check_project_status`。引入 `os.listdir` 探测 `locales` 文件夹，实现了对 10+ 种语言项目的零配置自动适配，删除了干扰性的本地 `.i18n-skill.json`。
-- **自更新闭环 (Iter-295)**: 增加了 `/i18n-update` 指令。AI 现已具备从 `skill.json` 自动解析仓库地址并执行 `gemini skills install --consent` 的能力。
-- **UX 纠偏 (Iter-290)**: 针对输出乱码问题，在 `SKILL.md` 中强制加入了 UTF-8 编码一致性约束。
+- **CLI-First 双模驱动 (Iter-345)**: 彻底重写了 `__main__.py`。将原本仅支持 MCP 的逻辑扩展为支持 `status`, `scan`, `audit`, `sync`, `commit` 子命令的全功能 CLI。
+- **协议锚定转向 (Iter-340)**: 更新 `SKILL.md`，强制 AI 放弃模糊的 MCP 调用，全面转向 `run_shell_command` 调用 CLI 指令。解决了 AI 在看不到工具 Schema 时“手写 Python 脚本”的乱跑行为。
+- **自愈式帮助系统 (Iter-335)**: 通过 `argparse` 为所有子命令补全了 `--help`，赋予了 AI 通过运行命令自查参数说明的“自修复”路径。
+- **循环导入修复 (Iter-330)**: 将 `mcp_server.py` 逻辑剥离，解决了 CLI 模式下不必要的依赖加载与循环引用问题。
+
+## 📍 [Phase 4] 协议主权与架构博弈 (Turns 251 - 320)
+**核心阶段：解决准入与意图发现，确立执行边界。**
+
+- **SKILL.md 准入大修 (Iter-315)**: 修复了 YAML Frontmatter 缺失问题，补全 `name` 和 `description` 元数据。
+- **意图发现范式 (Iter-310)**: 引入 **Action-Object-Scope** 描述规范。
+- **“操作蓝图”制衡机制 (Iter-305)**: 引入 `Blueprint` 强制步骤，触发“慢思考”模式以规避捷径思维。
+- **动态环境感知 (Iter-300)**: 实现基于 `locales` 目录的启发式探测逻辑。
+- **自更新闭环 (Iter-295)**: 增加了 `/i18n-update` 指令，实现 AI 自动拉取更新。
 
 ## 📍 [Phase 3] 鲁棒性加固与隐私治理 (Turns 151 - 250)
-**核心突破：从“能跑”进化到“可信”，建立了主权级防御体系。**
+- **隐私护盾研发 (Iter-240)**: 确立了 `SENSITIVE_PATTERNS` 脱敏引擎。
+- **快照回归系统 (Iter-220)**: 开发了 `snapshot.py` 质量水位线防护。
+- **VCS 深度集成 (Iter-200)**: 实现增量 Hunk 提取逻辑。
 
-- **隐私护盾研发 (Iter-240)**: 经历了十余次正则调试，最终确立了 `SENSITIVE_PATTERNS`。实现了对 API Key、Email、IP 和 Phone 的启发式掩码（Masking）。
-- **快照回归系统 (Iter-220)**: 开发了 `snapshot.py`。引入了基于哈希的质量防线，解决了 AI 翻译质量随会话长度增加而下降的“退化”问题。
-- **VCS 深度集成 (Iter-200)**: 多轮调试 `git apply` 和 `git hunk` 逻辑。实现了只扫描改动行号的“手术刀级”提取，极大节省了 Token 消耗。
-- **类型系统收敛 (Iter-180)**: 经历了长达 30 轮的 Mypy 纠错。消除了 `tools.py` 中所有的 `Any` 泄露，补齐了 Pydantic 模型的 `Optional` 声明。
-- **跨平台适配 (Iter-160)**: 修复了 Windows 盘符大小写导致的 `PermissionError` 路径穿越校验失败问题。
-
-## 📍 [Phase 2] 逻辑引擎与 SOP 确立 (Turns 51 - 150)
-**核心突破：模块化、结构化、协议化。**
-
-- **双阶段提交协议 (Iter-140)**: 确立了 `Proposal (JSON ID) -> Review (Refine) -> Commit` 的闭环流程。解决了 AI 擅自修改源码的不可控问题。
-- **AST 级提取引擎 (Iter-120)**: 从简单的字符串搜索转向基于语境的提取。支持了嵌套 Key 自动拍平（Flatten）与递归还原算法。
-- **自纠错反馈循环 (Iter-100)**: 当占位符不一致时，工具会返回 `ValidationFeedback` 结构，引导 AI 自动重试翻译任务。
-- **Pangu Linter 整合 (Iter-80)**: 引入了中英混排自动加空格（盘古之白）和标点符号自动纠正逻辑。
-
-## 📍 [Phase 1] 原始积累与 Bootstrapping (Turns 1 - 50)
-**核心突破：从 0 到 1 的混沌初开。**
-
-- **项目骨架搭建 (Iter-40)**: 确立了 `pyproject.toml` 和 `i18n_agent_skill/` 包结构。
-- **初步正则探索 (Iter-20)**: 调试对 React 模板字符串和 Vue 模板指令的提取正则。
-- **沙箱校验起步 (Iter-10)**: 建立了第一个 `_validate_safe_path` 拦截器。
+## 📍 [Phase 1 & 2] 逻辑引擎与 Genesis (Turns 1 - 150)
+- **AST 级提取引擎**: 实现了高精度代码文案提取与上下文还原。
+- **双阶段提交协议**: 确立了 `Proposal -> Review -> Commit` 的闭环。
+- **安全沙箱**: 建立了 Windows/Unix 兼容的路径拦截器。
 
 ---
-*This trace is a living document of AI self-correction and human-led engineering excellence.*
+*Generated with ❤️ by Gemini CLI - Chronicling the shift from black-box protocols to transparent CLI interfaces.*

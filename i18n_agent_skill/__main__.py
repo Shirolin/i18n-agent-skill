@@ -1,88 +1,94 @@
+import argparse
+import asyncio
+import json
 import os
-
-from mcp.server.fastmcp import FastMCP
+import sys
+from typing import Any
 
 from i18n_agent_skill.tools import (
-    WORKSPACE_ROOT,
     check_project_status,
-    commit_i18n_changes,
     extract_raw_strings,
     get_missing_keys,
-    load_project_glossary,
     propose_sync_i18n,
-    refine_i18n_proposal,
-    update_project_glossary,
+    commit_i18n_changes
 )
 
-# 创建 MCP Server 实例
-mcp = FastMCP("i18n-agent-skill")
+def _print_json(data: Any):
+    """确保输出是 AI 可解析的 JSON"""
+    print(json.dumps(data, indent=2, ensure_ascii=False, default=str))
 
-# =========================================================
-# MCP Resources: 提供项目上下文
-# =========================================================
+async def cli_main():
+    parser = argparse.ArgumentParser(description="i18n-agent-skill CLI: 自动化国际化工程工具")
+    subparsers = parser.add_subparsers(dest="command", help="子命令")
 
-@mcp.resource("i18n://glossary")
-async def get_glossary_resource() -> str:
-    """获取当前项目的术语表原文。"""
-    glossary = await load_project_glossary()
-    import json
-    return json.dumps(glossary, indent=2, ensure_ascii=False)
+    # 1. status
+    subparsers.add_parser("status", help="检查当前项目 i18n 状态及环境感知")
 
-@mcp.resource("i18n://locales/{lang}")
-async def get_locale_resource(lang: str) -> str:
-    """获取指定语言的翻译字典资源。"""
-    from i18n_agent_skill.tools import _detect_locale_dir
-    target_dir = _detect_locale_dir()
-    file_path = os.path.join(WORKSPACE_ROOT, target_dir, f"{lang}.json")
-    if not os.path.exists(file_path):
-        return "{}"
-    import aiofiles
-    async with aiofiles.open(file_path, "r", encoding="utf-8") as f:
-        return await f.read()
+    # 2. scan
+    scan_parser = subparsers.add_parser("scan", help="扫描源码中的硬编码中文并执行隐私脱敏")
+    scan_parser.add_argument("path", help="待扫描的文件或目录路径")
+    scan_parser.add_argument("--vcs", action="store_true", help="开启 VCS 感知模式，仅扫描 Git 变动")
+    scan_parser.add_argument("--no-cache", action="store_false", dest="use_cache", help="禁用哈希缓存")
 
-# =========================================================
-# MCP Tools: 暴露原子工具
-# =========================================================
+    # 3. audit
+    audit_parser = subparsers.add_parser("audit", help="比对语言包差异，查找缺失的 Key")
+    audit_parser.add_argument("lang", help="目标对比语言代码 (如 en, ja)")
+    audit_parser.add_argument("--base", default="en", help="基准语言代码 (默认 en)")
 
-@mcp.tool()
-async def get_status():
-    """获取项目结构、Git 变动状态及配置。"""
-    return await check_project_status()
+    # 4. sync
+    sync_parser = subparsers.add_parser("sync", help="生成翻译同步提案")
+    sync_parser.add_argument("lang", help="目标语言")
+    sync_parser.add_argument("data", help="JSON 格式的键值对字符串或路径")
+    sync_parser.add_argument("--reason", default="Manual sync", help="变更理由")
 
-@mcp.tool()
-async def scan_file(file_path: str, use_cache: bool = True, vcs_mode: bool = False):
-    """语义提取：从源文件中提取 UI 文案及其上下文。支持 Git 增量。"""
-    return await extract_raw_strings(file_path, use_cache, vcs_mode)
+    # 5. commit
+    commit_parser = subparsers.add_parser("commit", help="正式提交并应用指定的提案")
+    commit_parser.add_argument("proposal_id", help="提案 ID")
 
-@mcp.tool()
-async def find_missing(lang_code: str, base_lang: str = "en"):
-    """对比差异：找出目标语言中缺失的翻译条目。"""
-    return await get_missing_keys(lang_code, base_lang)
+    # 6. mcp (旧模式，保持兼容)
+    subparsers.add_parser("mcp", help="以 MCP Server 模式运行（兼容 Cursor/Cline）")
 
-@mcp.tool()
-async def propose_sync(new_pairs: dict, lang_code: str, reasoning: str, strategy: str = "keep"):
-    """变更提议：生成翻译提案。包含占位符校验与风格校验。"""
-    from i18n_agent_skill.models import ConflictStrategy
-    strat = (
-        ConflictStrategy.OVERWRITE if strategy == "overwrite" 
-        else ConflictStrategy.KEEP_EXISTING
-    )
-    return await propose_sync_i18n(new_pairs, lang_code, reasoning, strategy=strat)
+    # 7. update
+    subparsers.add_parser("update", help="[Internal] AI 内部调用的更新入口")
 
-@mcp.tool()
-async def commit_changes(proposal_id: str):
-    """安全提交：在人工确认提案后，执行物理文件落盘。"""
-    return await commit_i18n_changes(proposal_id)
+    args = parser.parse_args()
 
-@mcp.tool()
-async def refine_proposal(proposal_id: str, feedback: str):
-    """交互微调：根据反馈意见修改已生成的提案。"""
-    return await refine_i18n_proposal(proposal_id, feedback)
+    if args.command == "status":
+        res = await check_project_status()
+        _print_json(res.model_dump())
+    
+    elif args.command == "scan":
+        res = await extract_raw_strings(args.path, use_cache=args.use_cache, vcs_mode=args.vcs)
+        _print_json(res.model_dump())
 
-@mcp.tool()
-async def learn_term(term: str, translation: str):
-    """术语持久化：将特定术语的翻译存入 GLOSSARY.json 知识库。"""
-    return await update_project_glossary(term, translation)
+    elif args.command == "audit":
+        res = await get_missing_keys(args.lang, base_lang=args.base)
+        _print_json(res)
+
+    elif args.command == "sync":
+        try:
+            new_pairs = json.loads(args.data)
+        except json.JSONDecodeError:
+            # 尝试作为文件读取
+            with open(args.data, 'r', encoding='utf-8') as f:
+                new_pairs = json.load(f)
+        res = await propose_sync_i18n(new_pairs, args.lang, args.reason)
+        _print_json(res.model_dump())
+
+    elif args.command == "commit":
+        res = await commit_i18n_changes(args.proposal_id)
+        print(res)
+
+    elif args.command == "mcp":
+        from i18n_agent_skill.mcp_server import mcp
+        mcp.run()
+
+    elif not args.command:
+        # 如果没有任何参数，默认运行 MCP 以保持向后兼容性
+        from i18n_agent_skill.mcp_server import mcp
+        mcp.run()
 
 if __name__ == "__main__":
-    mcp.run()
+    if sys.platform == 'win32':
+        asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+    asyncio.run(cli_main())
