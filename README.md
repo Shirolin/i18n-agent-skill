@@ -77,12 +77,13 @@ AI 助手将根据协议规范自动执行环境感知与配置。
 ## 📂 项目结构 (Structure)
 
 ```text
-i18n_agent_skill/
-├── snapshot.py     # 翻译快照与回归管理
-├── vcs.py          # Git 增量解析引擎
-├── linter.py       # 风格与标点校验规则
-├── tools.py        # 核心原子工具集
-└── models.py       # Pydantic 数据模型
+i18n-agent-skill/
+├── i18n_agent_skill/   # 核心引擎源码包
+├── examples/           # 自动化工作流示例
+├── tests/              # 单元与集成测试套件
+├── SKILL.md            # Agent 执行协议规范
+├── .i18n-skill.json    # [可选] 项目配置覆盖
+└── pyproject.toml      # 依赖管理与项目元数据
 ```
 
 ---
