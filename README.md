@@ -12,7 +12,7 @@
 ## 🚀 集成与安装 (Setup)
 
 ### 1. 快速赋能 (推荐)
-直接将本项目 GitHub 链接发送给你的 AI 助手（如 **Cursor, Windsurf, Gemini CLI, Claude**），并指令它：
+直接将本项目 GitHub 链接发送给你的 AI 助手（如 **Cursor, Windsurf, VS Code (Cline), Gemini CLI, GPT-4o** 等），并指令它：
 > **“帮我安装这个 i18n 技能：https://github.com/Shirolin/i18n-agent-skill”**
 
 AI 助手将自动根据你的环境完成配置。这是最省心、也是最推荐的集成方式。
