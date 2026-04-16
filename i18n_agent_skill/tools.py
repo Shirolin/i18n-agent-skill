@@ -33,35 +33,47 @@ GLOSSARY_FILE = "GLOSSARY.json"
 CONFIG_FILE = ".i18n-skill.json"
 WORKSPACE_ROOT = os.getcwd()
 
-# 敏感信息脱敏正则
 SENSITIVE_PATTERNS = {
     "EMAIL": r'[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+',
-    "API_KEY": (
-        r'(?:(?:key|token|secret|auth|api)[:\s=\'"]+)?'
-        r'\b(?:sk-[a-zA-Z0-9]{20,}|AKIA[a-zA-Z0-9]{16}|[a-zA-Z0-9]{32,})\b'
-    ),
+    "API_KEY": (r'(?:(?:key|token|secret|auth|api)[:\s=\'"]+)?'
+                r'\b(?:sk-[a-zA-Z0-9]{20,}|AKIA[a-zA-Z0-9]{16}|[a-zA-Z0-9]{32,})\b'),
     "IP_ADDR": r'\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b',
     "PHONE": r'\b\d{3}[-.\s]?\d{3}[-.\s]?\d{4}\b|\b\d{11}\b'
 }
 
 
 def _is_likely_ui_string(text: str) -> bool:
-    """启发式过滤：识别真正需要国际化的 UI 文案，排除 CSS 类名和逻辑 Token"""
-    # 1. 包含中文的必然是 UI 文案
-    if re.search(r'[\u4e00-\u9fa5]', text):
+    """
+    [全球化重构] 启发式过滤：识别跨语言的 UI 文案，排除代码干扰项。
+    设计思路：
+    1. 只要包含非 ASCII 字符（日语、中文、韩语、法语变音等），即视为 UI。
+    2. 对于纯 ASCII，排除 CSS/逻辑 Token。
+    """
+    # 1. 包含非 ASCII 字符 (Non-ASCII)：日语 (平假/片假/汉字)、中文、俄语等
+    if re.search(r'[^\x00-\x7f]', text):
         return True
     
-    # 2. 排除明显的 CSS 类名 (kebap-case 且不含空格)
-    if re.match(r'^[a-z0-9\-]+$', text) and "-" in text:
-        return False
+    # 2. 排除常见的代码残留：
+    #    - 路径: /src/components...
+    if text.startswith(("/", "./", "../")): return False
+    #    - CSS 类名: kebap-case (如 space-y-4, flex-col)
+    if re.match(r'^[a-z0-9\-]+$', text) and "-" in text: return False
+    #    - 驼峰变量名且不带空格: (如 myVariableName)
+    if re.match(r'^[a-z]+[A-Z][a-zA-Z0-9]*$', text): return False
     
-    # 3. 排除单个单词的逻辑 Token (如 "done", "error", "success")
-    if " " not in text and len(text) < 10 and text.islower():
-        return False
+    # 3. 逻辑 Token 与 ID:
+    #    - 过短且全小写
+    if len(text) < 4 and text.islower(): return False
+    #    - 常见的内部 Key
+    if text.lower() in {"id", "type", "name", "mode", "key", "index", "value", "data"}: return False
 
-    # 4. 包含空格且首字母大写，或带有标点的英文，大概率是 UI
-    if " " in text or re.search(r'[.!?]$', text):
-        return True
+    # 4. 具备“自然语言”特征的英文:
+    #    - 包含空格 (句子)
+    if " " in text: return True
+    #    - 包含结束标点
+    if re.search(r'[.!?]$', text): return True
+    #    - 首字母大写 (标题/按钮)
+    if text[0].isupper() and not text.isupper(): return True
         
     return False
 
@@ -156,11 +168,11 @@ async def _write_cache(cache: Dict[str, Any]) -> None:
 
 
 async def extract_raw_strings(file_path: str, use_cache: bool = True, vcs_mode: bool = False, privacy_level: Optional[PrivacyLevel] = None) -> ExtractOutput:
-    """精细化提取引擎：支持注释过滤、CSS类名剔除及术语主动注入。"""
+    """全球化提取引擎：支持全语言识别、注释过滤、CSS/逻辑 Token 剔除。"""
     start_ts = time.perf_counter()
     config = await _load_project_config()
     p_level = privacy_level or config.privacy_level
-    privacy_shield_hits, results, is_cached_hit = 0, [], False
+    privacy_shield_hits, results = 0, []
 
     try:
         safe_path = _validate_safe_path(file_path)
@@ -177,7 +189,6 @@ async def extract_raw_strings(file_path: str, use_cache: bool = True, vcs_mode: 
         file_hash = await _get_file_hash(file_path)
         cache = await _read_cache()
         if file_path in cache and cache[file_path].get("hash") == file_hash:
-            is_cached_hit = True
             cached_raw = cache[file_path].get("results", [])
             for r in cached_raw:
                 if target_lines and r.get("line") not in target_lines: continue
@@ -196,9 +207,11 @@ async def extract_raw_strings(file_path: str, use_cache: bool = True, vcs_mode: 
         if target_lines and line_no not in target_lines: continue
         stripped = line.strip()
         if stripped.startswith(("//", "/*", "*", "#")): continue
-        matches = re.findall(r'["\']([\u4e00-\u9fa5a-zA-Z0-9\s\-_/\@\.!\?\:\;]{2,})["\']', line)
+        
+        # 全量匹配双引号或单引号内的字符串
+        matches = re.findall(r'["\'](.*?)["\']', line)
         for text in set(matches):
-            if not _is_likely_ui_string(text): continue
+            if not text or not _is_likely_ui_string(text): continue
             masked_text, is_masked = _mask_sensitive_data(text, p_level)
             if is_masked: privacy_shield_hits += 1
             results.append(ExtractedString(text=masked_text, line=line_no, context="\n".join(lines[max(0, i-1):min(len(lines), i+2)]), is_masked=is_masked))
@@ -256,7 +269,6 @@ async def propose_sync_i18n(new_pairs: dict[str, str], lang_code: str, reasoning
         try:
             async with aiofiles.open(file_path, "r", encoding="utf-8") as f: current_data = json.loads(await f.read())
         except Exception: pass
-    snapshot_mgr = TranslationSnapshotManager(WORKSPACE_ROOT)
     for key, val in new_pairs.items():
         if key in base_data:
             exp, act = re.findall(r'\{\{.*?\}\}|\{.*?\}', base_data[key]), re.findall(r'\{\{.*?\}\}|\{.*?\}', val)
