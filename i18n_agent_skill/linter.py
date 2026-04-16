@@ -6,9 +6,9 @@ from i18n_agent_skill.models import StyleFeedback
 
 class TranslationStyleLinter:
     """
-    大师级文案风格校验器。
+    文案风格校验器。
     核心规则：
-    1. 中英混排空格校验（盘古之白）。
+    1. 中英混排空格校验。
     2. 标点符号中文化校验。
     """
     

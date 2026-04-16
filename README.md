@@ -5,72 +5,55 @@
 [![Protocol: MCP](https://img.shields.io/badge/Protocol-MCP-orange)](https://modelcontextprotocol.io)
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 
-**i18n-agent-skill** 是一款专为前端工程（React, Vue 等）设计的 **软件国际化（i18n）自动化工具**。它能自动从源码中提取硬编码字符串，在本地完成隐私脱敏后，由 AI 自动生成翻译并同步至项目语言包（JSON），实现从开发到多语言发布的工程闭环。
+**i18n-agent-skill** 是一个基于 AI 的前端国际化（i18n）全链路自动化工具。支持硬编码字符串提取、本地隐私脱敏、多语言翻译同步及质量回归检测，旨在提升 React/Vue 等项目的国际化工程化效率。
 
 ---
 
-## 🚀 快速集成 (Quick Start)
+## 🚀 集成与安装 (Integrations)
 
-### 1. 自然语言安装 (推荐)
-直接将本项目 GitHub 链接粘贴给你的 AI 助手（如 Cursor, Gemini CLI, Claude），并发送指令：
-> **“安装这个技能：https://github.com/Shirolin/i18n-agent-skill”**
+### 1. 自动化集成 (推荐)
+将本项目 GitHub 链接提供给 AI 助手（如 Cursor, Gemini CLI, Claude），指令如下：
+> “安装此技能：https://github.com/Shirolin/i18n-agent-skill”
 
-AI 助手将自动识别并完成配置。
+AI 助手将根据协议规范自动执行环境感知与配置。
 
-### 2. 标准集成规范 (面向 AI 与高级用户)
-如果需要手动配置或引导 AI 执行特定安装逻辑，请参考以下规范：
-
+### 2. 标准配置参考
 *   **Gemini CLI**:
     ```bash
     gemini skill install https://github.com/Shirolin/i18n-agent-skill
     ```
-*   **IDE (Cursor/VS Code/Claude) - MCP 配置**:
-    - **运行时**: Python 3.10+
-    - **集成命令**: `python -m i18n_agent_skill`
-    - **说明**: 将此命令添加为 MCP 服务器，AI 助手即可获得扫描源码并同步翻译的能力。
+*   **MCP (Model Context Protocol) 客户端**:
+    - **Runtime**: Python 3.10+
+    - **Entry Command**: `python -m i18n_agent_skill`
+    - **Capability**: 为 AI 助手提供源码扫描、隐私审查与翻译落盘能力。
 
 ---
 
-## 📖 使用指南 (Usage Guide)
+## 📖 使用指南 (Usage)
 
-本工具专为 **“一句话交付”** 设计。你无需关心底层工具的调用顺序，直接对 AI 助手（Cursor/Gemini CLI）下达高层级任务即可：
+本工具支持意图驱动的自动化编排。常用指令示例：
 
-### 极简指令示例 (Impeccable Mode)
-- **全量改造**: `"使用 i18n-agent-skill 彻底国际化改造这个项目。"`
-  - *AI 将自动：探测路径 -> 提取硬编码 -> 生成翻译包 -> 重构源码 -> 执行落盘。*
-- **一键体检**: `"给这个项目做一次全量 i18n 审计并自动修复。"`
-  - *AI 将自动：找缺失 Key -> 扫漏掉的硬编码 -> 修正中英混排空格与标点。*
-- **精准同步**: `"同步我刚才在 Git 里改动的文案。"`
-  - *AI 将自动：基于增量 Hunk 提取 -> 隐私掩码 -> 生成高分翻译提案。*
-
-> **提示**: 你只需要在 AI 助手给出操作建议时点击“确认”，其余复杂的工程逻辑均由工具在后台自动编排。
+- **项目改造**: `"使用 i18n-agent-skill 国际化改造此项目。"`
+  - *流程：目录感知 -> 硬编码提取 -> 翻译包同步 -> 源码重构。*
+- **质量审计**: `"对项目进行全量 i18n 审计并修复缺失翻译。"`
+  - *流程：缺失检测 -> 风格校验 -> 增量修复。*
+- **增量同步**: `"同步当前 Git 变动涉及的文案。"`
+  - *流程：基于 Hunk 提取 -> 本地脱敏 -> 翻译提案。*
 
 ---
 
-## 🔑 关于 API Key (核心说明)
+## 🛡️ 技术特性 (Core Features)
 
-| 场景 | 是否需要配置 API Key | 说明 |
-| :--- | :--- | :--- |
-| **本地提取/扫描/检查** | ❌ **不需要** | 纯本地 Python 逻辑。 |
-| **通过 IDE (Cursor/Claude) 调用** | ❌ **不需要** | **推荐。** 直接复用 IDE 自身的 AI 额度。 |
-| **通过 Gemini CLI 调用** | ❌ **不需要** | **推荐。** 复用 CLI 宿主环境的授权。 |
-| **手动运行 Python 翻译脚本** | ✅ **需要** | 仅当你直接运行代码且需要 AI 生成翻译时。 |
+*   **自动化提取**: 识别源码硬编码，支持与 `locales/*.json` 的增量比对。
+*   **本地隐私脱敏**: 文案外传前，自动在本地识别并掩码 API Key、Email、Token 等。
+*   **VCS 增量感知**: 底层调用 `git diff` 提取变动行号（Hunks），优化 Token 消耗。
+*   **质量回归检测**: 自动对比历史翻译得分，对质量下降的翻译结果触发拦截。
 
 ---
 
-## ✨ 核心特性
+## ⚙️ 配置说明 (Optional)
 
-*   **🔍 自动化提取与同步**: 自动识别源码硬编码，并与 `locales/*.json` 进行增量比对。
-*   **🛡️ 本地隐私脱敏**: 文案外发前自动本地识别并屏蔽 API Key、Email、Token 等。
-*   **🌿 VCS 增量感知**: 基于 `git diff` 实现 Hunk 级精准提取，仅处理变动行。
-*   **📈 质量回归检测**: 自动对比历史翻译得分，拦截任何质量退化的翻译结果。
-
----
-
-## ⚙️ 配置参考 (Optional)
-
-本工具默认支持 **零配置启动**（自动探测 `src/` 与 `locales/`）。
-如需覆盖默认逻辑，请在根目录创建 `.i18n-skill.json`：
+默认支持零配置启动。如需覆盖默认逻辑，可在根目录创建 `.i18n-skill.json`：
 ```json
 {
   "source_dirs": ["src"],
@@ -82,28 +65,35 @@ AI 助手将自动识别并完成配置。
 
 ---
 
+## 🔑 授权与 Key 说明
+
+| 运行环境 | 权限处理逻辑 |
+| :--- | :--- |
+| **集成环境 (IDE/CLI)** | ❌ **免配置**。直接复用宿主环境的 AI 授权。 |
+| **独立运行 (Local)** | ✅ **需配置**。需设置环境变量 `GOOGLE_API_KEY`。 |
+
+---
+
 ## 📂 项目结构 (Structure)
 
-- `i18n_agent_skill/snapshot.py`: 翻译质量快照与回归管理。
-- `i18n_agent_skill/vcs.py`: 基于 Git Hunk 的增量解析引擎。
-- `i18n_agent_skill/linter.py`: 中英混排空格与标点校验规则。
-- `i18n_agent_skill/tools.py`: 核心原子工具集。
+- `i18n_agent_skill/snapshot.py`: 翻译快照与回归管理。
+- `i18n_agent_skill/vcs.py`: Git 增量解析引擎。
+- `i18n_agent_skill/linter.py`: 风格与标点校验规则。
+- `i18n_agent_skill/tools.py`: 原子工具集实现。
 - `i18n_agent_skill/models.py`: 强类型 Pydantic 数据模型。
 
 ---
 
 ## 🛠 本地开发 (Development)
 
-若需进行本地调试或参与贡献，请参考以下指令：
-
 ```bash
 # 安装开发依赖
 pip install -e ".[dev]"
 
-# 运行全量单元与集成测试
+# 运行单元与集成测试
 python -m pytest
 
-# 执行代码风格与静态检查
+# 执行静态检查
 ruff check .
 mypy .
 ```

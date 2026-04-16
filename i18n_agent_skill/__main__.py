@@ -18,7 +18,7 @@ from i18n_agent_skill.tools import (
 mcp = FastMCP("i18n-agent-skill")
 
 # =========================================================
-# MCP Resources: 让 AI 具备“实时全局视野”
+# MCP Resources: 提供项目上下文
 # =========================================================
 
 @mcp.resource("i18n://glossary")
@@ -41,17 +41,17 @@ async def get_locale_resource(lang: str) -> str:
         return await f.read()
 
 # =========================================================
-# MCP Tools: 暴露核心原子工具
+# MCP Tools: 暴露原子工具
 # =========================================================
 
 @mcp.tool()
 async def get_status():
-    """大师级预检：获取当前项目结构、Git 变动状态及配置契约。"""
+    """获取项目结构、Git 变动状态及配置。"""
     return await check_project_status()
 
 @mcp.tool()
 async def scan_file(file_path: str, use_cache: bool = True, vcs_mode: bool = False):
-    """语义提取：从源文件中提取 UI 文案及其代码上下文。支持 Git 增量感知。"""
+    """语义提取：从源文件中提取 UI 文案及其上下文。支持 Git 增量。"""
     return await extract_raw_strings(file_path, use_cache, vcs_mode)
 
 @mcp.tool()
@@ -61,7 +61,7 @@ async def find_missing(lang_code: str, base_lang: str = "en"):
 
 @mcp.tool()
 async def propose_sync(new_pairs: dict, lang_code: str, reasoning: str, strategy: str = "keep"):
-    """变更提议：生成翻译提案。包含占位符校验、文案风格 Linter 与 AI 评审插槽。"""
+    """变更提议：生成翻译提案。包含占位符校验与风格校验。"""
     from i18n_agent_skill.models import ConflictStrategy
     strat = (
         ConflictStrategy.OVERWRITE if strategy == "overwrite" 
@@ -76,12 +76,12 @@ async def commit_changes(proposal_id: str):
 
 @mcp.tool()
 async def refine_proposal(proposal_id: str, feedback: str):
-    """交互微调：根据人类的反馈意见修改已生成的提案。"""
+    """交互微调：根据反馈意见修改已生成的提案。"""
     return await refine_i18n_proposal(proposal_id, feedback)
 
 @mcp.tool()
 async def learn_term(term: str, translation: str):
-    """进化记忆：将特定术语的翻译持久化到 GLOSSARY.json 知识库中。"""
+    """术语持久化：将特定术语的翻译存入 GLOSSARY.json 知识库。"""
     return await update_project_glossary(term, translation)
 
 if __name__ == "__main__":

@@ -10,8 +10,7 @@ SNAPSHOT_FILE = ".i18n-snapshots.json"
 
 class TranslationSnapshotManager:
     """
-    主权级功能：快照回归管理器。
-    记录历史上得分最高的翻译，防止模型更新或上下文变动导致翻译质量下降。
+    快照回归管理器：记录历史上得分最高的翻译，防止翻译质量下降。
     """
     
     def __init__(self, workspace_root: str):

@@ -48,7 +48,6 @@ SENSITIVE_PATTERNS = {
 
 def _mask_sensitive_data(text: str, level: PrivacyLevel) -> tuple[str, bool]:
     """
-    主权级特性：隐私护盾。
     对文案中的敏感信息进行脱敏处理。
     """
     if level == PrivacyLevel.OFF:
@@ -194,7 +193,7 @@ async def extract_raw_strings(
     vcs_mode: bool = False,
     privacy_level: Optional[PrivacyLevel] = None
 ) -> ExtractOutput:
-    """语义提取：支持主权级隐私脱敏"""
+    """语义提取：支持本地隐私脱敏逻辑"""
     start_ts = time.perf_counter()
     config = await _load_project_config()
     p_level = privacy_level or config.privacy_level
@@ -343,7 +342,7 @@ async def propose_sync_i18n(
     base_dir: Optional[str] = None,
     strategy: ConflictStrategy = ConflictStrategy.KEEP_EXISTING
 ) -> SyncProposal:
-    """生成变更提案，具备主权级回归测试防护"""
+    """生成变更提案，具备自动化回归测试防护"""
     start_ts = time.perf_counter()
     config = await _load_project_config()
     target_dir = base_dir or _detect_locale_dir(config)
