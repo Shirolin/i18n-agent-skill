@@ -33,49 +33,64 @@ GLOSSARY_FILE = "GLOSSARY.json"
 CONFIG_FILE = ".i18n-skill.json"
 WORKSPACE_ROOT = os.getcwd()
 
-SENSITIVE_PATTERNS = {
-    "EMAIL": r'[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+',
-    "API_KEY": (r'(?:(?:key|token|secret|auth|api)[:\s=\'"]+)?'
-                r'\b(?:sk-[a-zA-Z0-9]{20,}|AKIA[a-zA-Z0-9]{16}|[a-zA-Z0-9]{32,})\b'),
-    "IP_ADDR": r'\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b',
-    "PHONE": r'\b\d{3}[-.\s]?\d{3}[-.\s]?\d{4}\b|\b\d{11}\b'
+# [深度优化] 工程级黑名单：常见不需要翻译的逻辑 Token
+ENG_BLACKLIST = {
+    "get", "post", "put", "delete", "json", "utf-8", "utf8", "true", "false", 
+    "null", "undefined", "none", "px", "rem", "em", "vh", "vw", "ms", "v-model", 
+    "src", "href", "id", "class", "style", "key", "index", "content-type"
 }
 
+def _is_likely_ui_string(text: str, context: str = "") -> bool:
+    """
+    [深度精度重构] 高阶启发式过滤：利用语义、形状及黑名单精确识别 UI 文案。
+    """
+    # 1. 基础清理
+    t = text.strip()
+    if not t: return False
 
-def _is_likely_ui_string(text: str) -> bool:
-    """
-    [全球化重构] 启发式过滤：识别跨语言的 UI 文案，排除代码干扰项。
-    设计思路：
-    1. 只要包含非 ASCII 字符（日语、中文、韩语、法语变音等），即视为 UI。
-    2. 对于纯 ASCII，排除 CSS/逻辑 Token。
-    """
-    # 1. 包含非 ASCII 字符 (Non-ASCII)：日语 (平假/片假/汉字)、中文、俄语等
-    if re.search(r'[^\x00-\x7f]', text):
+    # 2. 物理防线：包含非 ASCII 字符（日语、中文等）必然是 UI
+    if re.search(r'[^\x00-\x7f]', t):
         return True
     
-    # 2. 排除常见的代码残留：
-    #    - 路径: /src/components...
-    if text.startswith(("/", "./", "../")): return False
-    #    - CSS 类名: kebap-case (如 space-y-4, flex-col)
-    if re.match(r'^[a-z0-9\-]+$', text) and "-" in text: return False
-    #    - 驼峰变量名且不带空格: (如 myVariableName)
-    if re.match(r'^[a-z]+[A-Z][a-zA-Z0-9]*$', text): return False
-    
-    # 3. 逻辑 Token 与 ID:
-    #    - 过短且全小写
-    if len(text) < 4 and text.islower(): return False
-    #    - 常见的内部 Key
-    if text.lower() in {"id", "type", "name", "mode", "key", "index", "value", "data"}: return False
+    # 3. 格式拦截：剔除常见的非自然语言模式
+    # - SVG 路径 (通常以 M, m, L, l 开始)
+    if re.match(r'^[MmLlHhVvCcSsQqTtAaZz0-9\s,\.\-]+$', t) and len(t) > 20: return False
+    # - 十六进制颜色与 Base64
+    if re.match(r'^#([A-Fa-f0-9]{3,8})$', t): return False
+    if len(t) > 30 and re.match(r'^[A-Za-z0-9+/=]+$', t) and not " " in t: return False
+    # - 常见的路径与 URL
+    if t.startswith(("/", "./", "../", "http://", "https://", "mailto:", "tel:")): return False
+    # - 常见的 CSS 类名 (Kebap-case)
+    if re.match(r'^[a-z0-9\-]+$', t) and "-" in t: return False
+    # - 驼峰变量名 (CamelCase)
+    if re.match(r'^[a-z]+[A-Z][a-zA-Z0-9]*$', t): return False
 
-    # 4. 具备“自然语言”特征的英文:
-    #    - 包含空格 (句子)
-    if " " in text: return True
-    #    - 包含结束标点
-    if re.search(r'[.!?]$', text): return True
-    #    - 首字母大写 (标题/按钮)
-    if text[0].isupper() and not text.isupper(): return True
+    # 4. 上下文防线：忽略特定的代码调用
+    if context:
+        # 忽略打印、日志、错误抛出、及特定的非 UI 属性定义
+        lower_ctx = context.lower()
+        if any(kw in lower_ctx for kw in ["console.log", "logger.", "new error", "throw ", "require(", "import "]):
+            return False
+
+    # 5. 黑名单防线
+    if t.lower() in ENG_BLACKLIST: return False
+
+    # 6. 自然语言特征提取
+    # - 包含空格 (句子特征)
+    if " " in t: return True
+    # - 包含结尾标点
+    if re.search(r'[.!?]$', t): return True
+    # - 首字母大写且非全大写 (Button / Label 特征)
+    if t[0].isupper() and not t.isupper(): return True
+    # - 足够长的英文字符串（如警告语）
+    if len(t) > 15 and not re.search(r'[^a-zA-Z\s,.]', t): return True
         
     return False
+
+
+def _convert_template_to_placeholders(text: str) -> str:
+    """将 ES6 模板字符串中的 ${var} 转换为国际化标准的 {var} 占位符"""
+    return re.sub(r'\$\{(.*?)\}', r'{\1}', text)
 
 
 def _mask_sensitive_data(text: str, level: PrivacyLevel) -> tuple[str, bool]:
@@ -168,7 +183,7 @@ async def _write_cache(cache: Dict[str, Any]) -> None:
 
 
 async def extract_raw_strings(file_path: str, use_cache: bool = True, vcs_mode: bool = False, privacy_level: Optional[PrivacyLevel] = None) -> ExtractOutput:
-    """全球化提取引擎：支持全语言识别、注释过滤、CSS/逻辑 Token 剔除。"""
+    """深度精度提取引擎：支持模板字符串感知、全语言识别、及工程语义过滤。"""
     start_ts = time.perf_counter()
     config = await _load_project_config()
     p_level = privacy_level or config.privacy_level
@@ -177,7 +192,7 @@ async def extract_raw_strings(file_path: str, use_cache: bool = True, vcs_mode: 
     try:
         safe_path = _validate_safe_path(file_path)
         if os.path.isdir(safe_path):
-            return ExtractOutput(error=ErrorInfo(error_code="DIRECTORY_NOT_SUPPORTED", message=f"Path '{file_path}' is a directory.", suggested_action="Scan files individually.", executable_hint=f"ls {file_path}"))
+            return ExtractOutput(error=ErrorInfo(error_code="DIRECTORY_NOT_SUPPORTED", message=f"Path '{file_path}' is a directory.", suggested_action="Scan files individually."))
     except Exception as e:
         return ExtractOutput(error=ErrorInfo(error_code="PATH_ERROR", message=str(e), suggested_action="Verify path."))
 
@@ -202,19 +217,31 @@ async def extract_raw_strings(file_path: str, use_cache: bool = True, vcs_mode: 
     async with aiofiles.open(_validate_safe_path(file_path), mode='r', encoding='utf-8') as f:
         lines = (await f.read()).splitlines()
 
+    # [深度精度优化] 正则升级：支持单引号、双引号及反引号（模板字符串）
+    STRING_PATTERN = r'["\'](.*?)["\']|`(.*?)`'
+
     for i, line in enumerate(lines):
         line_no = i + 1
         if target_lines and line_no not in target_lines: continue
         stripped = line.strip()
         if stripped.startswith(("//", "/*", "*", "#")): continue
         
-        # 全量匹配双引号或单引号内的字符串
-        matches = re.findall(r'["\'](.*?)["\']', line)
-        for text in set(matches):
-            if not text or not _is_likely_ui_string(text): continue
-            masked_text, is_masked = _mask_sensitive_data(text, p_level)
+        matches = re.findall(STRING_PATTERN, line)
+        for m_tuple in matches:
+            # 找到非空的捕获组
+            text = m_tuple[0] or m_tuple[1]
+            if not text: continue
+            
+            # [核心优化] 提取前预处理模板字符串
+            processed_text = _convert_template_to_placeholders(text)
+            
+            # [核心优化] 启发式 UI 文案精准识别
+            context_fragment = "\n".join(lines[max(0, i-1):min(len(lines), i+2)])
+            if not _is_likely_ui_string(processed_text, context_fragment): continue
+            
+            masked_text, is_masked = _mask_sensitive_data(processed_text, p_level)
             if is_masked: privacy_shield_hits += 1
-            results.append(ExtractedString(text=masked_text, line=line_no, context="\n".join(lines[max(0, i-1):min(len(lines), i+2)]), is_masked=is_masked))
+            results.append(ExtractedString(text=masked_text, line=line_no, context=context_fragment, is_masked=is_masked))
 
     glossary = await load_project_glossary()
     glossary_ctx = {r.text: glossary[r.text] for r in results if r.text in glossary}
@@ -304,6 +331,6 @@ async def get_missing_keys(lang_code: str, base_lang: str = "en", base_dir: Opti
         except Exception: pass
     if os.path.exists(target_p):
         try:
-            async with aiofiles.open(target_p, "r", encoding="utf-8") as f: target_d = _flatten_dict(json.loads(await f.read()))
+            async with aiofiles.open(target_p, mode='r', encoding='utf-8') as f: target_d = _flatten_dict(json.loads(await f.read()))
         except Exception: pass
     return {k: base_d[k] for k in set(base_d.keys()) - set(target_d.keys())}
