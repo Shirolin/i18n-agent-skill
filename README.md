@@ -1,15 +1,16 @@
 # i18n-agent-skill 🌐
 
-[![Runtime: Python 3.10+](https://img.shields.io/badge/Runtime-Python%203.10%2B-blue)](https://www.python.org/)
+[![Runtime: Python 3.10-3.12](https://img.shields.io/badge/Runtime-Python%203.10--3.12-blue)](https://www.python.org/)
 [![Framework: Google ADK](https://img.shields.io/badge/Framework-Google%20ADK-blue)](https://github.com/google/adk)
 [![Protocol: MCP](https://img.shields.io/badge/Protocol-MCP-orange)](https://modelcontextprotocol.io)
+[![Engine: Tree-sitter AST](https://img.shields.io/badge/Engine-Tree--sitter%20AST-orange)](https://tree-sitter.github.io/)
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 
-**i18n-agent-skill** 是一款专为 AI 助手设计的前端国际化全链路自动化工具。如果你或你的 AI 助手正在处理以下任务，本工具将提供核心支持：
-- **遗留改造**: 从 React/Vue 源码中自动提取硬编码文案。
-- **隐私合规**: 在文案发送至大模型前自动执行本地数据脱敏。
-- **增量同步**: 基于 Git Hunk 精准同步翻译至 JSON 语言包。
-- **质量审计**: 自动执行中英混排校验、标点检查及翻译质量回溯。
+**i18n-agent-skill** 是一款专为 AI 助手（Agent）设计的**工业级前端国际化全链路自动化工具**。它不仅涵盖了从源码重构、隐私审计到翻译同步的完整交付闭环，更通过进化至 **Tree-sitter AST** 解析引擎，大幅提升了在复杂前端项目中的自动化精度与数据安全性。本工具将为以下核心场景提供底层支持：
+- **全自动重构**: 闭环处理 React/Vue 遗留项目的国际化改造，实现生产级的代码无损重写。
+- **数据隐私盾**: 在 Agent 调用 LLM 前执行本地语法级扫描，确保 API Key 等机密信息不离开物理沙箱。
+- **增量同步流**: 结合 Git Hunk 与语法树感知，实现多语言包与业务逻辑的精准增量对齐。
+- **质量实验室**: 自动化执行多语言排版规范校验（如空格、标点一致性）及翻译质量的回归检查。
 
 ---
 
@@ -55,15 +56,15 @@ python examples/basic_usage.py
 > *自动化闭环：基于 Git Hunk 提取 -> 隐私脱敏 -> 生成增量翻译提案。*
 
 ### 场景 C：翻译体检与修复 (Audit & Fix)
-**痛点**: 怀疑有漏翻译的 Key，或者想统一中英混排格式。
+**痛点**: 怀疑有漏翻译的 Key，或者想统一多语言排版格式。
 > **指令**: `/i18n-fix` 或 **“检查一下项目里有没有漏掉的翻译并修复”**
-> *自动化闭环：缺失检测 -> 风格 Linter -> 自动化补全修复。*
+> *自动化闭环：缺失检测 -> 多语言排版 Linter -> 自动化补全修复。*
 
 ---
 
 ## 🛡️ 技术特性 (Core Features)
 
-*   **自动化提取**: 识别源码硬编码，支持与 `locales/*.json` 的增量比对。
+*   **自动化提取**: 基于 **Tree-sitter AST** 实现像素级源码感知，精准识别硬编码文案，并支持增量比对。
 *   **本地隐私脱敏**: 文案外传前，自动在本地识别并掩码 API Key、Email、Token 等。
 *   **VCS 增量感知**: 底层调用 `git diff` 提取变动行号（Hunks），优化 Token 消耗。
 *   **质量回归检测**: 自动对比历史翻译得分，对质量下降的翻译结果触发拦截。
