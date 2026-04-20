@@ -102,9 +102,8 @@ def _validate_safe_path(path: str) -> str:
 QUERY_STRINGS = {
     "jsx": """
         (jsx_text) @text
-        (jsx_attribute (quoted_attribute_value (attribute_value) @text))
-        (string (string_fragment) @text)
-        (template_string (string_fragment) @text)
+        (string) @text
+        (template_string) @text
     """,
     "vue": """
         (text) @text
@@ -112,7 +111,6 @@ QUERY_STRINGS = {
     """,
     "js": """
         (string) @text
-        (string_fragment) @text
         (template_string) @text
     """
 }
@@ -158,8 +156,10 @@ class TreeSitterScanner:
 
                 if c_name == "sub": text = "{var}"
 
-                if node.type == "string":
+                if node.type in ("string", "template_string"):
                     text = re.sub(r'^["\'`]|["\'`]$', '', text)
+                    if node.type == "template_string":
+                        text = re.sub(r'\$\{.*?\}', '{var}', text)
 
                 line_no = node.start_point[0] + 1
                 # 判定来源：如果是节点直出或 jsx_text，标记为 text_node
@@ -173,18 +173,6 @@ class TreeSitterScanner:
                     script_content = m.group(1)
                     res.extend(self.scan(script_content.encode('utf-8'), ".js"))
 
-            return res
-        except Exception as e:
-            return []
-            # Vue 特殊处理：如果包含 script 标签，手动递归
-            if target_ext == ".vue" and not c_bytes:
-                # 简单正则切分，因为 html 解析器有时无法完美切分 script setup
-                scripts = re.finditer(r'<script.*?>([\s\S]*?)</script>', target_bytes.decode('utf-8'))
-                for m in scripts:
-                    script_content = m.group(1)
-                    # 递归 JS 扫描
-                    res.extend(self.scan(script_content.encode('utf-8'), ".js"))
-                    
             return res
         except Exception as e:
             return []

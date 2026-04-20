@@ -36,9 +36,14 @@ async def test_vue_sfc_region_recursion(tmp_path):
 
 @pytest.mark.asyncio
 async def test_jsx_text_node_capture(tmp_path):
-    """验证 JSX 无引号文本节点捕获。"""
+    """验证 JSX 文本节点、属性及模板字符串的全面覆盖。"""
     tsx_content = """
-    export const Comp = () => <div>保存修改</div>;
+    export const Comp = () => (
+      <div title="全局设置">
+        <span>保存修改</span>
+        <button aria-label={`确认${name}`}>Submit</button>
+      </div>
+    );
     """
     f = tmp_path / "Comp.tsx"
     f.write_text(tsx_content, encoding="utf-8")
@@ -49,7 +54,9 @@ async def test_jsx_text_node_capture(tmp_path):
         pytest.skip("AST engine missing")
         
     texts = [r.text for r in output.results]
+    assert "全局设置" in texts
     assert "保存修改" in texts
+    assert "确认{var}" in texts  # 模板字符串子节点处理
 
 @pytest.mark.asyncio
 async def test_multilingual_召回率(tmp_path):

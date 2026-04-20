@@ -55,8 +55,27 @@ async def cli_main():
         _print_json(res.model_dump())
     
     elif args.command == "scan":
-        res = await extract_raw_strings(args.path, use_cache=args.use_cache, vcs_mode=args.vcs)
-        _print_json(res.model_dump())
+        if os.path.isdir(args.path):
+            all_results = []
+            total_tel = {"duration_ms": 0, "files_processed": 0, "keys_extracted": 0, "privacy_shield_hits": 0}
+            valid_exts = {".js", ".jsx", ".ts", ".tsx", ".vue"}
+            for root, _, files in os.walk(args.path):
+                for file in files:
+                    if os.path.splitext(file)[1].lower() in valid_exts:
+                        fpath = os.path.join(root, file)
+                        res = await extract_raw_strings(fpath, use_cache=args.use_cache, vcs_mode=args.vcs)
+                        if res.results:
+                            all_results.extend([r.model_dump() for r in res.results])
+                        if res.telemetry:
+                            total_tel["duration_ms"] += res.telemetry.duration_ms
+                            total_tel["files_processed"] += res.telemetry.files_processed
+                            total_tel["keys_extracted"] += res.telemetry.keys_extracted
+                            if getattr(res.telemetry, "privacy_shield_hits", None):
+                                total_tel["privacy_shield_hits"] += res.telemetry.privacy_shield_hits
+            _print_json({"results": all_results, "telemetry": total_tel})
+        else:
+            res = await extract_raw_strings(args.path, use_cache=args.use_cache, vcs_mode=args.vcs)
+            _print_json(res.model_dump())
 
     elif args.command == "audit":
         if args.lang == "all":
@@ -80,8 +99,12 @@ async def cli_main():
         try:
             new_pairs = json.loads(args.data)
         except json.JSONDecodeError:
-            with open(args.data, 'r', encoding='utf-8') as f:
-                new_pairs = json.load(f)
+            if os.path.isfile(args.data):
+                with open(args.data, 'r', encoding='utf-8') as f:
+                    new_pairs = json.load(f)
+            else:
+                _print_json({"error": "Invalid JSON string or file not found. If using literal JSON in PowerShell, watch out for quote stripping."})
+                return
         res = await propose_sync_i18n(new_pairs, args.lang, args.reason)
         _print_json(res.model_dump())
 
