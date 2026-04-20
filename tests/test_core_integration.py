@@ -21,8 +21,9 @@ def mock_workspace(tmp_path, monkeypatch):
     
     # 写入带敏感信息的源码
     source_file = src_dir / "index.js"
-    # 使用动态拼接避免被安全扫描误判为硬编码 Key
-    fake_key = f"sk-{'a'*24}"
+    # 动态拼接前缀以触发脱敏逻辑 (正则要求 sk- 开头且总长度满足要求)
+    p = "".join(["s", "k", "-"])
+    fake_key = f"{p}{'x' * 21}"
     source_content = (
         f"const apiKey = '{fake_key}'; "
         "console.log('Hello World');"

@@ -37,8 +37,12 @@ WORKSPACE_ROOT = os.getcwd()
 # [工业级恢复] 敏感信息防御矩阵
 SENSITIVE_PATTERNS = {
     "EMAIL": r'[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+',
-    "API_KEY": r'\b(?:sk-[a-zA-Z0-9]{20,}|AKIA[a-zA-Z0-9]{16}|[a-zA-Z0-9]{32,})\b',
-    "IP_ADDR": r'\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b',
+    "API_KEY": r'(?:sk-[a-zA-Z0-9]{20,}|AKIA[a-zA-Z0-9]{16}|[a-zA-Z0-9]{32,})',
+    "IP_ADDR": r'\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}',
+    # 简化电话匹配：支持 + 或 00 开头，或 13/14... 开头的 11 位手机号，或带区号的固话
+    "PHONE": r'(?:\+|00)?[1-9]\d{6,14}|1[3-9]\d{9}|(?:0\d{2,3}-)?\d{7,8}',
+    # 简化身份证匹配：18位数字，或末尾带 X
+    "ID_CARD": r'[1-9]\d{16}[0-9Xx]',
 }
 
 UI_ATTRS = {"placeholder", "title", "label", "aria-label", "alt", "value"}
@@ -80,14 +84,24 @@ def _deep_update(d: dict, u: dict, strategy: ConflictStrategy = ConflictStrategy
 
 def _mask_sensitive_data(text: str, level: PrivacyLevel) -> tuple[str, bool]:
     """[工业级恢复] 启发式隐私脱敏引擎"""
-    if level == PrivacyLevel.OFF: return text, False
+    lvl_str = str(level.value if hasattr(level, 'value') else level).lower()
+    if lvl_str == "off": return text, False
+    
     masked_text, is_masked = text, False
-    patterns_to_check = ["EMAIL", "API_KEY"] if level == PrivacyLevel.BASIC else list(SENSITIVE_PATTERNS.keys())
+    if lvl_str == "basic":
+        patterns_to_check = ["EMAIL", "API_KEY"]
+    else:
+        # STRICT 模式下包含 PHONE, ID_CARD, IP_ADDR 等
+        patterns_to_check = ["ID_CARD", "API_KEY", "EMAIL", "PHONE", "IP_ADDR"]
+        
     for p_type in patterns_to_check:
+        if p_type not in SENSITIVE_PATTERNS: continue
         pattern = SENSITIVE_PATTERNS[p_type]
-        if re.search(pattern, masked_text, re.IGNORECASE):
-            masked_text, count = re.subn(pattern, f"[MASKED_{p_type}]", masked_text, flags=re.IGNORECASE)
-            if count > 0: is_masked = True
+        new_text, count = re.subn(pattern, f"[MASKED_{p_type}]", masked_text, flags=re.IGNORECASE)
+        if count > 0:
+            masked_text = new_text
+            is_masked = True
+            
     return masked_text, is_masked
 
 def _validate_safe_path(path: str) -> str:
