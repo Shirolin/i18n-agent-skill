@@ -4,7 +4,7 @@ import os
 import re
 import time
 import uuid
-from typing import List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import aiofiles
 
@@ -58,7 +58,7 @@ UI_ATTRS = {"placeholder", "title", "label", "aria-label", "alt", "value"}
 
 def _flatten_dict(d: dict, p_key: str = "", sep: str = ".") -> dict:
     """拍平嵌套 JSON 为点号连接的键值对"""
-    items = []
+    items: List[Tuple[str, str]] = []
     for k, v in d.items():
         new_key = f"{p_key}{sep}{k}" if p_key else k
         if isinstance(v, dict):
@@ -70,7 +70,7 @@ def _flatten_dict(d: dict, p_key: str = "", sep: str = ".") -> dict:
 
 def _unflatten_dict(d: dict, sep: str = ".") -> dict:
     """还原点号连接的键值对为嵌套 JSON"""
-    res = {}
+    res: Dict[str, Any] = {}
     for k, v in d.items():
         parts = k.split(sep)
         d_ref = res
@@ -160,8 +160,9 @@ class TreeSitterScanner:
     def _get_lang(self, lang_name: str) -> Optional[Language]:
         """现代型语言加载器：使用 language_pack 获取全量支持"""
         try:
-            return tree_sitter_language_pack.get_language(lang_name)
-        except:
+            # 使用 Any 适配 Mypy 对动态语言名称字面量的严格要求
+            return tree_sitter_language_pack.get_language(lang_name)  # type: ignore
+        except Exception:
             return None
 
     def _get_lang_keys(self, ext: str) -> Tuple[str, str]:
@@ -206,7 +207,7 @@ class TreeSitterScanner:
                         try:
                             text_bytes = target_bytes[node.start_byte : node.end_byte]
                             text = text_bytes.decode("utf-8")
-                        except:
+                        except Exception:
                             continue
 
                         line_no = node.start_point[0] + 1 + line_offset
@@ -250,7 +251,7 @@ def _is_natural_language(text: str, origin: str) -> bool:
     if origin == "text_node":
         return True
     # 英文句子/短语特征
-    return " " in t or re.search(r"[.!?:]$", t)
+    return bool(" " in t or re.search(r"[.!?:]$", t))
 
 
 # ----------------- 顶级 API 接口 (全闭环) -----------------
@@ -473,7 +474,7 @@ async def _load_project_config() -> ProjectConfig:
     try:
         async with aiofiles.open(p, "r", encoding="utf-8") as f:
             return ProjectConfig(**json.loads(await f.read()))
-    except:
+    except Exception:
         return ProjectConfig()
 
 

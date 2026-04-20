@@ -118,7 +118,8 @@ async def cli_main():
             else:
                 _print_json(
                     {
-                        "error": "Invalid JSON string or file not found. If using literal JSON in PowerShell, watch out for quote stripping."
+                        "error": "Invalid JSON string or file not found. "
+                        "If using literal JSON in PowerShell, watch out for quote stripping."
                     }
                 )
                 return
