@@ -7,15 +7,17 @@ from typing import Any
 
 from i18n_agent_skill.tools import (
     check_project_status,
+    commit_i18n_changes,
     extract_raw_strings,
     get_missing_keys,
     propose_sync_i18n,
-    commit_i18n_changes
 )
+
 
 def _print_json(data: Any):
     """确保输出是 AI 可解析的 JSON"""
     print(json.dumps(data, indent=2, ensure_ascii=False, default=str))
+
 
 async def cli_main():
     parser = argparse.ArgumentParser(description="i18n-agent-skill CLI: 自动化国际化工程工具")
@@ -27,8 +29,12 @@ async def cli_main():
     # 2. scan
     scan_parser = subparsers.add_parser("scan", help="扫描源码中的硬编码中文并执行隐私脱敏")
     scan_parser.add_argument("path", help="待扫描的文件或目录路径")
-    scan_parser.add_argument("--vcs", action="store_true", help="开启 VCS 感知模式，仅扫描 Git 变动")
-    scan_parser.add_argument("--no-cache", action="store_false", dest="use_cache", help="禁用哈希缓存")
+    scan_parser.add_argument(
+        "--vcs", action="store_true", help="开启 VCS 感知模式，仅扫描 Git 变动"
+    )
+    scan_parser.add_argument(
+        "--no-cache", action="store_false", dest="use_cache", help="禁用哈希缓存"
+    )
 
     # 3. audit
     audit_parser = subparsers.add_parser("audit", help="比对语言包差异，查找缺失的 Key")
@@ -53,17 +59,24 @@ async def cli_main():
     if args.command == "status":
         res = await check_project_status()
         _print_json(res.model_dump())
-    
+
     elif args.command == "scan":
         if os.path.isdir(args.path):
             all_results = []
-            total_tel = {"duration_ms": 0, "files_processed": 0, "keys_extracted": 0, "privacy_shield_hits": 0}
+            total_tel = {
+                "duration_ms": 0,
+                "files_processed": 0,
+                "keys_extracted": 0,
+                "privacy_shield_hits": 0,
+            }
             valid_exts = {".js", ".jsx", ".ts", ".tsx", ".vue"}
             for root, _, files in os.walk(args.path):
                 for file in files:
                     if os.path.splitext(file)[1].lower() in valid_exts:
                         fpath = os.path.join(root, file)
-                        res = await extract_raw_strings(fpath, use_cache=args.use_cache, vcs_mode=args.vcs)
+                        res = await extract_raw_strings(
+                            fpath, use_cache=args.use_cache, vcs_mode=args.vcs
+                        )
                         if res.results:
                             all_results.extend([r.model_dump() for r in res.results])
                         if res.telemetry:
@@ -71,7 +84,9 @@ async def cli_main():
                             total_tel["files_processed"] += res.telemetry.files_processed
                             total_tel["keys_extracted"] += res.telemetry.keys_extracted
                             if getattr(res.telemetry, "privacy_shield_hits", None):
-                                total_tel["privacy_shield_hits"] += res.telemetry.privacy_shield_hits
+                                total_tel["privacy_shield_hits"] += (
+                                    res.telemetry.privacy_shield_hits
+                                )
             _print_json({"results": all_results, "telemetry": total_tel})
         else:
             res = await extract_raw_strings(args.path, use_cache=args.use_cache, vcs_mode=args.vcs)
@@ -84,12 +99,10 @@ async def cli_main():
             langs = status.config.enabled_langs
             results = {}
             for lang in langs:
-                if lang == args.base: continue
+                if lang == args.base:
+                    continue
                 missing = await get_missing_keys(lang, base_lang=args.base)
-                results[lang] = {
-                    "missing_count": len(missing),
-                    "missing_keys": missing
-                }
+                results[lang] = {"missing_count": len(missing), "missing_keys": missing}
             _print_json(results)
         else:
             res = await get_missing_keys(args.lang, base_lang=args.base)
@@ -100,10 +113,14 @@ async def cli_main():
             new_pairs = json.loads(args.data)
         except json.JSONDecodeError:
             if os.path.isfile(args.data):
-                with open(args.data, 'r', encoding='utf-8') as f:
+                with open(args.data, "r", encoding="utf-8") as f:
                     new_pairs = json.load(f)
             else:
-                _print_json({"error": "Invalid JSON string or file not found. If using literal JSON in PowerShell, watch out for quote stripping."})
+                _print_json(
+                    {
+                        "error": "Invalid JSON string or file not found. If using literal JSON in PowerShell, watch out for quote stripping."
+                    }
+                )
                 return
         res = await propose_sync_i18n(new_pairs, args.lang, args.reason)
         _print_json(res.model_dump())
@@ -114,13 +131,16 @@ async def cli_main():
 
     elif args.command == "mcp":
         from i18n_agent_skill.mcp_server import mcp
+
         mcp.run()
 
     elif not args.command:
         from i18n_agent_skill.mcp_server import mcp
+
         mcp.run()
 
+
 if __name__ == "__main__":
-    if sys.platform == 'win32':
+    if sys.platform == "win32":
         asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
     asyncio.run(cli_main())

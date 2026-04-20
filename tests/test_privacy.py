@@ -2,8 +2,6 @@ from i18n_agent_skill.models import PrivacyLevel
 from i18n_agent_skill.tools import _mask_sensitive_data
 
 
-import base64
-
 def test_mask_sensitive_email():
     """验证邮箱脱敏"""
     # 动态拼接以规避扫描，同时保留特征触发脱敏
@@ -15,6 +13,7 @@ def test_mask_sensitive_email():
     assert "[MASKED_EMAIL]" in masked
     assert is_masked is True
 
+
 def test_mask_sensitive_api_key():
     """验证 API Key 脱敏"""
     p = "".join(["s", "k", "-"])
@@ -24,6 +23,7 @@ def test_mask_sensitive_api_key():
     assert raw not in masked
     assert "[MASKED_API_KEY]" in masked
     assert is_masked is True
+
 
 def test_privacy_level_off():
     """验证关闭脱敏时的行为"""
@@ -35,6 +35,7 @@ def test_privacy_level_off():
     assert masked == text
     assert is_masked is False
 
+
 def test_privacy_level_strict_ip():
     """验证 STRICT 级别下对 IP 的脱敏"""
     raw = ".".join(["192", "168", "1", "1"])
@@ -42,12 +43,13 @@ def test_privacy_level_strict_ip():
     # BASIC 模式下不脱敏 IP
     masked_basic, _ = _mask_sensitive_data(text, PrivacyLevel.BASIC)
     assert raw in masked_basic
-    
+
     # STRICT 模式下脱敏 IP
     masked_strict, is_masked = _mask_sensitive_data(text, PrivacyLevel.STRICT)
     assert raw not in masked_strict
     assert "[MASKED_IP_ADDR]" in masked_strict
     assert is_masked is True
+
 
 def test_mask_sensitive_phone():
     """验证全球化电话号码脱敏"""
@@ -56,27 +58,28 @@ def test_mask_sensitive_phone():
     # 国际格式
     raw_intl = "+8613800138000"
     text = f"Tel: {raw_cn}, Intl: {raw_intl}"
-    
+
     # BASIC 模式下不脱敏电话
     masked_basic, _ = _mask_sensitive_data(text, PrivacyLevel.BASIC)
     assert raw_cn in masked_basic
-    
+
     # STRICT 模式下脱敏
     masked_strict, is_masked = _mask_sensitive_data(text, PrivacyLevel.STRICT)
     assert raw_cn not in masked_strict
     assert "[MASKED_PHONE]" in masked_strict
     assert is_masked is True
 
+
 def test_mask_sensitive_id_card():
     """验证中国身份证脱敏"""
     # 虚构一个符合正则的身份证号
     raw_id = "110101199001011234"
     text = f"ID: {raw_id}"
-    
+
     # BASIC 模式下不脱敏
     masked_basic, _ = _mask_sensitive_data(text, PrivacyLevel.BASIC)
     assert raw_id in masked_basic
-    
+
     # STRICT 模式下脱敏
     masked_strict, is_masked = _mask_sensitive_data(text, PrivacyLevel.STRICT)
     assert raw_id not in masked_strict

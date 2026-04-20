@@ -5,9 +5,7 @@ i18n-cli.py — i18n-agent-skill 标准命令行入口
 """
 
 import sys
-import os
-import subprocess
-import json
+
 
 def check_readiness():
     """检查环境是否就绪"""
@@ -19,17 +17,20 @@ def check_readiness():
         return False
     return True
 
+
 def run_main():
     """调用核心入口"""
     if not check_readiness():
         sys.exit(1)
-        
-    from i18n_agent_skill.__main__ import cli_main
+
     import asyncio
-    
-    if sys.platform == 'win32':
+
+    from i18n_agent_skill.__main__ import cli_main
+
+    if sys.platform == "win32":
         asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
     asyncio.run(cli_main())
+
 
 if __name__ == "__main__":
     run_main()

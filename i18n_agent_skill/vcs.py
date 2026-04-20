@@ -10,18 +10,18 @@ def get_git_hunks(workspace_root: str) -> Dict[str, Set[int]]:
     """
     hunks: Dict[str, Set[int]] = {}
     current_file = ""
-    
+
     try:
         # -U0 表示不包含上下文行，仅输出变动行
         result = subprocess.run(
-            ["git", "diff", "-U0"], 
-            cwd=workspace_root, 
-            capture_output=True, 
-            text=True, 
+            ["git", "diff", "-U0"],
+            cwd=workspace_root,
+            capture_output=True,
+            text=True,
             encoding="utf-8",
-            check=False
+            check=False,
         )
-        
+
         if result.returncode != 0:
             return {}
 
@@ -36,11 +36,11 @@ def get_git_hunks(workspace_root: str) -> Dict[str, Set[int]]:
                 if match:
                     start_line = int(match.group(1))
                     line_count = int(match.group(2)) if match.group(2) else 1
-                    
+
                     # 记录变动的行区间（包含前后 1 行缓冲）
                     for i in range(start_line - 1, start_line + line_count + 1):
                         hunks[current_file].add(i)
-                        
+
     except Exception:
         pass
     return hunks

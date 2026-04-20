@@ -1,8 +1,7 @@
 import pytest
-import os
-import json
+
 from i18n_agent_skill import tools
-from i18n_agent_skill.models import PrivacyLevel
+
 
 @pytest.mark.asyncio
 async def test_vue_sfc_region_recursion(tmp_path):
@@ -20,19 +19,20 @@ async def test_vue_sfc_region_recursion(tmp_path):
     """
     f = tmp_path / "App.vue"
     f.write_text(vue_content, encoding="utf-8")
-    
+
     # 模拟 WORKSPACE_ROOT 以通过沙箱校验
     tools.WORKSPACE_ROOT = str(tmp_path)
-    
+
     output = await tools.extract_raw_strings("App.vue")
     if output.error and output.error.error_code == "DEP_ERR":
         pytest.skip("Environment does not support Tree-sitter, skipping AST check.")
-        
+
     texts = [r.text for r in output.results]
     assert "点击提交" in texts
     assert "Submit" in texts
     assert "逻辑中文" in texts
     assert "ignore me" not in texts
+
 
 @pytest.mark.asyncio
 async def test_jsx_text_node_capture(tmp_path):
@@ -47,16 +47,17 @@ async def test_jsx_text_node_capture(tmp_path):
     """
     f = tmp_path / "Comp.tsx"
     f.write_text(tsx_content, encoding="utf-8")
-    
+
     tools.WORKSPACE_ROOT = str(tmp_path)
     output = await tools.extract_raw_strings("Comp.tsx")
     if output.error and output.error.error_code == "DEP_ERR":
         pytest.skip("AST engine missing")
-        
+
     texts = [r.text for r in output.results]
     assert "全局设置" in texts
     assert "保存修改" in texts
     assert "确认{var}" in texts  # 模板字符串子节点处理
+
 
 @pytest.mark.asyncio
 async def test_multilingual_召回率(tmp_path):
@@ -69,12 +70,12 @@ async def test_multilingual_召回率(tmp_path):
     """
     f = tmp_path / "global.js"
     f.write_text(code, encoding="utf-8")
-    
+
     tools.WORKSPACE_ROOT = str(tmp_path)
     output = await tools.extract_raw_strings("global.js")
     if output.error and output.error.error_code == "DEP_ERR":
         pytest.skip("AST engine missing")
-        
+
     texts = [r.text for r in output.results]
     assert "キャンセル" in texts
     assert "Bestätigen" in texts

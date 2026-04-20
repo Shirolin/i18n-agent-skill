@@ -9,11 +9,13 @@ def test_flatten_basic():
     assert flat["a.b.c"] == "val"
     assert len(flat) == 1
 
+
 def test_unflatten_basic():
     """测试字典还原"""
     flat = {"auth.login.title": "Sign In"}
     unflattened = _unflatten_dict(flat)
     assert unflattened["auth"]["login"]["title"] == "Sign In"
+
 
 def test_deep_update_keep_strategy():
     """测试保留现有策略"""
@@ -23,6 +25,7 @@ def test_deep_update_keep_strategy():
     res = _deep_update(base.copy(), update, ConflictStrategy.KEEP_EXISTING)
     assert res["ui"]["btn"] == "Old"
     assert res["ui"]["icon"] == "add"
+
 
 def test_deep_update_overwrite_strategy():
     """测试强制覆盖策略"""

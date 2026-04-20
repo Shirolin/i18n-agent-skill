@@ -8,11 +8,12 @@ from i18n_agent_skill.models import RegressionResult
 
 SNAPSHOT_FILE = ".i18n-snapshots.json"
 
+
 class TranslationSnapshotManager:
     """
     快照回归管理器：记录历史上得分最高的翻译，防止翻译质量下降。
     """
-    
+
     def __init__(self, workspace_root: str):
         self.path = os.path.join(workspace_root, SNAPSHOT_FILE)
 
@@ -38,7 +39,7 @@ class TranslationSnapshotManager:
         snapshots = await self._read_snapshots()
         if key not in snapshots:
             return None
-        
+
         snapshot_score = snapshots[key].get("score", 0)
         if current_score < snapshot_score:
             msg = (
@@ -49,7 +50,7 @@ class TranslationSnapshotManager:
                 is_degraded=True,
                 snapshot_score=snapshot_score,
                 current_score=current_score,
-                warning_message=msg
+                warning_message=msg,
             )
 
         return None
@@ -60,8 +61,5 @@ class TranslationSnapshotManager:
         """
         snapshots = await self._read_snapshots()
         if key not in snapshots or score >= snapshots[key].get("score", 0):
-            snapshots[key] = {
-                "translation": translation,
-                "score": score
-            }
+            snapshots[key] = {"translation": translation, "score": score}
             await self._write_snapshots(snapshots)

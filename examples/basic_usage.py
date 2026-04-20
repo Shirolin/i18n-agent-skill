@@ -25,12 +25,12 @@ workflow = SequentialAgent(
         Agent(
             name="GlossaryLoader",
             tools=[load_project_glossary],
-            instructions="加载项目术语表，确保翻译一致性。"
+            instructions="加载项目术语表，确保翻译一致性。",
         ),
         Agent(
             name="ContextAwareExtractor",
             tools=[extract_raw_strings],
-            instructions="提取 UI 文本及其上下文。"
+            instructions="提取 UI 文本及其上下文。",
         ),
         Agent(
             name="Proposer",
@@ -39,9 +39,9 @@ workflow = SequentialAgent(
             生成变更提案。你必须在 reasoning 字段中写明决策依据：
             1. 是否参考了术语表？
             2. 上下文代码片段是如何影响翻译选择的？
-            """
-        )
-    ]
+            """,
+        ),
+    ],
 )
 
 
@@ -53,7 +53,7 @@ async def run_example():
     # 模拟运行
     result = await runner.run(
         session_id="i18n_task_001",
-        user_input="同步 src/ui/Header.js。请使用术语表确保 'Submit' 的翻译一致。"
+        user_input="同步 src/ui/Header.js。请使用术语表确保 'Submit' 的翻译一致。",
     )
 
     print("\n" + "=" * 50)

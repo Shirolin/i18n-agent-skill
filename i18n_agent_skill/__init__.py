@@ -22,5 +22,5 @@ __all__ = [
     "get_missing_keys",
     "sync_i18n_files",
     "ConflictStrategy",
-    "PrivacyLevel"
+    "PrivacyLevel",
 ]

@@ -11,17 +11,18 @@ def setup_logger(name: str = "i18n-agent"):
     """
     logger = logging.getLogger(name)
     logHandler = logging.StreamHandler(sys.stdout)
-    
+
     # 定义输出字段
     formatter = jsonlogger.JsonFormatter(
-        '%(timestamp)s %(levelname)s %(name)s %(message)s %(trace_id)s %(duration_ms)s'
+        "%(timestamp)s %(levelname)s %(name)s %(message)s %(trace_id)s %(duration_ms)s"
     )
-    
+
     logHandler.setFormatter(formatter)
     if not logger.handlers:
         logger.addHandler(logHandler)
     logger.setLevel(logging.INFO)
     return logger
+
 
 # 全局实例
 structured_logger = setup_logger()
