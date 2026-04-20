@@ -58,5 +58,6 @@ provenance:
 ## 💡 常用命令手册
 
 - `/i18n-audit`: 快速执行全项目 i18n 覆盖率与差异审计。
+- `/i18n-sync`: 智能识别 Git 变更并生成增量翻译提案。
 - `/i18n-fix`: 自动探测环境异常并生成全量修复提案。
 - `/i18n-status`: 验证 Tree-sitter 环境与 Python 依赖就绪状态。

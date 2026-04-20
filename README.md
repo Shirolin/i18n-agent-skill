@@ -43,7 +43,7 @@ chmod +x scripts/install-skill.sh
 | `/i18n-audit` | 全量审计：检查各语言包的缺失情况及翻译一致性。 |
 | `/i18n-fix` | 快捷修复：自动扫描环境异常，生成全量修复提案。 |
 | `/i18n-status` | 状态验证：检查 Tree-sitter 引擎与项目配置的就绪状态。 |
-| `Sync` | 智能同步：支持 Git Hunk 感知，仅对改动文件执行增量同步。 |
+| `/i18n-sync` | 智能同步：支持 Git Hunk 感知，仅对改动文件执行增量同步。 |
 
 ---
 
