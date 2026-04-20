@@ -1,0 +1,23 @@
+{
+  "project_name": "My Project",
+  "version": "1.0.0",
+  "glossary": [
+    {
+      "term": "User",
+      "translation": "用户",
+      "context": "General app user",
+      "priority": 1
+    },
+    {
+      "term": "Dashboard",
+      "translation": "仪表盘",
+      "context": "Main management interface",
+      "priority": 2
+    }
+  ],
+  "rules": {
+    "cjk_spacing": true,
+    "fullwidth_punctuation": true,
+    "forbidden_terms": []
+  }
+}

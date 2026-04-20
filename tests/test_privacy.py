@@ -12,9 +12,10 @@ def test_mask_sensitive_email():
 
 def test_mask_sensitive_api_key():
     """验证 API Key 脱敏"""
-    text = "apiKey = 'sk-1234567890abcdef12345678'"
+    fake_key = f"sk-{'b'*24}"
+    text = f"apiKey = '{fake_key}'"
     masked, is_masked = _mask_sensitive_data(text, PrivacyLevel.BASIC)
-    assert "sk-1234567890abcdef12345678" not in masked
+    assert fake_key not in masked
     assert "[MASKED_API_KEY]" in masked
     assert is_masked is True
 

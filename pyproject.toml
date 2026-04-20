@@ -8,10 +8,10 @@ version = "0.1.0"
 description = "An AI-powered i18n automation toolset for React/Vue projects."
 readme = "README.md"
 requires-python = ">=3.10, <3.13"
-license = {text = "Apache-2.0"}
 authors = [
     {name = "Shirolin", email = "shiro@example.com"}
 ]
+license = {text = "Apache-2.0"}
 keywords = ["i18n", "ai", "agent", "google-adk", "translation", "mcp"]
 dependencies = [
     "google-adk>=0.1.0",
@@ -25,6 +25,9 @@ dependencies = [
     "tree-sitter-languages"
 ]
 
+[project.scripts]
+i18n-agent-skill = "i18n_agent_skill.__main__:cli_main"
+
 [project.optional-dependencies]
 dev = [
     "pytest>=7.0",
@@ -34,6 +37,10 @@ dev = [
     "mypy>=1.0",
     "types-aiofiles"
 ]
+
+[tool.i18n-agent-skill]
+validate = "python .agents/skills/agent-skill-creator/scripts/validate.py ."
+scan = "python .agents/skills/agent-skill-creator/scripts/security_scan.py ."
 
 [tool.setuptools]
 packages = ["i18n_agent_skill"]
