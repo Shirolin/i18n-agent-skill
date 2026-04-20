@@ -31,6 +31,14 @@ ENV/
 .vscode/
 .idea/
 
+# agent
+.agents/
+.agent/
+.gemini/
+
+# vfox
+.vfox/
+
 # Caches
 .mypy_cache/
 .pytest_cache/
