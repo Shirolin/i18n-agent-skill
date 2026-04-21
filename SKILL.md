@@ -38,13 +38,28 @@ provenance:
 ## ⚡ 核心工作流 (Workflows)
 
 ### 1. 项目初始化与环境预检 (Setup & Status)
-- **环境预检**: 执行 `python -m i18n_agent_skill status`。
-  - **重要契约**: 如果你处于多项目或嵌套环境（例如该 Skill 安装入了宿主项目的子目录 `.gemini/skills/` 内），**必须显式提供项目根目录**。例如：`python -m i18n_agent_skill --workspace-root <path> status`。
-- **自动初始化**: 执行 `python -m i18n_agent_skill init`。工具将自动探测源码目录及 locales 路径，并生成 `.i18n-skill.json`。
-- **自愈机制**: 若环境异常，系统会生成 `executable_hint`。
+
+- **环境预检 (防御性启动协议)**:
+
+  1. **定位 Skill 安装根目录**：在当前项目中找到 `.agents/skills/i18n-agent-skill/` 或 `.gemini/skills/i18n-agent-skill/` 目录（即 SKILL.md 所在位置）。
+
+  2. **优先使用 `.venv` 解释器**（可跳过全局 Python）：
+     - Windows: `<skill_root>\.venv\Scripts\python.exe -m i18n_agent_skill status`
+     - macOS/Linux: `<skill_root>/.venv/bin/python -m i18n_agent_skill status`
+
+  3. **如果 `.venv` 不存在**：说明 Skill 尚未安装运行时，引导用户执行初始化（见下文自愈机制）。
+
+  4. **工作区指定**：若处于多项目或嵌套环境，**必须显式提供项目根目录**：`<venv_python> -m i18n_agent_skill --workspace-root <宿主项目根路径> status`。
+
+- **自动初始化**: 执行 `<venv_python> -m i18n_agent_skill init`。
+
+- **自愈机制 (`.venv` 不存在时)**: 引导用户在 Skill 安装目录下执行对应平台的初始化脚本：
+  - Linux/macOS: `chmod +x install.sh && ./install.sh`
+  - Windows (Git Bash/WSL): `./install.sh`
+  - Windows (PowerShell): `powershell -ExecutionPolicy Bypass -File scripts/bootstrap.ps1`
 
 ### 2. 国际化审计与提取 (Audit & Scan)
-- **差异分析**: 执行 `python -m i18n_agent_skill audit all`。得益于自动探测，即使无配置也能全量扫描。
+- **差异分析**: 执行 `<venv_python> -m i18n_agent_skill audit all`。得益于自动探测，即使无配置也能全量扫描。
 - **精准提取**: 对目标文件/目录执行 `scan` 指令。
 - **技术细节**: 详见 [AST 引擎说明文件](./references/ast-engine.md)。
 
