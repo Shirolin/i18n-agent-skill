@@ -13,10 +13,25 @@ try:
     import tree_sitter
     import tree_sitter_language_pack
     from tree_sitter import Language, Parser
-
-    DEPENDENCIES_INSTALLED = True
-except ImportError:
+    
+    # 强制版本校验
+    import importlib.metadata
+    ts_version = importlib.metadata.version("tree-sitter")
+    
+    # 使用简单的元组比较，避免引入 packaging 依赖
+    v_parts = [int(p) for p in ts_version.split(".")[:3]]
+    if tuple(v_parts) < (0, 25, 0):
+        DEPENDENCIES_INSTALLED = False
+        DEP_ERROR_MSG = f"Tree-sitter version too low ({ts_version}). Minimum required: 0.25.0"
+    else:
+        DEPENDENCIES_INSTALLED = True
+        DEP_ERROR_MSG = ""
+except ImportError as e:
     DEPENDENCIES_INSTALLED = False
+    DEP_ERROR_MSG = f"Missing core dependency: {str(e)}"
+except Exception as e:
+    DEPENDENCIES_INSTALLED = False
+    DEP_ERROR_MSG = f"Dependency error: {str(e)}"
 
 from i18n_agent_skill.logger import structured_logger as logger
 from i18n_agent_skill.models import (
@@ -480,12 +495,13 @@ async def _load_project_config() -> ProjectConfig:
 
 async def check_project_status() -> ProjectStatus:
     config = await _load_project_config()
+    status_msg = "Ready." if DEPENDENCIES_INSTALLED else f"Environment Issues: {DEP_ERROR_MSG}"
     return ProjectStatus(
         config=config,
         has_glossary=os.path.exists(os.path.join(WORKSPACE_ROOT, GLOSSARY_FILE)),
         cache_size=0,
         workspace_root=WORKSPACE_ROOT,
-        status_message="Ready.",
+        status_message=status_msg,
     )
 
 

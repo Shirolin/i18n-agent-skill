@@ -2,8 +2,43 @@ import argparse
 import asyncio
 import json
 import os
+import subprocess
 import sys
 from typing import Any
+
+# =================================================================
+# [Venv Bootstrapper] 确保在隔离环境中运行，防止系统 Python 逃逸
+# =================================================================
+def bootstrap_venv():
+    # 查找技能根目录（即包含 .venv 的目录）
+    skill_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    venv_path = os.path.join(skill_root, ".venv")
+    
+    if os.path.exists(venv_path):
+        # 确定 venv 中的 python 路径
+        if sys.platform == "win32":
+            venv_python = os.path.join(venv_path, "Scripts", "python.exe")
+        else:
+            venv_python = os.path.join(venv_path, "bin", "python")
+
+        if os.path.exists(venv_python):
+            # 获取当前运行的 python 路径
+            current_python = os.path.abspath(sys.executable)
+            target_python = os.path.abspath(venv_python)
+
+            # 如果当前 python 不是 venv 中的 python，且不是通过 venv python 递归调用的
+            if current_python != target_python and os.environ.get("I18N_SKILL_BOOTSTRAPPED") != "1":
+                # 设置环境变量防止死循环
+                env = os.environ.copy()
+                env["I18N_SKILL_BOOTSTRAPPED"] = "1"
+                # 重新通过 venv python 启动自己
+                # 注：使用 sys.argv 完美透传所有参数
+                cmd = [target_python, "-m", "i18n_agent_skill"] + sys.argv[1:]
+                sys.exit(subprocess.call(cmd, env=env))
+
+bootstrap_venv()
+# =================================================================
+
 
 from i18n_agent_skill.tools import (
     check_project_status,

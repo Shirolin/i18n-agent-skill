@@ -19,7 +19,7 @@ dependencies = [
     "aiofiles>=23.0.0",
     "mcp>=1.0.0",
     "python-json-logger>=2.0.7",
-    "tree-sitter>=0.21.0",
+    "tree-sitter>=0.25.0",
     "tree-sitter-language-pack"
 ]
 
