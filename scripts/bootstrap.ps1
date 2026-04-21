@@ -13,11 +13,11 @@ Write-Host '==> i18n-agent-skill Windows bootstrap' -ForegroundColor Cyan
 $PythonBin = $null
 foreach ($cmd in 'py', 'python3', 'python') {
     try {
-        $ver = & $cmd -c 'import sys; print(str(sys.version_info.major)+"."+str(sys.version_info.minor))' 2>$null
-        if ($ver -match '^(\d+)\.(\d+)') {
+        $ver = & $cmd --version 2>&1  # outputs: "Python 3.10.11"
+        if ($ver -match '^Python (\d+)\.(\d+)') {
             if ([int]$Matches[1] -ge 3 -and [int]$Matches[2] -ge 10) {
                 $PythonBin = $cmd
-                Write-Host ('==> Found Python ' + $ver + ' (' + $cmd + ')') -ForegroundColor Green
+                Write-Host ('==> Found ' + $ver + ' (' + $cmd + ')') -ForegroundColor Green
                 break
             }
         }
