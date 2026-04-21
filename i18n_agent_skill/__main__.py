@@ -45,6 +45,7 @@ from i18n_agent_skill.tools import (
     commit_i18n_changes,
     extract_raw_strings,
     get_missing_keys,
+    initialize_project_config,
     propose_sync_i18n,
 )
 
@@ -86,7 +87,10 @@ async def cli_main():
     commit_parser = subparsers.add_parser("commit", help="正式提交并应用指定的提案")
     commit_parser.add_argument("proposal_id", help="提案 ID")
 
-    # 6. mcp
+    # 6. init
+    subparsers.add_parser("init", help="扫描项目并生成显式的 .i18n-skill.json 配置文件")
+
+    # 7. mcp
     subparsers.add_parser("mcp", help="以 MCP Server 模式运行")
 
     args = parser.parse_args()
@@ -94,6 +98,10 @@ async def cli_main():
     if args.command == "status":
         res = await check_project_status()
         _print_json(res.model_dump())
+
+    elif args.command == "init":
+        msg = await initialize_project_config()
+        _print_json({"message": msg})
 
     elif args.command == "scan":
         if os.path.isdir(args.path):

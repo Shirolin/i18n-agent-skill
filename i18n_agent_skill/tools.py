@@ -427,9 +427,7 @@ async def commit_i18n_changes(proposal_id: str) -> str:
         data = json.load(f)
 
     safe_target = _validate_safe_path(data["target_file"])
-    os.makedirs(os.path.dirname(safe_target), exist_ok=True)
-    async with aiofiles.open(safe_target, "w", encoding="utf-8") as f:
-        await f.write(json.dumps(data["content"], indent=2, ensure_ascii=False, sort_keys=True))
+    await _save_locale_data(safe_target, data["content"])
 
     # 更新快照
     snapshot_mgr = TranslationSnapshotManager(WORKSPACE_ROOT)
@@ -445,21 +443,67 @@ async def get_missing_keys(lang_code: str, base_lang: str = "en") -> dict:
     config = await _load_project_config()
     target_dir = _detect_locale_dir(config)
 
-    # 使用绝对路径确保测试环境鲁棒性
-    bp = _validate_safe_path(os.path.join(target_dir, f"{base_lang}.json"))
-    tp = _validate_safe_path(os.path.join(target_dir, f"{lang_code}.json"))
+    bd = await _load_locale_data(target_dir, base_lang)
+    td = await _load_locale_data(target_dir, lang_code)
 
-    bd, td = {}, {}
-    try:
-        if os.path.exists(bp):
-            async with aiofiles.open(bp, "r", encoding="utf-8") as f:
-                bd = _flatten_dict(json.loads(await f.read()))
-        if os.path.exists(tp):
-            async with aiofiles.open(tp, "r", encoding="utf-8") as f:
-                td = _flatten_dict(json.loads(await f.read()))
-    except Exception:
-        pass
-    return {k: v for k, v in bd.items() if k not in td}
+    flat_bd = _flatten_dict(bd)
+    flat_td = _flatten_dict(td)
+
+    return {k: v for k, v in flat_bd.items() if k not in flat_td}
+
+
+async def _load_locale_data(target_dir: str, lang: str) -> dict:
+    """[v2.1] 跨格式加载语言包 (json -> ts -> js)"""
+    for ext in (".json", ".ts", ".js"):
+        p = _validate_safe_path(os.path.join(target_dir, f"{lang}{ext}"))
+        if not os.path.exists(p):
+            continue
+        
+        try:
+            async with aiofiles.open(p, "r", encoding="utf-8") as f:
+                content = await f.read()
+            
+            if ext == ".json":
+                return json.loads(content)
+            
+            # 处理 .ts/.js 中的 export default
+            # 提取第一个 { 和 最后一个 } 之间的内容
+            match = re.search(r"export\s+default\s+({.*});?", content, re.DOTALL)
+            if match:
+                obj_str = match.group(1)
+                # 简单粗暴的转换：将 JS 对象字面量适配为 JSON (仅支持简单结构)
+                # 生产环境建议用 AST，这里采用启发式清理
+                try:
+                    # 去掉末尾分号
+                    obj_str = obj_str.strip().rstrip(";")
+                    # 尝试将常见的非标准 JSON 字符转换 (如单引号转双引号，移除末尾逗号)
+                    cleaned = re.sub(r",\s*([}\]])", r"\1", obj_str) # 移除末尾逗号
+                    cleaned = re.sub(r"(['])(.*?)\1", r'"\2"', cleaned) # 单引号转双引号
+                    # 注意：如果 message 里本身有撇号，这会出问题，所以这里要极端小心
+                    return json.loads(cleaned)
+                except:
+                    # 如果清理失败，回退到更激进的正则提取或返回空（待优化）
+                    logger.warning(f"Failed to parse JS/TS locale via regex: {p}")
+                    return {}
+        except Exception as e:
+            logger.error(f"Error loading {p}: {e}")
+            continue
+    return {}
+
+
+async def _save_locale_data(path: str, data: dict):
+    """[v2.1] 跨格式写回语言包"""
+    ext = os.path.splitext(path)[1]
+    json_str = json.dumps(data, indent=2, ensure_ascii=False, sort_keys=True)
+    
+    if ext in (".ts", ".js"):
+        content = f"export default {json_str};\n"
+    else:
+        content = json_str
+        
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    async with aiofiles.open(path, "w", encoding="utf-8") as f:
+        await f.write(content)
 
 
 async def sync_i18n_files(new_pairs: dict, lang_code: str):
@@ -485,17 +529,39 @@ async def refine_i18n_proposal(proposal_id: str, feedback: str) -> str:
 async def _load_project_config() -> ProjectConfig:
     p = os.path.join(WORKSPACE_ROOT, CONFIG_FILE)
     if not os.path.exists(p):
-        return ProjectConfig()
+        # 零配置探测模式
+        config = ProjectConfig()
+        loc_dir = _detect_locale_dir(config)
+        detected_langs = _detect_enabled_langs(loc_dir)
+        if detected_langs:
+            config.enabled_langs = list(set(config.enabled_langs + detected_langs))
+        config.locales_dir = loc_dir
+        return config
+
     try:
         async with aiofiles.open(p, "r", encoding="utf-8") as f:
-            return ProjectConfig(**json.loads(await f.read()))
+            data = json.loads(await f.read())
+            # 如果配置中没写语言，也尝试探测一次
+            config = ProjectConfig(**data)
+            if not data.get("enabled_langs"):
+                detected = _detect_enabled_langs(config.locales_dir)
+                if detected:
+                    config.enabled_langs = list(set(config.enabled_langs + detected))
+            return config
     except Exception:
         return ProjectConfig()
 
 
 async def check_project_status() -> ProjectStatus:
     config = await _load_project_config()
-    status_msg = "Ready." if DEPENDENCIES_INSTALLED else f"Environment Issues: {DEP_ERROR_MSG}"
+    has_config_file = os.path.exists(os.path.join(WORKSPACE_ROOT, CONFIG_FILE))
+    
+    status_msg = "Ready."
+    if not DEPENDENCIES_INSTALLED:
+        status_msg = f"Environment Issues: {DEP_ERROR_MSG}"
+    elif not has_config_file:
+        status_msg = "Ready (Auto-detected). Suggest running 'init' to persist config."
+    
     return ProjectStatus(
         config=config,
         has_glossary=os.path.exists(os.path.join(WORKSPACE_ROOT, GLOSSARY_FILE)),
@@ -510,6 +576,43 @@ def _detect_locale_dir(config: ProjectConfig) -> str:
         if os.path.isdir(os.path.join(WORKSPACE_ROOT, d)):
             return d
     return "locales"
+
+
+def _detect_enabled_langs(locale_dir: str) -> List[str]:
+    """[v2.0] 自动搜寻 locales 目录下的语言包"""
+    target = os.path.join(WORKSPACE_ROOT, locale_dir)
+    if not os.path.exists(target):
+        return []
+    
+    langs = []
+    # 匹配模式：文件名. (json|ts|js)
+    pattern = re.compile(r"^([a-zA-Z0-9_-]+)\.(json|ts|js)$")
+    for f in os.listdir(target):
+        match = pattern.match(f)
+        if match:
+            lang_code = match.group(1)
+            if lang_code not in ("index", "types"): # 排除常见的库入口文件
+                langs.append(lang_code)
+    return sorted(list(set(langs)))
+
+
+async def initialize_project_config() -> str:
+    """[v2.0] 扫描项目并固化配置"""
+    config = ProjectConfig()
+    config.locales_dir = _detect_locale_dir(config)
+    config.enabled_langs = _detect_enabled_langs(config.locales_dir) or ["en", "zh-CN"]
+    
+    # 尝试探测源码目录
+    for d in ["src", "lib", "app"]:
+        if os.path.isdir(os.path.join(WORKSPACE_ROOT, d)):
+            config.source_dirs = [d]
+            break
+            
+    p = os.path.join(WORKSPACE_ROOT, CONFIG_FILE)
+    async with aiofiles.open(p, "w", encoding="utf-8") as f:
+        await f.write(json.dumps(config.model_dump(), indent=2, ensure_ascii=False))
+    
+    return f"Initialized config at {p}. Processed {len(config.enabled_langs)} languages."
 
 
 async def load_project_glossary():

@@ -60,6 +60,12 @@ provenance:
 3. **隐私红线**: 必须遵守隐私盾约束，严禁泄露硬编码凭证或 PII 信息。详见 [隐私保护规范](./references/privacy-guard.md)。
 4. **模型优先**: 所有的内部数据交换必须遵循 `i18n_agent_skill.models` 中定义的结构。
 
+## ⛔ 行为禁令 (Forbidden Behaviors)
+
+1. **禁止越狱 (No Tool Bypass)**: 严禁绕过 `audit` / `sync` / `commit` 流程直接对语言包执行 Shell 命令（如 `sed`, `awk`）或手动 `replace` 编辑。
+2. **工具演进优先 (Evolution Priority)**: 如果工具目前不支持某种文件格式（如某些特殊的 `.ts` 导出），**Agent 的唯一合法路径是修改 `tools.py` 增强工具兼容性**，严禁因工具局限而回退到手动操作模式。
+3. **禁止翻译“幻觉”**: 在执行 `sync` 时，严禁编造不存在的 Key。必须基于 `audit` 的真实结果生成提案。
+
 ## 💡 常用命令手册
 
 - `/i18n-status`: 验证 Tree-sitter 环境与 Python 依赖就绪状态。
