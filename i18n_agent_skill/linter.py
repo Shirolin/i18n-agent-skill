@@ -9,6 +9,24 @@ from i18n_agent_skill.models import StyleFeedback
 CJK_LANGS = {"zh", "ja", "ko"}
 LATIN_LANGS = {"en", "es", "fr", "de", "it", "pt", "nl", "ru", "pl", "tr", "vi", "id", "th", "hi"}
 
+# 常见语言名称母语（Endonym）映射表
+# 格式: 内部ID -> { "native": "母语名", "search": [用于识别的关键词列表] }
+ENDONYM_MAP = {
+    "en": {"native": "English", "search": ["english", "英语", "英語"]},
+    "ja": {"native": "日本語", "search": ["japanese", "日语", "日本語", "日本语"]},
+    "zh": {"native": "中文", "search": ["chinese", "中文", "中国语", "中国語"]},
+    "de": {"native": "Deutsch", "search": ["german", "deutsch", "德语", "德語", "ドイツ語"]},
+    "ko": {"native": "한국어", "search": ["korean", "韩国语", "韓國語", "韓国語", "한국어"]},
+    "fr": {"native": "Français", "search": ["french", "français", "法语", "法語", "フランス語"]},
+    "es": {"native": "Español", "search": ["spanish", "español", "西班牙语", "西班牙語", "スペイン語"]},
+    "auto": {"native": "Auto", "search": ["auto", "自动", "自動"]},
+}
+
+# 语义启发式指纹：匹配这些前缀/包含词的 Key 极大概率是语言选择组件
+LANGUAGE_SEMANTIC_PATTERNS = [
+    r"^lang", r"^locale", r"language$", r"^pref_?lang", r"^ui_?lang"
+]
+
 # TODO: 未来引入 StrictnessLevel 配置（如 Basic, Strict, Off）
 # 并在 Rule 函数调用时注入 Config 以调整校验严格度。
 
@@ -52,6 +70,43 @@ def rule_cjk_fullwidth_punctuation(key: str, text: str, exact_lang: str) -> List
                 message="排版建议：中文语境下建议使用全角逗号 '，'。",
             )
         ]
+    return []
+
+
+def rule_protect_language_endonyms(
+    key: str, text: str, lang_code: str, custom_patterns: List[str] = None
+) -> List[StyleFeedback]:
+    """
+    检查“语言名称母语化”保护。
+    语义逻辑：如果 Key 包含语言特征，且文本是已知语言名，则不应将其翻译成目标语，而应保持母语。
+    """
+    k_lower = key.lower()
+    t_lower = text.lower()
+    
+    # 1. 语义检测：该 Key 是否具有语言切换特征？
+    # 结合内置模式与用户自定义模式
+    patterns = LANGUAGE_SEMANTIC_PATTERNS + (custom_patterns or [])
+    is_lang_context = any(re.search(p, k_lower) for p in patterns)
+    
+    # 2. 值检测：该文本是否落在已知语言名称范围内？
+    target_native = None
+    for _, info in ENDONYM_MAP.items():
+        # 只要文本命中了这个语言的任何一种称呼（搜寻列表）
+        if any(kw in t_lower for kw in info["search"]):
+            target_native = info["native"]
+            break
+            
+    if is_lang_context and target_native:
+        # 如果当前翻译结果不等于母语名
+        if text != target_native:
+             return [
+                StyleFeedback(
+                    key=key,
+                    violation="LANGUAGE_ENDONYM_OVER_TRANSLATION",
+                    suggestion=target_native,
+                    message=f"语义纠偏：检测到 $KEY 疑似用于语言切换。建议使用母语名已确保全球识别度（建议改为：{target_native}）。",
+                )
+            ]
     return []
 
 
@@ -99,7 +154,9 @@ class TranslationStyleLinter:
     """
 
     @staticmethod
-    def lint(key: str, text: str, lang_code: str) -> List[StyleFeedback]:
+    def lint(
+        key: str, text: str, lang_code: str, custom_lang_patterns: List[str] = None
+    ) -> List[StyleFeedback]:
         feedbacks = []
         base_lang = lang_code.split("-")[0].lower()
 
@@ -112,5 +169,8 @@ class TranslationStyleLinter:
         elif base_lang in LATIN_LANGS:
             feedbacks.extend(rule_latin_consecutive_spaces(key, text))
             feedbacks.extend(rule_latin_punctuation_spacing(key, text))
+
+        # --- 跨语系通用规则 ---
+        feedbacks.extend(rule_protect_language_endonyms(key, text, lang_code, custom_lang_patterns))
 
         return feedbacks

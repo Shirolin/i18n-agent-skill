@@ -41,18 +41,22 @@ from i18n_agent_skill.models import (
     ExtractOutput,
     PrivacyLevel,
     ProjectConfig,
+    ProjectPreferences,
     ProjectStatus,
     SyncProposal,
     TelemetryData,
     ValidationFeedback,
+    StyleFeedback,
 )
 from i18n_agent_skill.snapshot import TranslationSnapshotManager
+from i18n_agent_skill.linter import TranslationStyleLinter
 
 # 全局常量
 CACHE_FILE = ".i18n-cache.json"
 PROPOSALS_DIR = ".i18n-proposals"
 GLOSSARY_FILE = "GLOSSARY.json"
 CONFIG_FILE = ".i18n-skill.json"
+PREFS_FILE = ".i18n-prefs.json"
 
 def _is_skill_source_dir(directory: str) -> bool:
     """[工业级防护] 检查该目录是否是本工具自身的源代码"""
@@ -413,7 +417,8 @@ async def propose_sync_i18n(
     file_p = _validate_safe_path(os.path.join(target_dir, f"{lang_code}.json"))
     base_p = _validate_safe_path(os.path.join(target_dir, "en.json"))
 
-    cur_d, base_d, val_errs = {}, {}, []
+    cur_d, base_d, val_errs, style_feedbacks = {}, {}, [], []
+    prefs = await _load_project_preferences()
 
     try:
         if os.path.exists(base_p):
@@ -439,6 +444,11 @@ async def propose_sync_i18n(
                         message="变量占位符不匹配。",
                     )
                 )
+        
+        # 风格与排版校验（包含母语化保护）
+        style_feedbacks.extend(
+            TranslationStyleLinter.lint(k, v, lang_code, prefs.protected_lang_key_patterns)
+        )
 
     p_id = str(uuid.uuid4())
     os.makedirs(os.path.join(WORKSPACE_ROOT, PROPOSALS_DIR), exist_ok=True)
@@ -461,7 +471,36 @@ async def propose_sync_i18n(
         reasoning=reasoning,
         file_path=file_p,
         validation_errors=val_errs,
+        style_suggestions=style_feedbacks,
     )
+
+
+async def _load_project_preferences() -> ProjectPreferences:
+    p = os.path.join(WORKSPACE_ROOT, PREFS_FILE)
+    if not os.path.exists(p):
+        return ProjectPreferences()
+    try:
+        async with aiofiles.open(p, "r", encoding="utf-8") as f:
+            data = json.loads(await f.read())
+            return ProjectPreferences(**data)
+    except Exception:
+        return ProjectPreferences()
+
+
+async def save_project_preference(pattern: str, is_native_protection: bool = True):
+    """保存用户偏好：将某个 Key 模式标记为母语保护或忽略。"""
+    prefs = await _load_project_preferences()
+    if is_native_protection:
+        if pattern not in prefs.protected_lang_key_patterns:
+            prefs.protected_lang_key_patterns.append(pattern)
+    else:
+        if pattern not in prefs.ignored_keys:
+            prefs.ignored_keys.append(pattern)
+            
+    p = os.path.join(WORKSPACE_ROOT, PREFS_FILE)
+    async with aiofiles.open(p, "w", encoding="utf-8") as f:
+        await f.write(json.dumps(prefs.model_dump(), indent=2, ensure_ascii=False))
+    return "Preference saved."
 
 
 async def commit_i18n_changes(proposal_id: str) -> str:

@@ -182,6 +182,15 @@ class ProjectConfig(BaseModel):
     privacy_level: PrivacyLevel = Field(default=PrivacyLevel.BASIC, description="隐私级别")
 
 
+class ProjectPreferences(BaseModel):
+    """项目级交互偏好存储（学习型记忆）。"""
+
+    protected_lang_key_patterns: List[str] = Field(
+        default_factory=list, description="用户确认过需要开启母语保护的 Key 模式或前缀。"
+    )
+    ignored_keys: List[str] = Field(default_factory=list, description="用户明确要求忽略审计的 Key。")
+
+
 class ProjectStatus(BaseModel):
     """预检报告模型。"""
 
