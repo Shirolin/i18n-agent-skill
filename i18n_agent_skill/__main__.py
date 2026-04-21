@@ -56,8 +56,9 @@ def _print_json(data: Any):
 
 
 async def cli_main():
-    parser = argparse.ArgumentParser(description="i18n-agent-skill CLI: 自动化国际化工程工具")
-    subparsers = parser.add_subparsers(dest="command", help="子命令")
+    parser = argparse.ArgumentParser(description="I18n Agent Skill 引擎 v0.1.0")
+    parser.add_argument("--workspace-root", type=str, help="显式指定项目根目录，在嵌套结构下推荐使用")
+    subparsers = parser.add_subparsers(dest="command", help="支持的子命令")
 
     # 1. status
     subparsers.add_parser("status", help="检查当前项目 i18n 状态及环境感知")
@@ -94,6 +95,9 @@ async def cli_main():
     subparsers.add_parser("mcp", help="以 MCP Server 模式运行")
 
     args = parser.parse_args()
+    
+    if args.workspace_root:
+        tools.set_workspace_root(args.workspace_root)
 
     if args.command == "status":
         res = await check_project_status()

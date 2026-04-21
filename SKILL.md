@@ -39,6 +39,7 @@ provenance:
 
 ### 1. 项目初始化与环境预检 (Setup & Status)
 - **环境预检**: 执行 `python -m i18n_agent_skill status`。
+  - **重要契约**: 如果你处于多项目或嵌套环境（例如该 Skill 安装入了宿主项目的子目录 `.gemini/skills/` 内），**必须显式提供项目根目录**。例如：`python -m i18n_agent_skill --workspace-root <path> status`。
 - **自动初始化**: 执行 `python -m i18n_agent_skill init`。工具将自动探测源码目录及 locales 路径，并生成 `.i18n-skill.json`。
 - **自愈机制**: 若环境异常，系统会生成 `executable_hint`。
 

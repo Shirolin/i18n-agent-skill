@@ -53,7 +53,53 @@ CACHE_FILE = ".i18n-cache.json"
 PROPOSALS_DIR = ".i18n-proposals"
 GLOSSARY_FILE = "GLOSSARY.json"
 CONFIG_FILE = ".i18n-skill.json"
-WORKSPACE_ROOT = os.getcwd()
+
+def _is_skill_source_dir(directory: str) -> bool:
+    """[工业级防护] 检查该目录是否是本工具自身的源代码"""
+    skill_md = os.path.join(directory, "SKILL.md")
+    pyproject = os.path.join(directory, "pyproject.toml")
+    try:
+        if os.path.exists(skill_md):
+            with open(skill_md, "r", encoding="utf-8") as f:
+                if "name: i18n-agent-skill" in f.read():
+                    return True
+        if os.path.exists(pyproject):
+            with open(pyproject, "r", encoding="utf-8") as f:
+                if "name = \"i18n-agent-skill\"" in f.read():
+                    return True
+    except Exception:
+        pass
+    return False
+
+def _resolve_workspace_root(explicit_root: Optional[str] = None) -> str:
+    """依靠边界指纹动态测算项目根目录"""
+    if explicit_root:
+        return os.path.abspath(explicit_root)
+    env_root = os.environ.get("I18N_WORKSPACE_ROOT")
+    if env_root:
+        return os.path.abspath(env_root)
+
+    cwd = os.getcwd()
+    current_dir = os.path.abspath(cwd)
+    markers = [".git", "package.json", "pyproject.toml", CONFIG_FILE]
+
+    while True:
+        has_marker = any(os.path.exists(os.path.join(current_dir, m)) for m in markers)
+        if has_marker:
+            if not _is_skill_source_dir(current_dir):
+                return current_dir
+        
+        parent_dir = os.path.dirname(current_dir)
+        if parent_dir == current_dir:
+            break
+        current_dir = parent_dir
+    return os.path.abspath(cwd)
+
+WORKSPACE_ROOT = _resolve_workspace_root()
+
+def set_workspace_root(path: Optional[str] = None):
+    global WORKSPACE_ROOT
+    WORKSPACE_ROOT = _resolve_workspace_root(path)
 
 # [工业级恢复] 敏感信息防御矩阵
 SENSITIVE_PATTERNS = {
