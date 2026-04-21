@@ -37,27 +37,33 @@ provenance:
 
 ## ⚡ 核心工作流 (Workflows)
 
-### 1. 国际化审计与提取 (Audit & Scan)
-- **环境检查**: 执行 `python -m i18n_agent_skill status`。
-- **差异分析**: 执行 `python -m i18n_agent_skill audit all`。
+### 1. 项目初始化与环境预检 (Setup & Status)
+- **环境预检**: 执行 `python -m i18n_agent_skill status`。
+- **自动初始化**: 执行 `python -m i18n_agent_skill init`。工具将自动探测源码目录及 locales 路径，并生成 `.i18n-skill.json`。
+- **自愈机制**: 若环境异常，系统会生成 `executable_hint`。
+
+### 2. 国际化审计与提取 (Audit & Scan)
+- **差异分析**: 执行 `python -m i18n_agent_skill audit all`。得益于自动探测，即使无配置也能全量扫描。
 - **精准提取**: 对目标文件/目录执行 `scan` 指令。
 - **技术细节**: 详见 [AST 引擎说明文件](./references/ast-engine.md)。
 
-### 2. 同步与质量校验 (Sync & Lint)
+### 3. 同步与质量校验 (Sync & Lint)
 - **生成提案**: 调用 `sync` 子命令生成翻译同步建议。
 - **排版审计**: 应用内置的 Linter 规则（CJK 混排空格、全角标点等）。
 - **应用变更**: 经用户批准后，调用 `commit` 应用物理文件写入。
-- **校验规则**: 详见 [Linter 规则参考](./references/linter-rules.md)。
+- **校验规则**: 详见 [Linter rules](./references/linter-rules.md)。
 
 ## 🔒 核心指令约束 (Guardrails)
 
 1. **绝对拒绝正则**: 严禁手写正则表达式扫描源码。必须强制调用 AST 引擎。
-2. **隐私红线**: 必须遵守隐私盾约束，严禁泄露硬编码凭证或 PII 信息。详见 [隐私保护规范](./references/privacy-guard.md)。
-3. **模型优先**: 所有的内部数据交换必须遵循 `i18n_agent_skill.models` 中定义的结构。
+2. **环境自愈优先**: 当 `status` 报告不就绪时，优先建议用户执行 `init` 或按照 `hint` 修复环境。
+3. **隐私红线**: 必须遵守隐私盾约束，严禁泄露硬编码凭证或 PII 信息。详见 [隐私保护规范](./references/privacy-guard.md)。
+4. **模型优先**: 所有的内部数据交换必须遵循 `i18n_agent_skill.models` 中定义的结构。
 
 ## 💡 常用命令手册
 
+- `/i18n-status`: 验证 Tree-sitter 环境与 Python 依赖就绪状态。
+- `/i18n-init`: 自动扫描项目并生成显式的 `.i18n-skill.json` 配置文件。
 - `/i18n-audit`: 快速执行全项目 i18n 覆盖率与差异审计。
 - `/i18n-sync`: 智能识别 Git 变更并生成增量翻译提案。
 - `/i18n-fix`: 自动探测环境异常并生成全量修复提案。
-- `/i18n-status`: 验证 Tree-sitter 环境与 Python 依赖就绪状态。
