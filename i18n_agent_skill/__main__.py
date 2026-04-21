@@ -40,6 +40,7 @@ bootstrap_venv()
 # =================================================================
 
 
+from i18n_agent_skill import tools
 from i18n_agent_skill.tools import (
     check_project_status,
     commit_i18n_changes,
