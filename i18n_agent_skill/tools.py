@@ -543,22 +543,35 @@ async def _load_locale_data(target_dir: str, lang: str) -> dict:
             
             # 处理 .ts/.js 中的 export default
             # 提取第一个 { 和 最后一个 } 之间的内容
-            match = re.search(r"export\s+default\s+({.*});?", content, re.DOTALL)
+            match = re.search(r"(?:export\s+default|module\.exports\s*=)\s*({.*});?", content, re.DOTALL)
             if match:
                 obj_str = match.group(1)
                 # 简单粗暴的转换：将 JS 对象字面量适配为 JSON (仅支持简单结构)
                 # 生产环境建议用 AST，这里采用启发式清理
                 try:
-                    # 去掉末尾分号
+                    # 1. 移除行内注释
+                    obj_str = re.sub(r"//.*", "", obj_str)
+                    # 2. 移除块注释
+                    obj_str = re.sub(r"/\*.*?\*/", "", obj_str, flags=re.DOTALL)
+                    
+                    # 3. 补齐未打引号的 Key (匹配 key: 格式)
+                    # 排除已经有双引号或单引号的情况
+                    obj_str = re.sub(r"([{,]\s*)([a-zA-Z_$][a-zA-Z0-9_$]*)\s*:", r'\1"\2":', obj_str)
+                    
+                    # 4. 处理单引号字符串为双引号 (需处理转义，此处采用启发式)
+                    # 如果内容本身简单，直接替换；否则可能需要更复杂的逻辑
+                    # 为安全起见，仅替换包裹字符串的单引号
+                    obj_str = re.sub(r"':\s*'([^']*)'", r'": "\1"', obj_str) # 针对 'key': 'val'
+                    obj_str = re.sub(r":\s*'([^']*)'", r': "\1"', obj_str)   # 针对 key: 'val'
+                    
+                    # 5. 移除末尾逗号
+                    obj_str = re.sub(r",\s*([}\]])", r"\1", obj_str)
+                    
                     obj_str = obj_str.strip().rstrip(";")
-                    # 尝试将常见的非标准 JSON 字符转换 (如单引号转双引号，移除末尾逗号)
-                    cleaned = re.sub(r",\s*([}\]])", r"\1", obj_str) # 移除末尾逗号
-                    cleaned = re.sub(r"(['])(.*?)\1", r'"\2"', cleaned) # 单引号转双引号
-                    # 注意：如果 message 里本身有撇号，这会出问题，所以这里要极端小心
-                    return json.loads(cleaned)
-                except:
+                    return json.loads(obj_str)
+                except Exception as e:
                     # 如果清理失败，回退到更激进的正则提取或返回空（待优化）
-                    logger.warning(f"Failed to parse JS/TS locale via regex: {p}")
+                    logger.warning(f"Failed to parse JS/TS locale via regex: {p}. Error: {e}")
                     return {}
         except Exception as e:
             logger.error(f"Error loading {p}: {e}")
