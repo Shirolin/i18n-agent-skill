@@ -698,7 +698,15 @@ async def initialize_project_config() -> str:
             
     # 自动更新 .gitignore
     gitignore_p = os.path.join(WORKSPACE_ROOT, ".gitignore")
-    ignore_lines = ["\n# i18n-agent-skill", ".i18n-cache.json", ".i18n-proposals/", ".i18n-prefs.json"]
+    # 采用全屏蔽策略，但通过 ! 排除主配置文件
+    ignore_lines = [
+        "\n# i18n-agent-skill runtime files",
+        ".i18n-cache.json",
+        ".i18n-proposals/",
+        ".i18n-snapshots.json",
+        ".i18n-prefs.json",
+        "!.i18n-skill.json"
+    ]
     if os.path.exists(gitignore_p):
         async with aiofiles.open(gitignore_p, "r", encoding="utf-8") as f:
             current_gitignore = await f.read()
