@@ -696,9 +696,17 @@ async def initialize_project_config() -> str:
             config.source_dirs = [d]
             break
             
-    p = os.path.join(WORKSPACE_ROOT, CONFIG_FILE)
-    async with aiofiles.open(p, "w", encoding="utf-8") as f:
-        await f.write(json.dumps(config.model_dump(), indent=2, ensure_ascii=False))
+    # 自动更新 .gitignore
+    gitignore_p = os.path.join(WORKSPACE_ROOT, ".gitignore")
+    ignore_lines = ["\n# i18n-agent-skill", ".i18n-cache.json", ".i18n-proposals/", ".i18n-prefs.json"]
+    if os.path.exists(gitignore_p):
+        async with aiofiles.open(gitignore_p, "r", encoding="utf-8") as f:
+            current_gitignore = await f.read()
+        
+        needed = [l for l in ignore_lines if l.strip() and l.strip() not in current_gitignore]
+        if needed:
+            async with aiofiles.open(gitignore_p, "a", encoding="utf-8") as f:
+                await f.write("\n" + "\n".join(needed) + "\n")
     
     return f"Initialized config at {p}. Processed {len(config.enabled_langs)} languages."
 
