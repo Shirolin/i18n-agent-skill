@@ -48,16 +48,21 @@ line-length = 100
 target-version = "py310"
 
 [tool.ruff.lint]
-select = ["E", "F", "B", "I"] # 包含常规错误、格式、Bug、导入顺序检查
+select = ["E", "F", "B", "I", "N", "UP"] # 增加命名规范(N)和语法升级建议(UP)
+ignore = []
+fixable = ["ALL"]
+unfixable = []
 
 [tool.mypy]
-# 类型检查配置：保持 3.10 兼容
 python_version = "3.10"
-warn_return_any = true
+# 实用主义配置：不强制全量标注，但有标注的地方必须正确
+check_untyped_defs = true
+disallow_untyped_defs = false
+warn_return_any = false
 warn_unused_configs = true
 ignore_missing_imports = true
 follow_imports = "skip"
-exclude = ["tests", "examples", "build", "dist"]
+exclude = ["tests", "examples", "build", "dist", "scratch"]
 
 [project.urls]
 "Homepage" = "https://github.com/Shirolin/i18n-agent-skill"

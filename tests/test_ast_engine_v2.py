@@ -60,7 +60,7 @@ async def test_jsx_text_node_capture(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_multilingual_召回率(tmp_path):
+async def test_multilingual_召回率(tmp_path):  # noqa: N802
     """验证对日语、德语等非 ASCII 自然语言的 100% 召回。"""
     code = """
     const labels = {

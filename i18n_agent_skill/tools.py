@@ -4,20 +4,21 @@ import os
 import re
 import time
 import uuid
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 import aiofiles
 
 # 核心依赖：Tree-sitter 词法分析套件
 try:
+    # 强制版本校验
+    import importlib.metadata
+
     import tree_sitter
     import tree_sitter_language_pack
     from tree_sitter import Language, Parser
-    
-    # 强制版本校验
-    import importlib.metadata
+
     ts_version = importlib.metadata.version("tree-sitter")
-    
+
     # 使用简单的元组比较，避免引入 packaging 依赖
     v_parts = [int(p) for p in ts_version.split(".")[:3]]
     if tuple(v_parts) < (0, 25, 0):
@@ -33,6 +34,7 @@ except Exception as e:
     DEPENDENCIES_INSTALLED = False
     DEP_ERROR_MSG = f"Dependency error: {str(e)}"
 
+from i18n_agent_skill.linter import TranslationStyleLinter
 from i18n_agent_skill.logger import structured_logger as logger
 from i18n_agent_skill.models import (
     ConflictStrategy,
@@ -45,10 +47,8 @@ from i18n_agent_skill.models import (
     SyncProposal,
     TelemetryData,
     ValidationFeedback,
-    StyleFeedback,
 )
 from i18n_agent_skill.snapshot import TranslationSnapshotManager
-from i18n_agent_skill.linter import TranslationStyleLinter
 
 # 全局常量
 CACHE_FILE = ".i18n-cache.json"
@@ -56,24 +56,26 @@ PROPOSALS_DIR = ".i18n-proposals"
 GLOSSARY_FILE = "GLOSSARY.json"
 CONFIG_FILE = ".i18n-skill.json"
 
+
 def _is_skill_source_dir(directory: str) -> bool:
     """[工业级防护] 检查该目录是否是本工具自身的源代码"""
     skill_md = os.path.join(directory, "SKILL.md")
     pyproject = os.path.join(directory, "pyproject.toml")
     try:
         if os.path.exists(skill_md):
-            with open(skill_md, "r", encoding="utf-8") as f:
+            with open(skill_md, encoding="utf-8") as f:
                 if "name: i18n-agent-skill" in f.read():
                     return True
         if os.path.exists(pyproject):
-            with open(pyproject, "r", encoding="utf-8") as f:
-                if "name = \"i18n-agent-skill\"" in f.read():
+            with open(pyproject, encoding="utf-8") as f:
+                if 'name = "i18n-agent-skill"' in f.read():
                     return True
     except Exception:
         pass
     return False
 
-def _resolve_workspace_root(explicit_root: Optional[str] = None) -> str:
+
+def _resolve_workspace_root(explicit_root: str | None = None) -> str:
     """依靠边界指纹动态测算项目根目录"""
     if explicit_root:
         return os.path.abspath(explicit_root)
@@ -90,18 +92,21 @@ def _resolve_workspace_root(explicit_root: Optional[str] = None) -> str:
         if has_marker:
             if not _is_skill_source_dir(current_dir):
                 return current_dir
-        
+
         parent_dir = os.path.dirname(current_dir)
         if parent_dir == current_dir:
             break
         current_dir = parent_dir
     return os.path.abspath(cwd)
 
+
 WORKSPACE_ROOT = _resolve_workspace_root()
 
-def set_workspace_root(path: Optional[str] = None):
+
+def set_workspace_root(path: str | None = None):
     global WORKSPACE_ROOT
     WORKSPACE_ROOT = _resolve_workspace_root(path)
+
 
 # [工业级恢复] 敏感信息防御矩阵
 SENSITIVE_PATTERNS = {
@@ -121,7 +126,7 @@ UI_ATTRS = {"placeholder", "title", "label", "aria-label", "alt", "value"}
 
 def _flatten_dict(d: dict, p_key: str = "", sep: str = ".") -> dict:
     """拍平嵌套 JSON 为点号连接的键值对"""
-    items: List[Tuple[str, str]] = []
+    items: list[tuple[str, str]] = []
     for k, v in d.items():
         new_key = f"{p_key}{sep}{k}" if p_key else k
         if isinstance(v, dict):
@@ -133,7 +138,7 @@ def _flatten_dict(d: dict, p_key: str = "", sep: str = ".") -> dict:
 
 def _unflatten_dict(d: dict, sep: str = ".") -> dict:
     """还原点号连接的键值对为嵌套 JSON"""
-    res: Dict[str, Any] = {}
+    res: dict[str, Any] = {}
     for k, v in d.items():
         parts = k.split(sep)
         d_ref = res
@@ -220,7 +225,7 @@ class TreeSitterScanner:
         self.content_bytes = content.encode("utf-8")
         self.file_ext = file_ext
 
-    def _get_lang(self, lang_name: str) -> Optional[Language]:
+    def _get_lang(self, lang_name: str) -> Language | None:
         """现代型语言加载器：使用 language_pack 获取全量支持"""
         try:
             # 使用 Any 适配 Mypy 对动态语言名称字面量的严格要求
@@ -228,7 +233,7 @@ class TreeSitterScanner:
         except Exception:
             return None
 
-    def _get_lang_keys(self, ext: str) -> Tuple[str, str]:
+    def _get_lang_keys(self, ext: str) -> tuple[str, str]:
         if ext in (".jsx", ".tsx"):
             return "tsx", "jsx"
         if ext == ".vue":
@@ -236,8 +241,8 @@ class TreeSitterScanner:
         return "javascript", "js"
 
     def scan(
-        self, c_bytes: Optional[bytes] = None, ext: Optional[str] = None, line_offset: int = 0
-    ) -> List[Tuple[str, int, str]]:
+        self, c_bytes: bytes | None = None, ext: str | None = None, line_offset: int = 0
+    ) -> list[tuple[str, int, str]]:
         if not DEPENDENCIES_INSTALLED:
             return []
         target_bytes = c_bytes or self.content_bytes
@@ -324,7 +329,7 @@ async def extract_raw_strings(
     file_path: str,
     use_cache: bool = True,
     vcs_mode: bool = False,
-    privacy_level: Optional[PrivacyLevel] = None,
+    privacy_level: PrivacyLevel | None = None,
 ) -> ExtractOutput:
     """[v2.0] 正式版：严格 AST 扫描，杜绝正则降级。"""
     try:
@@ -346,7 +351,7 @@ async def extract_raw_strings(
         )
 
     start_ts = time.perf_counter()
-    async with aiofiles.open(safe_p, "r", encoding="utf-8") as f:
+    async with aiofiles.open(safe_p, encoding="utf-8") as f:
         content = await f.read()
     ext = os.path.splitext(file_path)[1].lower()
 
@@ -354,7 +359,7 @@ async def extract_raw_strings(
     cache_path = os.path.join(WORKSPACE_ROOT, CACHE_FILE)
     content_hash = hashlib.md5(content.encode("utf-8")).hexdigest()
     if use_cache and os.path.exists(cache_path):
-        async with aiofiles.open(cache_path, "r", encoding="utf-8") as f:
+        async with aiofiles.open(cache_path, encoding="utf-8") as f:
             cache = json.loads(await f.read())
             if safe_p in cache and cache[safe_p]["hash"] == content_hash:
                 return ExtractOutput(
@@ -388,7 +393,7 @@ async def extract_raw_strings(
     if use_cache:
         cache = {}
         if os.path.exists(cache_path):
-            async with aiofiles.open(cache_path, "r", encoding="utf-8") as f:
+            async with aiofiles.open(cache_path, encoding="utf-8") as f:
                 cache = json.loads(await f.read())
         cache[safe_p] = {"hash": content_hash, "results": [r.model_dump() for r in results]}
         async with aiofiles.open(cache_path, "w", encoding="utf-8") as f:
@@ -419,10 +424,10 @@ async def propose_sync_i18n(
 
     try:
         if os.path.exists(base_p):
-            async with aiofiles.open(base_p, "r", encoding="utf-8") as f:
+            async with aiofiles.open(base_p, encoding="utf-8") as f:
                 base_d = _flatten_dict(json.loads(await f.read()))
         if os.path.exists(file_p):
-            async with aiofiles.open(file_p, "r", encoding="utf-8") as f:
+            async with aiofiles.open(file_p, encoding="utf-8") as f:
                 cur_d = json.loads(await f.read())
     except Exception:
         pass
@@ -441,7 +446,7 @@ async def propose_sync_i18n(
                         message="变量占位符不匹配。",
                     )
                 )
-        
+
         # 风格与排版校验（包含母语化保护）
         style_feedbacks.extend(
             TranslationStyleLinter.lint(k, v, lang_code, config.protected_lang_key_patterns)
@@ -481,7 +486,7 @@ async def save_project_preference(pattern: str, is_native_protection: bool = Tru
     else:
         if pattern not in config.ignored_keys:
             config.ignored_keys.append(pattern)
-            
+
     p = os.path.join(WORKSPACE_ROOT, CONFIG_FILE)
     async with aiofiles.open(p, "w", encoding="utf-8") as f:
         await f.write(json.dumps(config.model_dump(), indent=2, ensure_ascii=False))
@@ -498,7 +503,7 @@ async def commit_i18n_changes(proposal_id: str) -> str:
     temp_p = os.path.join(WORKSPACE_ROOT, PROPOSALS_DIR, f"{proposal_id}.json")
     if not os.path.exists(temp_p):
         return "Error: Proposal not found."
-    with open(temp_p, "r", encoding="utf-8") as f:
+    with open(temp_p, encoding="utf-8") as f:
         data = json.load(f)
 
     safe_target = _validate_safe_path(data["target_file"])
@@ -533,17 +538,19 @@ async def _load_locale_data(target_dir: str, lang: str) -> dict:
         p = _validate_safe_path(os.path.join(target_dir, f"{lang}{ext}"))
         if not os.path.exists(p):
             continue
-        
+
         try:
-            async with aiofiles.open(p, "r", encoding="utf-8") as f:
+            async with aiofiles.open(p, encoding="utf-8") as f:
                 content = await f.read()
-            
+
             if ext == ".json":
                 return json.loads(content)
-            
+
             # 处理 .ts/.js 中的 export default
             # 提取第一个 { 和 最后一个 } 之间的内容
-            match = re.search(r"(?:export\s+default|module\.exports\s*=)\s*({.*});?", content, re.DOTALL)
+            match = re.search(
+                r"(?:export\s+default|module\.exports\s*=)\s*({.*});?", content, re.DOTALL
+            )
             if match:
                 obj_str = match.group(1)
                 # 简单粗暴的转换：将 JS 对象字面量适配为 JSON (仅支持简单结构)
@@ -553,20 +560,22 @@ async def _load_locale_data(target_dir: str, lang: str) -> dict:
                     obj_str = re.sub(r"//.*", "", obj_str)
                     # 2. 移除块注释
                     obj_str = re.sub(r"/\*.*?\*/", "", obj_str, flags=re.DOTALL)
-                    
+
                     # 3. 补齐未打引号的 Key (匹配 key: 格式)
                     # 排除已经有双引号或单引号的情况
-                    obj_str = re.sub(r"([{,]\s*)([a-zA-Z_$][a-zA-Z0-9_$]*)\s*:", r'\1"\2":', obj_str)
-                    
+                    obj_str = re.sub(
+                        r"([{,]\s*)([a-zA-Z_$][a-zA-Z0-9_$]*)\s*:", r'\1"\2":', obj_str
+                    )
+
                     # 4. 处理单引号字符串为双引号 (需处理转义，此处采用启发式)
                     # 如果内容本身简单，直接替换；否则可能需要更复杂的逻辑
                     # 为安全起见，仅替换包裹字符串的单引号
-                    obj_str = re.sub(r"':\s*'([^']*)'", r'": "\1"', obj_str) # 针对 'key': 'val'
-                    obj_str = re.sub(r":\s*'([^']*)'", r': "\1"', obj_str)   # 针对 key: 'val'
-                    
+                    obj_str = re.sub(r"':\s*'([^']*)'", r'": "\1"', obj_str)  # 针对 'key': 'val'
+                    obj_str = re.sub(r":\s*'([^']*)'", r': "\1"', obj_str)  # 针对 key: 'val'
+
                     # 5. 移除末尾逗号
                     obj_str = re.sub(r",\s*([}\]])", r"\1", obj_str)
-                    
+
                     obj_str = obj_str.strip().rstrip(";")
                     return json.loads(obj_str)
                 except Exception as e:
@@ -583,12 +592,12 @@ async def _save_locale_data(path: str, data: dict):
     """[v2.1] 跨格式写回语言包"""
     ext = os.path.splitext(path)[1]
     json_str = json.dumps(data, indent=2, ensure_ascii=False, sort_keys=True)
-    
+
     if ext in (".ts", ".js"):
         content = f"export default {json_str};\n"
     else:
         content = json_str
-        
+
     os.makedirs(os.path.dirname(path), exist_ok=True)
     async with aiofiles.open(path, "w", encoding="utf-8") as f:
         await f.write(content)
@@ -603,7 +612,7 @@ async def refine_i18n_proposal(proposal_id: str, feedback: str) -> str:
     temp_p = os.path.join(WORKSPACE_ROOT, PROPOSALS_DIR, f"{proposal_id}.json")
     if not os.path.exists(temp_p):
         return "Not found"
-    async with aiofiles.open(temp_p, "r", encoding="utf-8") as f:
+    async with aiofiles.open(temp_p, encoding="utf-8") as f:
         data = json.loads(await f.read())
     data.setdefault("feedback_history", []).append(feedback)
     async with aiofiles.open(temp_p, "w", encoding="utf-8") as f:
@@ -627,7 +636,7 @@ async def _load_project_config() -> ProjectConfig:
         return config
 
     try:
-        async with aiofiles.open(p, "r", encoding="utf-8") as f:
+        async with aiofiles.open(p, encoding="utf-8") as f:
             data = json.loads(await f.read())
             # 如果配置中没写语言，也尝试探测一次
             config = ProjectConfig(**data)
@@ -643,13 +652,13 @@ async def _load_project_config() -> ProjectConfig:
 async def check_project_status() -> ProjectStatus:
     config = await _load_project_config()
     has_config_file = os.path.exists(os.path.join(WORKSPACE_ROOT, CONFIG_FILE))
-    
+
     status_msg = "Ready."
     if not DEPENDENCIES_INSTALLED:
         status_msg = f"Environment Issues: {DEP_ERROR_MSG}"
     elif not has_config_file:
         status_msg = "Ready (Auto-detected). Suggest running 'init' to persist config."
-    
+
     return ProjectStatus(
         config=config,
         has_glossary=os.path.exists(os.path.join(WORKSPACE_ROOT, GLOSSARY_FILE)),
@@ -666,12 +675,12 @@ def _detect_locale_dir(config: ProjectConfig) -> str:
     return "locales"
 
 
-def _detect_enabled_langs(locale_dir: str) -> List[str]:
+def _detect_enabled_langs(locale_dir: str) -> list[str]:
     """[v2.0] 自动搜寻 locales 目录下的语言包"""
     target = os.path.join(WORKSPACE_ROOT, locale_dir)
     if not os.path.exists(target):
         return []
-    
+
     langs = []
     # 匹配模式：文件名. (json|ts|js)
     pattern = re.compile(r"^([a-zA-Z0-9_-]+)\.(json|ts|js)$")
@@ -679,7 +688,7 @@ def _detect_enabled_langs(locale_dir: str) -> List[str]:
         match = pattern.match(f)
         if match:
             lang_code = match.group(1)
-            if lang_code not in ("index", "types"): # 排除常见的库入口文件
+            if lang_code not in ("index", "types"):  # 排除常见的库入口文件
                 langs.append(lang_code)
     return sorted(list(set(langs)))
 
@@ -689,13 +698,13 @@ async def initialize_project_config() -> str:
     config = ProjectConfig()
     config.locales_dir = _detect_locale_dir(config)
     config.enabled_langs = _detect_enabled_langs(config.locales_dir) or ["en", "zh-CN"]
-    
+
     # 尝试探测源码目录
     for d in ["src", "lib", "app"]:
         if os.path.isdir(os.path.join(WORKSPACE_ROOT, d)):
             config.source_dirs = [d]
             break
-            
+
     # 自动更新 .gitignore
     gitignore_p = os.path.join(WORKSPACE_ROOT, ".gitignore")
     # 采用全屏蔽策略，但通过 ! 排除主配置文件
@@ -705,17 +714,23 @@ async def initialize_project_config() -> str:
         ".i18n-proposals/",
         ".i18n-snapshots.json",
         ".i18n-prefs.json",
-        "!.i18n-skill.json"
+        "!.i18n-skill.json",
     ]
     if os.path.exists(gitignore_p):
-        async with aiofiles.open(gitignore_p, "r", encoding="utf-8") as f:
+        async with aiofiles.open(gitignore_p, encoding="utf-8") as f:
             current_gitignore = await f.read()
-        
-        needed = [l for l in ignore_lines if l.strip() and l.strip() not in current_gitignore]
+
+        needed = [
+            line for line in ignore_lines if line.strip() and line.strip() not in current_gitignore
+        ]
         if needed:
             async with aiofiles.open(gitignore_p, "a", encoding="utf-8") as f:
                 await f.write("\n" + "\n".join(needed) + "\n")
-    
+
+    p = os.path.join(WORKSPACE_ROOT, CONFIG_FILE)
+    async with aiofiles.open(p, "w", encoding="utf-8") as f:
+        await f.write(json.dumps(config.model_dump(), indent=2, ensure_ascii=False))
+
     return f"Initialized config at {p}. Processed {len(config.enabled_langs)} languages."
 
 

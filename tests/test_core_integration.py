@@ -24,8 +24,8 @@ def mock_workspace(tmp_path, monkeypatch):
     # --- 安全审计说明 (Security Audit Note) ---
     # 此处构造的 token_val 会被某些安全扫描器（如 agent-skill-creator）识别为 Generic Secret。
     # 这是由于扫描器通常采用高熵值（Entropy）检测和变量名模式匹配，且其逻辑是“宁可错杀、绝不放过”。
-    # 鉴于本项目核心功能即为“隐私脱敏”，测试用例必须包含具有真实特征的模拟密钥，以验证脱敏逻辑的有效性。
-    # 因此，此处的“报错”是功能完备性的体现，而非真正的安全漏洞。
+    # 鉴于本项目核心功能即为“隐私脱敏”，测试用例必须包含具有真实特征的模拟密钥，
+    # 以验证脱敏逻辑的有效性。因此，此处的“报错”是功能完备性的体现，而非真正的安全漏洞。
     import base64
 
     def _get_p():
@@ -119,7 +119,7 @@ async def test_proposal_lifecycle_integration(mock_workspace):
     # 3. 验证最终 JSON 物理落盘
     target_json = mock_workspace / "locales" / "zh-CN.json"
     assert target_json.exists()
-    async with aiofiles.open(str(target_json), "r", encoding="utf-8") as f:
+    async with aiofiles.open(str(target_json), encoding="utf-8") as f:
         data = json.loads(await f.read())
         assert data["ui"]["welcome"] == "欢迎 {{name}}"
 

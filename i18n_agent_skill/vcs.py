@@ -1,14 +1,13 @@
 import re
 import subprocess
-from typing import Dict, Set
 
 
-def get_git_hunks(workspace_root: str) -> Dict[str, Set[int]]:
+def get_git_hunks(workspace_root: str) -> dict[str, set[int]]:
     """
     解析 git diff -U0 的输出，提取每个变动文件的“变动行号集合”。
     用于实现 PR 级 Hunk 精准文案提取。
     """
-    hunks: Dict[str, Set[int]] = {}
+    hunks: dict[str, set[int]] = {}
     current_file = ""
 
     try:

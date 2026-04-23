@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from pydantic import BaseModel, Field
 
@@ -63,7 +63,7 @@ class ErrorInfo(BaseModel):
     error_code: str = Field(..., description="内部错误代码。")
     message: str = Field(..., description="错误描述。")
     suggested_action: str = Field(..., description="给 Agent 的下一步操作建议。")
-    executable_hint: Optional[str] = Field(
+    executable_hint: str | None = Field(
         None, description="[自愈] 可直接运行以尝试修复错误的 Shell 命令。"
     )
 
@@ -72,8 +72,8 @@ class ValidationFeedback(BaseModel):
     """自纠错反馈模型"""
 
     key: str = Field(..., description="失败的 Key。")
-    expected_placeholders: List[str] = Field(..., description="期望包含的占位符。")
-    actual_placeholders: List[str] = Field(..., description="实际包含的占位符。")
+    expected_placeholders: list[str] = Field(..., description="期望包含的占位符。")
+    actual_placeholders: list[str] = Field(..., description="实际包含的占位符。")
     message: str = Field(..., description="引导建议。")
 
 
@@ -108,22 +108,22 @@ class ExtractInput(BaseModel):
 class ExtractOutput(BaseModel):
     """提取文案的输出模型"""
 
-    results: List[ExtractedString] = Field(default_factory=list, description="提取结果。")
+    results: list[ExtractedString] = Field(default_factory=list, description="提取结果。")
     is_cached: bool = Field(default=False, description="是否来自缓存。")
-    glossary_context: Dict[str, str] = Field(
+    glossary_context: dict[str, str] = Field(
         default_factory=dict,
         description="[主动注入] 与本次提取文案关联的既有术语表，用于辅助 AI 翻译一致性。",
     )
-    telemetry: Optional[TelemetryData] = Field(None, description="效能指标。")
-    error: Optional[ErrorInfo] = Field(None, description="错误信息。")
+    telemetry: TelemetryData | None = Field(None, description="效能指标。")
+    error: ErrorInfo | None = Field(None, description="错误信息。")
 
 
 class SyncInput(BaseModel):
     """同步 i18n 文件的参数模型"""
 
-    new_pairs: Dict[str, str] = Field(..., description="准备写入的键值对。")
+    new_pairs: dict[str, str] = Field(..., description="准备写入的键值对。")
     lang_code: str = Field(..., description="目标语言。")
-    base_dir: Optional[str] = Field(None, description="目标目录。")
+    base_dir: str | None = Field(None, description="目标目录。")
     strategy: ConflictStrategy = Field(
         default=ConflictStrategy.KEEP_EXISTING, description="冲突策略"
     )
@@ -133,15 +133,15 @@ class SyncProposal(BaseModel):
     proposal_id: str = Field(..., description="唯一 ID")
     lang_code: str = Field(..., description="目标语言")
     changes_count: int = Field(..., description="变更条数")
-    diff_summary: Dict[str, Any] = Field(..., description="变更明细")
+    diff_summary: dict[str, Any] = Field(..., description="变更明细")
     reasoning: str = Field(..., description="推理依据")
     file_path: str = Field(..., description="落盘路径")
-    validation_errors: List[ValidationFeedback] = Field(
+    validation_errors: list[ValidationFeedback] = Field(
         default_factory=list, description="校验失败"
     )
-    style_suggestions: List[StyleFeedback] = Field(default_factory=list, description="风格建议")
-    regression_alert: Optional[RegressionResult] = Field(None, description="质量退化")
-    telemetry: Optional[TelemetryData] = Field(None, description="效能指标")
+    style_suggestions: list[StyleFeedback] = Field(default_factory=list, description="风格建议")
+    regression_alert: RegressionResult | None = Field(None, description="质量退化")
+    telemetry: TelemetryData | None = Field(None, description="效能指标")
 
 
 class LearnTermInput(BaseModel):
@@ -149,7 +149,7 @@ class LearnTermInput(BaseModel):
 
     term: str = Field(..., description="原文词条。")
     translation: str = Field(..., description="确认的翻译。")
-    context: Optional[str] = Field(None, description="该词条生效的上下文。")
+    context: str | None = Field(None, description="该词条生效的上下文。")
 
 
 class RefineProposalInput(BaseModel):
@@ -165,27 +165,27 @@ class MissingKeysInput(BaseModel):
 
     lang_code: str = Field(..., description="目标对比语言。")
     base_lang: str = Field(default="en", description="基准对照语言。")
-    base_dir: Optional[str] = Field(None, description="locales 目录。")
+    base_dir: str | None = Field(None, description="locales 目录。")
 
 
 class ProjectConfig(BaseModel):
     """项目专属配置契约。"""
 
-    source_dirs: List[str] = Field(default_factory=lambda: ["src"], description="源码目录。")
-    ignore_dirs: List[str] = Field(
+    source_dirs: list[str] = Field(default_factory=lambda: ["src"], description="源码目录。")
+    ignore_dirs: list[str] = Field(
         default_factory=lambda: ["node_modules", "dist", "build", "tests"], description="忽略目录"
     )
     locales_dir: str = Field(default="locales", description="i18n 目录。")
-    enabled_langs: List[str] = Field(
+    enabled_langs: list[str] = Field(
         default_factory=lambda: ["en", "zh-CN"], description="启用语言列表"
     )
     privacy_level: PrivacyLevel = Field(default=PrivacyLevel.BASIC, description="隐私级别")
-    
+
     # 进化型记忆字段：存储用户确认过的语义保护习惯
-    protected_lang_key_patterns: List[str] = Field(
+    protected_lang_key_patterns: list[str] = Field(
         default_factory=list, description="开启母语保护的 Key 模式或前缀。"
     )
-    ignored_keys: List[str] = Field(default_factory=list, description="忽略审计的 Key。")
+    ignored_keys: list[str] = Field(default_factory=list, description="忽略审计的 Key。")
 
 
 class ProjectStatus(BaseModel):
@@ -196,4 +196,4 @@ class ProjectStatus(BaseModel):
     cache_size: int = Field(..., description="缓存条数。")
     workspace_root: str = Field(..., description="沙箱根目录。")
     status_message: str = Field(..., description="开工建议。")
-    vcs_info: Optional[Dict[str, Any]] = Field(None, description="VCS (Git) 状态信息。")
+    vcs_info: dict[str, Any] | None = Field(None, description="VCS (Git) 状态信息。")

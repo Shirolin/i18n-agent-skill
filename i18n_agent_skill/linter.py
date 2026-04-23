@@ -1,5 +1,4 @@
 import re
-from typing import List
 
 from i18n_agent_skill.models import StyleFeedback
 
@@ -18,14 +17,15 @@ ENDONYM_MAP = {
     "de": {"native": "Deutsch", "search": ["german", "deutsch", "德语", "德語", "ドイツ語"]},
     "ko": {"native": "한국어", "search": ["korean", "韩国语", "韓國語", "韓国語", "한국어"]},
     "fr": {"native": "Français", "search": ["french", "français", "法语", "法語", "フランス語"]},
-    "es": {"native": "Español", "search": ["spanish", "español", "西班牙语", "西班牙語", "スペイン語"]},
+    "es": {
+        "native": "Español",
+        "search": ["spanish", "español", "西班牙语", "西班牙語", "スペイン語"],
+    },
     "auto": {"native": "Auto", "search": ["auto", "自动", "自動"]},
 }
 
 # 语义启发式指纹：匹配这些前缀/包含词的 Key 极大概率是语言选择组件
-LANGUAGE_SEMANTIC_PATTERNS = [
-    r"^lang", r"^locale", r"language$", r"^pref_?lang", r"^ui_?lang"
-]
+LANGUAGE_SEMANTIC_PATTERNS = [r"^lang", r"^locale", r"language$", r"^pref_?lang", r"^ui_?lang"]
 
 # TODO: 未来引入 StrictnessLevel 配置（如 Basic, Strict, Off）
 # 并在 Rule 函数调用时注入 Config 以调整校验严格度。
@@ -34,7 +34,7 @@ LANGUAGE_SEMANTIC_PATTERNS = [
 # ==========================================
 # CJK Rules
 # ==========================================
-def rule_cjk_mixed_spacing(key: str, text: str) -> List[StyleFeedback]:
+def rule_cjk_mixed_spacing(key: str, text: str) -> list[StyleFeedback]:
     """检查 CJK（中日韩）语系文本与西文数字混排时的空格建议"""
     # 覆盖汉字、日文假名、韩文音节
     cjk_pattern = r"[\u4e00-\u9fa5\u3040-\u309F\u30A0-\u30FF\uAC00-\uD7A3]"
@@ -58,7 +58,7 @@ def rule_cjk_mixed_spacing(key: str, text: str) -> List[StyleFeedback]:
     return []
 
 
-def rule_cjk_fullwidth_punctuation(key: str, text: str, exact_lang: str) -> List[StyleFeedback]:
+def rule_cjk_fullwidth_punctuation(key: str, text: str, exact_lang: str) -> list[StyleFeedback]:
     """检查非法半角标点（主要用于中文环境）"""
     # 避免日文「、」「。」的复杂替换逻辑干扰，暂时仅建议对 zh 开启逗号校验
     if "zh" in exact_lang.lower() and "," in text and "，" not in text:
@@ -74,20 +74,20 @@ def rule_cjk_fullwidth_punctuation(key: str, text: str, exact_lang: str) -> List
 
 
 def rule_protect_language_endonyms(
-    key: str, text: str, lang_code: str, custom_patterns: List[str] = None
-) -> List[StyleFeedback]:
+    key: str, text: str, lang_code: str, custom_patterns: list[str] | None = None
+) -> list[StyleFeedback]:
     """
     检查“语言名称母语化”保护。
     语义逻辑：如果 Key 包含语言特征，且文本是已知语言名，则不应将其翻译成目标语，而应保持母语。
     """
     k_lower = key.lower()
     t_lower = text.lower()
-    
+
     # 1. 语义检测：该 Key 是否具有语言切换特征？
     # 结合内置模式与用户自定义模式
     patterns = LANGUAGE_SEMANTIC_PATTERNS + (custom_patterns or [])
     is_lang_context = any(re.search(p, k_lower) for p in patterns)
-    
+
     # 2. 值检测：该文本是否落在已知语言名称范围内？
     target_native = None
     for _, info in ENDONYM_MAP.items():
@@ -95,16 +95,19 @@ def rule_protect_language_endonyms(
         if any(kw in t_lower for kw in info["search"]):
             target_native = info["native"]
             break
-            
+
     if is_lang_context and target_native:
         # 如果当前翻译结果不等于母语名
         if text != target_native:
-             return [
+            return [
                 StyleFeedback(
                     key=key,
                     violation="LANGUAGE_ENDONYM_OVER_TRANSLATION",
                     suggestion=target_native,
-                    message=f"语义纠偏：检测到 $KEY 疑似用于语言切换。建议使用母语名已确保全球识别度（建议改为：{target_native}）。",
+                    message=(
+                        "语义纠偏：检测到 $KEY 疑似用于语言切换。建议使用母语名已确保全球识别度"
+                        f"（建议改为：{target_native}）。"
+                    ),
                 )
             ]
     return []
@@ -113,7 +116,7 @@ def rule_protect_language_endonyms(
 # ==========================================
 # Latin Rules
 # ==========================================
-def rule_latin_consecutive_spaces(key: str, text: str) -> List[StyleFeedback]:
+def rule_latin_consecutive_spaces(key: str, text: str) -> list[StyleFeedback]:
     """检查西文语境下的异常连续空格"""
     if "  " in text:
         # 将 2个及以上连续空格 替换为 1个
@@ -129,7 +132,7 @@ def rule_latin_consecutive_spaces(key: str, text: str) -> List[StyleFeedback]:
     return []
 
 
-def rule_latin_punctuation_spacing(key: str, text: str) -> List[StyleFeedback]:
+def rule_latin_punctuation_spacing(key: str, text: str) -> list[StyleFeedback]:
     """检查西文标点（如逗号、句号等）之后是否缺少空格"""
     # 逻辑：查找标点符号（.,:?!），若后面紧跟着字母，则插入空格。
     # 这样自动排除了小数点和千分位（因为它们后面跟着的是数字，不会被 [a-zA-Z] 命中）。
@@ -155,8 +158,8 @@ class TranslationStyleLinter:
 
     @staticmethod
     def lint(
-        key: str, text: str, lang_code: str, custom_lang_patterns: List[str] = None
-    ) -> List[StyleFeedback]:
+        key: str, text: str, lang_code: str, custom_lang_patterns: list[str] | None = None
+    ) -> list[StyleFeedback]:
         feedbacks = []
         base_lang = lang_code.split("-")[0].lower()
 

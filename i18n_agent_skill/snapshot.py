@@ -1,6 +1,6 @@
 import json
 import os
-from typing import Any, Dict, Optional
+from typing import Any
 
 import aiofiles
 
@@ -17,22 +17,22 @@ class TranslationSnapshotManager:
     def __init__(self, workspace_root: str):
         self.path = os.path.join(workspace_root, SNAPSHOT_FILE)
 
-    async def _read_snapshots(self) -> Dict[str, Any]:
+    async def _read_snapshots(self) -> dict[str, Any]:
         if not os.path.exists(self.path):
             return {}
         try:
-            async with aiofiles.open(self.path, "r", encoding="utf-8") as f:
+            async with aiofiles.open(self.path, encoding="utf-8") as f:
                 content = await f.read()
-                data: Dict[str, Any] = json.loads(content)
+                data: dict[str, Any] = json.loads(content)
                 return data
         except Exception:
             return {}
 
-    async def _write_snapshots(self, snapshots: Dict[str, Any]):
+    async def _write_snapshots(self, snapshots: dict[str, Any]):
         async with aiofiles.open(self.path, "w", encoding="utf-8") as f:
             await f.write(json.dumps(snapshots, indent=2, ensure_ascii=False, sort_keys=True))
 
-    async def check_regression(self, key: str, current_score: int) -> Optional[RegressionResult]:
+    async def check_regression(self, key: str, current_score: int) -> RegressionResult | None:
         """
         检查当前翻译得分是否低于历史最高快照得分。
         """

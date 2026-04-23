@@ -4,22 +4,22 @@ import sys
 from pythonjsonlogger import jsonlogger
 
 
-def setup_logger(name: str = "i18n-agent"):
+def setup_logger(name: str = "i18n-agent") -> logging.Logger:
     """
     配置结构化 JSON 日志。
     适配 ELK、Datadog 等日志系统。
     """
     logger = logging.getLogger(name)
-    logHandler = logging.StreamHandler(sys.stdout)
+    log_handler = logging.StreamHandler(sys.stdout)
 
     # 定义输出字段
     formatter = jsonlogger.JsonFormatter(
         "%(timestamp)s %(levelname)s %(name)s %(message)s %(trace_id)s %(duration_ms)s"
     )
 
-    logHandler.setFormatter(formatter)
+    log_handler.setFormatter(formatter)
     if not logger.handlers:
-        logger.addHandler(logHandler)
+        logger.addHandler(log_handler)
     logger.setLevel(logging.INFO)
     return logger
 

@@ -6,6 +6,7 @@ import subprocess
 import sys
 from typing import Any
 
+
 # =================================================================
 # [Venv Bootstrapper] 确保在隔离环境中运行，防止系统 Python 逃逸
 # =================================================================
@@ -13,7 +14,7 @@ def bootstrap_venv():
     # 查找技能根目录（即包含 .venv 的目录）
     skill_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     venv_path = os.path.join(skill_root, ".venv")
-    
+
     if os.path.exists(venv_path):
         # 确定 venv 中的 python 路径
         if sys.platform == "win32":
@@ -36,12 +37,13 @@ def bootstrap_venv():
                 cmd = [target_python, "-m", "i18n_agent_skill"] + sys.argv[1:]
                 sys.exit(subprocess.call(cmd, env=env))
 
+
 bootstrap_venv()
 # =================================================================
 
 
-from i18n_agent_skill import tools
-from i18n_agent_skill.tools import (
+from i18n_agent_skill import tools  # noqa: E402
+from i18n_agent_skill.tools import (  # noqa: E402
     check_project_status,
     commit_i18n_changes,
     extract_raw_strings,
@@ -58,7 +60,9 @@ def _print_json(data: Any):
 
 async def cli_main():
     parser = argparse.ArgumentParser(description="I18n Agent Skill 引擎 v0.1.0")
-    parser.add_argument("--workspace-root", type=str, help="显式指定项目根目录，在嵌套结构下推荐使用")
+    parser.add_argument(
+        "--workspace-root", type=str, help="显式指定项目根目录，在嵌套结构下推荐使用"
+    )
     subparsers = parser.add_subparsers(dest="command", help="支持的子命令")
 
     # 1. status
@@ -96,7 +100,7 @@ async def cli_main():
     subparsers.add_parser("mcp", help="以 MCP Server 模式运行")
 
     args = parser.parse_args()
-    
+
     if args.workspace_root:
         tools.set_workspace_root(args.workspace_root)
 
@@ -111,8 +115,8 @@ async def cli_main():
     elif args.command == "scan":
         if os.path.isdir(args.path):
             all_results = []
-            total_tel = {
-                "duration_ms": 0,
+            total_tel: dict[str, float | int] = {
+                "duration_ms": 0.0,
                 "files_processed": 0,
                 "keys_extracted": 0,
                 "privacy_shield_hits": 0,
@@ -122,46 +126,51 @@ async def cli_main():
                 for file in files:
                     if os.path.splitext(file)[1].lower() in valid_exts:
                         fpath = os.path.join(root, file)
-                        res = await extract_raw_strings(
+                        scan_res = await extract_raw_strings(
                             fpath, use_cache=args.use_cache, vcs_mode=args.vcs
                         )
-                        if res.results:
-                            all_results.extend([r.model_dump() for r in res.results])
-                        if res.telemetry:
-                            total_tel["duration_ms"] += res.telemetry.duration_ms
-                            total_tel["files_processed"] += res.telemetry.files_processed
-                            total_tel["keys_extracted"] += res.telemetry.keys_extracted
-                            if getattr(res.telemetry, "privacy_shield_hits", None):
-                                total_tel["privacy_shield_hits"] += (
-                                    res.telemetry.privacy_shield_hits
+                        if scan_res.results:
+                            all_results.extend([r.model_dump() for r in scan_res.results])
+                        if scan_res.telemetry:
+                            total_tel["duration_ms"] += scan_res.telemetry.duration_ms
+                            total_tel["files_processed"] += scan_res.telemetry.files_processed
+                            total_tel["keys_extracted"] += scan_res.telemetry.keys_extracted
+                            if getattr(scan_res.telemetry, "privacy_shield_hits", None):
+                                total_tel["privacy_shield_hits"] += int(
+                                    scan_res.telemetry.privacy_shield_hits
                                 )
             _print_json({"results": all_results, "telemetry": total_tel})
         else:
-            res = await extract_raw_strings(args.path, use_cache=args.use_cache, vcs_mode=args.vcs)
-            _print_json(res.model_dump())
+            single_res = await extract_raw_strings(
+                args.path, use_cache=args.use_cache, vcs_mode=args.vcs
+            )
+            _print_json(single_res.model_dump())
 
     elif args.command == "audit":
         if args.lang == "all":
             # [核心修复] 实现 audit all 逻辑
-            status = await check_project_status()
-            langs = status.config.enabled_langs
-            results = {}
+            proj_status = await check_project_status()
+            langs = proj_status.config.enabled_langs
+            audit_results = {}
             for lang in langs:
                 if lang == args.base:
                     continue
-                missing = await get_missing_keys(lang, base_lang=args.base)
-                results[lang] = {"missing_count": len(missing), "missing_keys": missing}
-            _print_json(results)
+                missing_keys = await get_missing_keys(lang, base_lang=args.base)
+                audit_results[lang] = {
+                    "missing_count": len(missing_keys),
+                    "missing_keys": missing_keys,
+                }
+            _print_json(audit_results)
         else:
-            res = await get_missing_keys(args.lang, base_lang=args.base)
-            _print_json(res)
+            missing_keys = await get_missing_keys(args.lang, base_lang=args.base)
+            _print_json(missing_keys)
 
     elif args.command == "sync":
         try:
             new_pairs = json.loads(args.data)
         except json.JSONDecodeError:
             if os.path.isfile(args.data):
-                with open(args.data, "r", encoding="utf-8") as f:
+                with open(args.data, encoding="utf-8") as f:
                     new_pairs = json.load(f)
             else:
                 _print_json(
@@ -171,12 +180,12 @@ async def cli_main():
                     }
                 )
                 return
-        res = await propose_sync_i18n(new_pairs, args.lang, args.reason)
-        _print_json(res.model_dump())
+        sync_res = await propose_sync_i18n(new_pairs, args.lang, args.reason)
+        _print_json(sync_res.model_dump())
 
     elif args.command == "commit":
-        res = await commit_i18n_changes(args.proposal_id)
-        print(res)
+        commit_msg = await commit_i18n_changes(args.proposal_id)
+        print(commit_msg)
 
     elif args.command == "mcp":
         from i18n_agent_skill.mcp_server import mcp
