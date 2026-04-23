@@ -111,7 +111,7 @@ def set_workspace_root(path: str | None = None):
 # [工业级恢复] 敏感信息防御矩阵
 SENSITIVE_PATTERNS = {
     "EMAIL": r"[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+",
-    "API_KEY": r"(?:sk-[a-zA-Z0-9]{20,}|AKIA[a-zA-Z0-9]{16}|[a-zA-Z0-9]{32,})",
+    "API_KEY": r"(?:sk-[a-zA-Z0-9-]{20,}|AKIA[a-zA-Z0-9]{16}|[a-zA-Z0-9]{32,})",
     "IP_ADDR": r"\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}",
     # 简化电话匹配：支持 + 或 00 开头，或 13/14... 开头的 11 位手机号，或带区号的固话
     "PHONE": r"(?:\+|00)?[1-9]\d{6,14}|1[3-9]\d{9}|(?:0\d{2,3}-)?\d{7,8}",

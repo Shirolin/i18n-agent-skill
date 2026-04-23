@@ -48,4 +48,5 @@ async def test_snapshot_improvement(temp_workspace):
     await manager.update_snapshot(key, "确认删除", 9)
     # 此时快照分应已升至 9，再次传入 7 分则应告警
     result_degraded = await manager.check_regression(key, 7)
+    assert result_degraded is not None
     assert result_degraded.snapshot_score == 9

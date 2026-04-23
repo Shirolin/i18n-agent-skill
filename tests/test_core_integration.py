@@ -29,7 +29,7 @@ def mock_workspace(tmp_path, monkeypatch):
     import base64
 
     def _get_p():
-        return base64.b64decode("LXtz").decode()[::-1]
+        return base64.b64decode("c2st").decode()  # 解码为 "sk-"
 
     def _get_s():
         return "x" * 21
@@ -61,6 +61,7 @@ async def test_extract_integration_with_privacy(mock_workspace):
     )
     assert output.error is None
     assert output.is_cached is False
+    assert output.telemetry is not None
     assert output.telemetry.keys_extracted >= 1
 
     # 验证隐私脱敏是否在文件提取流中生效
