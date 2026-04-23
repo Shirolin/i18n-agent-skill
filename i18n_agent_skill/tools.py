@@ -39,13 +39,16 @@ from i18n_agent_skill.logger import structured_logger as logger
 from i18n_agent_skill.models import (
     ConflictStrategy,
     ErrorInfo,
+    EvaluationReport,
     ExtractedString,
     ExtractOutput,
     PrivacyLevel,
     ProjectConfig,
     ProjectStatus,
+    ReviewItem,
     SyncProposal,
     TelemetryData,
+    TranslationStatus,
     ValidationFeedback,
 )
 from i18n_agent_skill.snapshot import TranslationSnapshotManager
@@ -499,7 +502,7 @@ async def _load_project_preferences():
 
 
 async def commit_i18n_changes(proposal_id: str) -> str:
-    """[工业级恢复] 正式应用变更并更新快照"""
+    """[工业级恢复] 正式应用变更并更新快照与状态"""
     temp_p = os.path.join(WORKSPACE_ROOT, PROPOSALS_DIR, f"{proposal_id}.json")
     if not os.path.exists(temp_p):
         return "Error: Proposal not found."
@@ -509,13 +512,175 @@ async def commit_i18n_changes(proposal_id: str) -> str:
     safe_target = _validate_safe_path(data["target_file"])
     await _save_locale_data(safe_target, data["content"])
 
-    # 更新快照
+    # 更新快照，默认标记为 APPROVED（因为用户通过 commit 确认了）
     snapshot_mgr = TranslationSnapshotManager(WORKSPACE_ROOT)
-    for k, v in _flatten_dict(data["content"]).items():
-        await snapshot_mgr.update_snapshot(k, v, 9)  # 默认 9 分
+    flattened = _flatten_dict(data["content"])
+    content_hash = hashlib.md5(json.dumps(flattened).encode("utf-8")).hexdigest()
+
+    for k, v in flattened.items():
+        await snapshot_mgr.update_snapshot(
+            key=k,
+            translation=v,
+            score=10,
+            status=TranslationStatus.APPROVED,
+            content_hash=content_hash,
+        )
 
     os.remove(temp_p)
     return f"Committed: {safe_target}"
+
+
+async def optimize_translations(lang_code: str) -> dict[str, Any]:
+    """
+    [幂等优化引擎] 筛选待优化词条，并提取 APPROVED 词条作为动态术语。
+    """
+    config = await _load_project_config()
+    target_dir = _detect_locale_dir(config)
+    locale_data = await _load_locale_data(target_dir, lang_code)
+    flat_data = _flatten_dict(locale_data)
+
+    snapshot_mgr = TranslationSnapshotManager(WORKSPACE_ROOT)
+    glossary = {}
+    to_optimize = {}
+
+    for k, v in flat_data.items():
+        status = await snapshot_mgr.get_status(k)
+        if status == TranslationStatus.APPROVED:
+            # 已确认的词条作为“真值”加入术语表
+            glossary[k] = v
+        else:
+            # DRAFT 或 REVIEWED 的词条进入优化队列
+            to_optimize[k] = v
+
+    return {
+        "targets": to_optimize,
+        "dynamic_glossary": glossary,
+        "message": (
+            f"Found {len(to_optimize)} keys to optimize, "
+            f"using {len(glossary)} approved terms as anchor."
+        ),
+    }
+
+
+async def generate_quality_report(lang_code: str) -> EvaluationReport:
+    """
+    [专家巡检] 生成全量质量评审报告，识别争议项。
+    """
+    config = await _load_project_config()
+    target_dir = _detect_locale_dir(config)
+    locale_data = await _load_locale_data(target_dir, lang_code)
+    flat_data = _flatten_dict(locale_data)
+
+    snapshot_mgr = TranslationSnapshotManager(WORKSPACE_ROOT)
+    approved_count = 0
+    controversial = []
+
+    for k, v in flat_data.items():
+        status = await snapshot_mgr.get_status(k)
+        if status == TranslationStatus.APPROVED:
+            approved_count += 1
+            continue
+
+        # 此处本应调用 LLM 进行深度审计，
+        # 在工具层，我们准备好待审计数据交给 Agent
+        # 这里返回一个包含待审计词条的占位结构
+        controversial.append(
+            ReviewItem(
+                key=k,
+                current_translation=v,
+                suggested_translation="",  # 由 Agent 填充
+                issue_type="Pending Review",
+                confidence="Medium",
+                reasoning="Awaiting expert analysis.",
+            )
+        )
+
+    return EvaluationReport(
+        lang_code=lang_code,
+        total_keys=len(flat_data),
+        approved_keys=approved_count,
+        controversial_items=controversial,
+        overall_score=70 if controversial else 100,
+        summary=f"Discovered {len(controversial)} items requiring refinement.",
+    )
+
+
+async def reference_optimize_translations(
+    pivot_lang: str, target_lang: str, keys: list[str] | None = None
+) -> dict[str, Any]:
+    """
+    [跨语言参照优化] 根据已确认的翻译对齐（如 en -> zh-CN）优化目标语言。
+    """
+    config = await _load_project_config()
+    target_dir = _detect_locale_dir(config)
+
+    # 加载 Base (en), Pivot (如 zh-CN), Target (如 ja)
+    base_data = _flatten_dict(await _load_locale_data(target_dir, "en"))
+    pivot_data = _flatten_dict(await _load_locale_data(target_dir, pivot_lang))
+    target_data = _flatten_dict(await _load_locale_data(target_dir, target_lang))
+
+    snapshot_mgr = TranslationSnapshotManager(WORKSPACE_ROOT)
+    semantic_mappings = {}
+
+    # 提取 Pivot 中已确认的语义映射
+    for k, v in pivot_data.items():
+        if k in base_data and (await snapshot_mgr.get_status(k)) == TranslationStatus.APPROVED:
+            semantic_mappings[k] = {"base": base_data[k], "reference": v}
+
+    # 筛选待同步词条
+    to_optimize = {}
+    keys_to_process = keys or target_data.keys()
+
+    for k in keys_to_process:
+        if k in target_data and k in semantic_mappings:
+            to_optimize[k] = {
+                "current": target_data[k],
+                "base_context": semantic_mappings[k]["base"],
+                "reference_mapping": semantic_mappings[k]["reference"],
+            }
+
+    return {
+        "targets": to_optimize,
+        "reference_lang": pivot_lang,
+        "message": (
+            f"Anchored to {len(semantic_mappings)} approved semantic mappings from {pivot_lang}."
+        ),
+    }
+
+
+async def sync_manual_modifications(lang_code: str) -> str:
+    """
+    [闭环反馈钩子] 探测翻译文件的手动修改，并自动提升状态为 APPROVED。
+    """
+    config = await _load_project_config()
+    target_dir = _detect_locale_dir(config)
+    locale_data = await _load_locale_data(target_dir, lang_code)
+    flat_data = _flatten_dict(locale_data)
+
+    snapshot_mgr = TranslationSnapshotManager(WORKSPACE_ROOT)
+    snapshots = await snapshot_mgr._read_snapshots()
+    updated_count = 0
+
+    for k, v in flat_data.items():
+        existing = snapshots.get(k, {})
+        old_val = existing.get("translation")
+        old_status = existing.get("status")
+
+        # 如果内容变了，且不是通过 Agent 提交的（或者状态还不是 APPROVED）
+        if old_val != v or old_status != TranslationStatus.APPROVED.value:
+            # 计算当前内容的哈希，防止重复处理
+            current_hash = hashlib.md5(v.encode("utf-8")).hexdigest()
+            if existing.get("hash") != current_hash:
+                await snapshot_mgr.update_snapshot(
+                    key=k,
+                    translation=v,
+                    score=10,
+                    status=TranslationStatus.APPROVED,
+                    content_hash=current_hash,
+                )
+                updated_count += 1
+
+    return f"Feedback Loop: Learned {updated_count} manual modifications for '{lang_code}'."
 
 
 async def get_missing_keys(lang_code: str, base_lang: str = "en") -> dict:

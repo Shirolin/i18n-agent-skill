@@ -4,14 +4,14 @@ from typing import Any
 
 import aiofiles
 
-from i18n_agent_skill.models import RegressionResult
+from i18n_agent_skill.models import RegressionResult, TranslationStatus
 
 SNAPSHOT_FILE = ".i18n-snapshots.json"
 
 
 class TranslationSnapshotManager:
     """
-    快照回归管理器：记录历史上得分最高的翻译，防止翻译质量下降。
+    快照与状态管理器：记录历史上得分最高的翻译，并追踪词条生命周期状态。
     """
 
     def __init__(self, workspace_root: str):
@@ -31,6 +31,13 @@ class TranslationSnapshotManager:
     async def _write_snapshots(self, snapshots: dict[str, Any]):
         async with aiofiles.open(self.path, "w", encoding="utf-8") as f:
             await f.write(json.dumps(snapshots, indent=2, ensure_ascii=False, sort_keys=True))
+
+    async def get_status(self, key: str) -> TranslationStatus:
+        """获取词条状态，默认为 DRAFT"""
+        snapshots = await self._read_snapshots()
+        if key not in snapshots:
+            return TranslationStatus.DRAFT
+        return TranslationStatus(snapshots[key].get("status", TranslationStatus.DRAFT))
 
     async def check_regression(self, key: str, current_score: int) -> RegressionResult | None:
         """
@@ -55,11 +62,39 @@ class TranslationSnapshotManager:
 
         return None
 
-    async def update_snapshot(self, key: str, translation: str, score: int):
+    async def update_snapshot(
+        self,
+        key: str,
+        translation: str,
+        score: int,
+        status: TranslationStatus = TranslationStatus.DRAFT,
+        content_hash: str | None = None,
+    ):
         """
-        更新快照。仅当当前得分大于等于历史得分时更新。
+        更新快照。仅当当前得分大于等于历史得分，或者显式提升状态时更新。
         """
         snapshots = await self._read_snapshots()
-        if key not in snapshots or score >= snapshots[key].get("score", 0):
-            snapshots[key] = {"translation": translation, "score": score}
+        existing = snapshots.get(key, {})
+        old_score = existing.get("score", 0)
+        old_status = TranslationStatus(existing.get("status", TranslationStatus.DRAFT))
+
+        # 如果状态更高（如从 DRAFT 变为 APPROVED），或者得分更高，则更新
+        status_priority = {
+            TranslationStatus.DRAFT: 0,
+            TranslationStatus.REVIEWED: 1,
+            TranslationStatus.APPROVED: 2,
+        }
+
+        if (
+            key not in snapshots
+            or score >= old_score
+            or status_priority[status] > status_priority[old_status]
+            or (status == TranslationStatus.APPROVED and content_hash != existing.get("hash"))
+        ):
+            snapshots[key] = {
+                "translation": translation,
+                "score": score,
+                "status": status.value,
+                "hash": content_hash or existing.get("hash"),
+            }
             await self._write_snapshots(snapshots)

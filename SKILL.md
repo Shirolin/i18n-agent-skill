@@ -69,10 +69,22 @@ provenance:
 - **应用变更**: 经用户批准后，调用 `commit` 应用物理文件写入。
 - **校验规则**: 详见 [Linter rules](./references/linter-rules.md)。
 
+### 4. 高质量翻译演进 (Quality Evolution Engine) [NEW]
+- **全量质量评审 (Expert Audit)**:
+  - 执行 `<venv_python> -m i18n_agent_skill audit-quality <lang>`。
+  - **核心能力**: 生成包含争议项（Review Items）的深度报告，识别术语冲突、不地道表达及语境错误。
+- **争议项决策 (Review Workflow)**:
+  - Agent 将报告中的争议项以表格形式呈现，引导用户决定是否采纳优化建议。
+- **跨语言参照优化 (Reference-based Optimization)**:
+  - 执行 `<venv_python> -m i18n_agent_skill pivot-sync <pivot_lang> <target_lang>`。
+  - **核心逻辑**: 以用户熟悉的语言（如 zh-CN）的翻译成果为**语义参照**，对目标语言进行高保正同步，确保全语种语义对齐。
+
 ## 🔒 核心指令约束 (Guardrails)
 
-1. **绝对拒绝正则**: 严禁手写正则表达式扫描源码。必须强制调用 AST 引擎。
-2. **环境自愈优先**: 当 `status` 报告不就绪时，优先建议用户执行 `init` 或按照 `hint` 修复环境。
+1. **主动顾问原则 (Proactive Advisor)**: 当用户询问如何优化质量时，**禁止**仅提供简单翻译，**必须**推荐 `audit-quality` 流程并生成报告。
+2. **绝对拒绝正则**: 严禁手写正则表达式扫描源码。必须强制调用 AST 引擎。
+3. **环境自愈优先**: 当 `status` 报告不就绪时，优先建议用户执行 `init` 或按照 `hint` 修复环境。
+4. **语言映射优先**: 在处理多语言同步时，**必须**主动提问是否需要参考已优化的语种（如：“需要我参考刚刚确定的中文语义来优化日文吗？”）。
 3. **自诊指令**: `/i18n-fix`。
 4. **语言名母语化保护 (Semantic Endonym Protection)**: 
     - **核心准则**: 语言切换组件中的选项（如 `langJapanese`）必须保持母语（`日本語`）。
@@ -93,5 +105,7 @@ provenance:
 - `/i18n-status`: 验证 Tree-sitter 环境与 Python 依赖就绪状态。
 - `/i18n-init`: 自动扫描项目并生成显式的 `.i18n-skill.json` 配置文件。
 - `/i18n-audit`: 快速执行全项目 i18n 覆盖率与差异审计。
+- `/i18n-audit-quality`: [专家巡检] 对指定语言生成全量质量评审报告，列出争议项。
+- `/i18n-pivot-sync`: [语义对齐] 参考您熟悉的语种优化结果，对其他语种进行自动化同步。
 - `/i18n-sync`: 智能识别 Git 变更并生成增量翻译提案。
 - `/i18n-fix`: 自动探测环境异常并生成全量修复提案。

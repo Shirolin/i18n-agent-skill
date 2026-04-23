@@ -2,7 +2,7 @@
   "name": "i18n-agent-skill",
   "version": "0.1.0",
   "description": "前端项目国际化（i18n）全链路自动化工具。核心优势：AST 源码提取、隐私脱敏（Privacy Shield）、差异精算与质量回归保护。支持全功能 CLI 调用。",
-  "keywords": ["i18n", "internationalization", "react", "vue", "extract", "translate", "privacy-shield", "mcp", "cli", "audit"],
+  "keywords": ["i18n", "internationalization", "react", "vue", "extract", "translate", "privacy-shield", "mcp", "cli", "audit", "optimization", "feedback-loop", "idempotency"],
   "homepage": "https://github.com/Shirolin/i18n-agent-skill",
   "discovery": {
     "intent_prompts": [
@@ -10,9 +10,14 @@
       "帮我找找源码里还有哪些没抽离的硬编码文案",
       "同步一下多语言翻译包",
       "检查项目里的 i18n 质量",
+      "优化已有的翻译质量",
+      "学习我对手工翻译的修改",
+      "幂等更新翻译文件",
       "i18n refactor legacy project",
       "sync i18n translations with git diff",
       "audit my i18n files for missing keys",
+      "iterative optimization of translation quality",
+      "learn from manual translation fixes",
       "执行隐私脱敏提取",
       "i18n 体检"
     ],

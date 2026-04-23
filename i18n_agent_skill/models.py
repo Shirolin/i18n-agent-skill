@@ -11,6 +11,14 @@ class ConflictStrategy(str, Enum):
     KEEP_EXISTING = "keep"
 
 
+class TranslationStatus(str, Enum):
+    """翻译生命周期状态"""
+
+    DRAFT = "draft"  # AI 初次生成，可重写
+    REVIEWED = "reviewed"  # 用户标记过，需谨慎修改
+    APPROVED = "approved"  # 人工确认/精选翻译，绝对保护（幂等基石）
+
+
 class StorageFormat(str, Enum):
     """支持的存储格式"""
 
@@ -92,6 +100,40 @@ class StyleFeedback(BaseModel):
     violation: str = Field(..., description="违规类型。")
     suggestion: str = Field(..., description="风格优化建议值。")
     message: str = Field(..., description="纠错指引。")
+
+
+class ReviewItem(BaseModel):
+    """争议/待确认的评审项"""
+
+    key: str = Field(..., description="待评审词条 Key。")
+    current_translation: str = Field(..., description="当前翻译内容。")
+    suggested_translation: str = Field(..., description="AI 推荐翻译。")
+    issue_type: str = Field(..., description="问题类型（如：术语不一致、语境缺失、不够地道）。")
+    confidence: str = Field(..., description="AI 对建议的置信度 (High/Medium/Low)。")
+    reasoning: str = Field(..., description="改进理由。")
+
+
+class EvaluationReport(BaseModel):
+    """全量质量评审报告"""
+
+    lang_code: str = Field(..., description="被评审语言。")
+    total_keys: int = Field(..., description="总词条数。")
+    approved_keys: int = Field(..., description="已确认（免审）的词条数。")
+    controversial_items: list[ReviewItem] = Field(
+        default_factory=list, description="存在争议/待优化的词条列表。"
+    )
+    overall_score: int = Field(..., description="项目整体翻译健康度得分(0-100)。")
+    summary: str = Field(..., description="专家总结与下一步建议。")
+
+
+class PivotSyncInput(BaseModel):
+    """跨语言参照同步参数"""
+
+    pivot_lang: str = Field(..., description="作为参考的映射语言 (如: zh-CN)。")
+    target_lang: str = Field(..., description="需要被同步的目标语言 (如: ja)。")
+    keys_to_sync: list[str] | None = Field(
+        None, description="需要参照同步的 Key 列表。如果不传则为全量扫描。"
+    )
 
 
 class ExtractInput(BaseModel):

@@ -47,9 +47,13 @@ from i18n_agent_skill.tools import (  # noqa: E402
     check_project_status,
     commit_i18n_changes,
     extract_raw_strings,
+    generate_quality_report,
     get_missing_keys,
     initialize_project_config,
+    optimize_translations,
     propose_sync_i18n,
+    reference_optimize_translations,
+    sync_manual_modifications,
 )
 
 
@@ -96,7 +100,26 @@ async def cli_main():
     # 6. init
     subparsers.add_parser("init", help="扫描项目并生成显式的 .i18n-skill.json 配置文件")
 
-    # 7. mcp
+    # 7. optimize
+    opt_parser = subparsers.add_parser("optimize", help="[幂等优化] 筛选待优化词条并提取动态术语")
+    opt_parser.add_argument("lang", help="目标语言代码")
+
+    # 8. learn
+    learn_parser = subparsers.add_parser("learn", help="[闭环反馈] 探测手动修改并提升词条状态")
+    learn_parser.add_argument("lang", help="目标语言代码")
+
+    # 9. audit-quality
+    audit_q_parser = subparsers.add_parser("audit-quality", help="[专家巡检] 生成全量质量评审报告")
+    audit_q_parser.add_argument("lang", help="目标语言代码")
+
+    # 10. pivot-sync
+    pivot_parser = subparsers.add_parser(
+        "pivot-sync", help="[参照优化] 根据已知语言映射优化目标语言"
+    )
+    pivot_parser.add_argument("pivot", help="参考语言 (如 zh-CN)")
+    pivot_parser.add_argument("target", help="目标语言 (如 ja)")
+
+    # 11. mcp
     subparsers.add_parser("mcp", help="以 MCP Server 模式运行")
 
     args = parser.parse_args()
@@ -105,12 +128,28 @@ async def cli_main():
         tools.set_workspace_root(args.workspace_root)
 
     if args.command == "status":
-        res = await check_project_status()
-        _print_json(res.model_dump())
+        status_res = await check_project_status()
+        _print_json(status_res.model_dump())
 
     elif args.command == "init":
-        msg = await initialize_project_config()
-        _print_json({"message": msg})
+        init_msg = await initialize_project_config()
+        _print_json({"message": init_msg})
+
+    elif args.command == "optimize":
+        opt_res = await optimize_translations(args.lang)
+        _print_json(opt_res)
+
+    elif args.command == "learn":
+        learn_msg = await sync_manual_modifications(args.lang)
+        _print_json({"message": learn_msg})
+
+    elif args.command == "audit-quality":
+        quality_res = await generate_quality_report(args.lang)
+        _print_json(quality_res.model_dump())
+
+    elif args.command == "pivot-sync":
+        pivot_res = await reference_optimize_translations(args.pivot, args.target)
+        _print_json(pivot_res)
 
     elif args.command == "scan":
         if os.path.isdir(args.path):
@@ -149,14 +188,14 @@ async def cli_main():
     elif args.command == "audit":
         if args.lang == "all":
             # [核心修复] 实现 audit all 逻辑
-            proj_status = await check_project_status()
-            langs = proj_status.config.enabled_langs
+            status_report = await check_project_status()
+            target_langs = status_report.config.enabled_langs
             audit_results = {}
-            for lang in langs:
-                if lang == args.base:
+            for target_l in target_langs:
+                if target_l == args.base:
                     continue
-                missing_keys = await get_missing_keys(lang, base_lang=args.base)
-                audit_results[lang] = {
+                missing_keys = await get_missing_keys(target_l, base_lang=args.base)
+                audit_results[target_l] = {
                     "missing_count": len(missing_keys),
                     "missing_keys": missing_keys,
                 }
