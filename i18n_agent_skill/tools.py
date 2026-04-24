@@ -552,12 +552,25 @@ async def optimize_translations(lang_code: str) -> dict[str, Any]:
             # DRAFT 或 REVIEWED 的词条进入优化队列
             to_optimize[k] = v
 
-    return {
+    os.makedirs(os.path.join(WORKSPACE_ROOT, PROPOSALS_DIR), exist_ok=True)
+    task_file = os.path.join(WORKSPACE_ROOT, PROPOSALS_DIR, f"optimize_task_{lang_code}.json")
+    
+    task_data = {
         "targets": to_optimize,
         "dynamic_glossary": glossary,
+        "instructions": "Please read 'targets', provide optimized translations, and save the result as a new JSON file (key-value pairs only). Then run 'sync' with the new file path."
+    }
+    
+    with open(task_file, "w", encoding="utf-8") as f:
+        json.dump(task_data, f, indent=2, ensure_ascii=False)
+
+    return {
+        "task_file_path": task_file,
         "message": (
+            f"Optimization task exported to {task_file}. "
             f"Found {len(to_optimize)} keys to optimize, "
-            f"using {len(glossary)} approved terms as anchor."
+            f"using {len(glossary)} approved terms as anchor. "
+            f"Agent MUST read this file, perform optimization, save to a temporary JSON file, and call 'sync' with the temporary file path."
         ),
     }
 
@@ -575,33 +588,59 @@ async def generate_quality_report(lang_code: str) -> EvaluationReport:
     approved_count = 0
     controversial = []
 
+    error_count = 0
+
     for k, v in flat_data.items():
         status = await snapshot_mgr.get_status(k)
         if status == TranslationStatus.APPROVED:
             approved_count += 1
-            continue
 
-        # 此处本应调用 LLM 进行深度审计，
-        # 在工具层，我们准备好待审计数据交给 Agent
-        # 这里返回一个包含待审计词条的占位结构
-        controversial.append(
-            ReviewItem(
-                key=k,
-                current_translation=v,
-                suggested_translation="",  # 由 Agent 填充
-                issue_type="Pending Review",
-                confidence="Medium",
-                reasoning="Awaiting expert analysis.",
-            )
-        )
+        # 执行真实排版校验
+        style_feedbacks = TranslationStyleLinter.lint(k, v, lang_code, config.protected_lang_key_patterns)
+        if style_feedbacks:
+            for fb in style_feedbacks:
+                error_count += 1
+                controversial.append(
+                    ReviewItem(
+                        key=k,
+                        current_translation=v,
+                        suggested_translation=fb.suggestion,
+                        issue_type=f"Style Violation: {fb.violation}",
+                        confidence="High",
+                        reasoning=fb.message,
+                    )
+                )
+
+    # 生成 Markdown 报告
+    os.makedirs(os.path.join(WORKSPACE_ROOT, PROPOSALS_DIR), exist_ok=True)
+    report_file = os.path.join(WORKSPACE_ROOT, PROPOSALS_DIR, f"audit_report_{lang_code}.md")
+    
+    with open(report_file, "w", encoding="utf-8") as f:
+        f.write(f"# i18n Quality Audit Report ({lang_code})\n\n")
+        f.write(f"- **Total Keys**: {len(flat_data)}\n")
+        f.write(f"- **Approved Keys**: {approved_count}\n")
+        f.write(f"- **Issues Found**: {error_count}\n\n")
+        if error_count > 0:
+            f.write("## Detailed Issues\n\n")
+            f.write("| Key | Current | Suggestion | Issue Type | Reasoning |\n")
+            f.write("| --- | --- | --- | --- | --- |\n")
+            for item in controversial:
+                safe_curr = item.current_translation.replace("\n", "\\n").replace("|", "\\|")
+                safe_sugg = item.suggested_translation.replace("\n", "\\n").replace("|", "\\|")
+                f.write(f"| `{item.key}` | `{safe_curr}` | `{safe_sugg}` | {item.issue_type} | {item.reasoning} |\n")
+        else:
+            f.write("## No issues found!\n\nAll checked items conform to style rules.\n")
+
+    overall_score = max(0, 100 - error_count * 2)
 
     return EvaluationReport(
         lang_code=lang_code,
         total_keys=len(flat_data),
         approved_keys=approved_count,
         controversial_items=controversial,
-        overall_score=70 if controversial else 100,
-        summary=f"Discovered {len(controversial)} items requiring refinement.",
+        overall_score=overall_score,
+        summary=f"Audit complete. Found {error_count} issues. Report saved to {report_file}.",
+        report_file_path=report_file
     )
 
 

@@ -31,8 +31,8 @@ async def test_generate_quality_report(temp_workspace):
     locales_dir = os.path.join(temp_workspace, "locales")
     lang_file = os.path.join(locales_dir, "zh-CN.json")
 
-    # 模拟 3 条词条：1 条 APPROVED, 2 条 DRAFT
-    data = {"k1": "v1", "k2": "v2", "k3": "v3"}
+    # 模拟 3 条词条：1 条 APPROVED, 2 条 DRAFT (其中一条带有排版错误触发 Linter)
+    data = {"k1": "v1", "k2": "中文和english没有空格", "k3": "v3"}
     with open(lang_file, "w", encoding="utf-8") as f:
         json.dump(data, f)
 
@@ -44,9 +44,10 @@ async def test_generate_quality_report(temp_workspace):
 
     assert report.total_keys == 3
     assert report.approved_keys == 1
-    # 争议项（待审项）应包含 2 条 DRAFT 词条
-    assert len(report.controversial_items) == 2
-    assert report.controversial_items[0].key in ["k2", "k3"]
+    # 争议项应该只有 k2 (因为触发了 Linter error)
+    assert len(report.controversial_items) == 1
+    assert report.controversial_items[0].key == "k2"
+    assert "Style Violation" in report.controversial_items[0].issue_type
 
 
 @pytest.mark.asyncio
@@ -137,8 +138,14 @@ async def test_optimize_translations_filtering(temp_workspace):
     # 执行优化筛选
     opt_result = await optimize_translations("zh-CN")
 
+    assert "task_file_path" in opt_result
+    task_file = opt_result["task_file_path"]
+
+    with open(task_file, "r", encoding="utf-8") as f:
+        task_data = json.load(f)
+
     # 首页应在术语表中
-    assert "nav.home" in opt_result["dynamic_glossary"]
+    assert "nav.home" in task_data["dynamic_glossary"]
     # 提交应在待优化列表中
-    assert "button.submit" in opt_result["targets"]
-    assert "nav.home" not in opt_result["targets"]
+    assert "button.submit" in task_data["targets"]
+    assert "nav.home" not in task_data["targets"]

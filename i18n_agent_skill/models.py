@@ -124,6 +124,7 @@ class EvaluationReport(BaseModel):
     )
     overall_score: int = Field(..., description="项目整体翻译健康度得分(0-100)。")
     summary: str = Field(..., description="专家总结与下一步建议。")
+    report_file_path: str | None = Field(None, description="生成的实体 Markdown 审计报告文件路径。")
 
 
 class PivotSyncInput(BaseModel):

@@ -36,8 +36,20 @@ async def audit_missing_keys(lang_code: str, base_lang: str = "en"):
 
 
 @mcp.tool()
-async def propose_sync(new_pairs: dict, lang_code: str, reasoning: str):
-    """生成翻译同步提案。支持占位符校验、风格审计和质量回归预警。"""
+async def propose_sync(new_pairs_or_file: dict | str, lang_code: str, reasoning: str):
+    """生成翻译同步提案。当数据量较大(>5)时，建议传入 JSON 文件的绝对路径以防止截断。"""
+    if isinstance(new_pairs_or_file, str):
+        import os, json
+        if os.path.isfile(new_pairs_or_file):
+            with open(new_pairs_or_file, encoding="utf-8") as f:
+                new_pairs = json.load(f)
+        else:
+            try:
+                new_pairs = json.loads(new_pairs_or_file)
+            except json.JSONDecodeError:
+                raise ValueError(f"Invalid JSON string or file path: {new_pairs_or_file}")
+    else:
+        new_pairs = new_pairs_or_file
     return await propose_sync_i18n(new_pairs, lang_code, reasoning)
 
 
@@ -61,7 +73,7 @@ async def learn_term(term: str, translation: str):
 
 @mcp.tool()
 async def quality_audit(lang_code: str):
-    """[专家巡检] 生成全量质量评审报告，识别术语冲突、不地道表达及语境错误。"""
+    """[专家巡检] 生成全量质量评审报告。结果将导出为 Markdown 审计报告文件。"""
     return await generate_quality_report(lang_code)
 
 
@@ -73,7 +85,7 @@ async def pivot_sync(pivot_lang: str, target_lang: str, keys: list[str] | None =
 
 @mcp.tool()
 async def optimize_drafts(lang_code: str):
-    """[幂等优化] 筛选 DRAFT 状态的词条进行批量优化，并提取已确认词条作为动态术语。"""
+    """[批量优化] 找出待优化词条，并导出为 JSON 任务文件。AI 应读取该文件进行翻译后，再将结果写入新文件，最后通过 propose_sync 提交。"""
     return await optimize_translations(lang_code)
 
 

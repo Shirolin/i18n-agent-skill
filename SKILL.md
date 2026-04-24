@@ -72,11 +72,25 @@ provenance:
 - **校验规则**: 详见 [Linter rules](./references/linter-rules.md)。
 
 ### 4. 高质量翻译演进 (Quality Evolution Engine) [NEW]
-- **全量质量评审 (Expert Audit)**:
+
+- **文件驱动的全量质量评审 (Expert Audit)**:
   - 执行 `<venv_python> -m i18n_agent_skill audit-quality <lang>`。
-  - **核心能力**: 生成包含争议项（Review Items）的深度报告，识别术语冲突、不地道表达及语境错误。
-- **争议项决策 (Review Workflow)**:
-  - Agent 将报告中的争议项以表格形式呈现，引导用户决定是否采纳优化建议。
+  - **核心能力**: 执行 Linter 排版和风格检查，并生成结构化的实体 Markdown 审计报告。
+  - **交互规范**: Agent 不要在终端大段打印问题，应将生成的报告路径告知用户，并询问是否需要协助修复这些排版错误。
+
+- **大批量优化工作流 (Batch Optimization)**:
+  - 当项目存在大量未翻译或 Draft 状态词条时，执行 `<venv_python> -m i18n_agent_skill optimize <lang>`。
+  - **核心能力**: 将待优化的目标导出为 `.i18n-proposals/optimize_task_<lang>.json` 实体任务文件。
+  - **Agent 强制操作规约 (File-Based Processing)**:
+    1. **读取任务**: 读取该生成的 JSON 任务单。
+    2. **LLM 批量处理**: 发挥大模型优势，翻译并优化所有词条。
+    3. **写入结果文件**: 将处理后的新键值对（纯 JSON，非 Markdown 块）保存为一个临时文件（如 `.i18n-proposals/optimized_tmp.json`）。
+    4. **通过文件执行 Sync**: **严禁将超大 JSON 拼接在命令行字符串中执行！** 必须使用文件路径传参：`<venv_python> -m i18n_agent_skill sync <lang> .i18n-proposals/optimized_tmp.json`。
+    5. **提示 Commit**: 成功后，通知用户提案（Proposal）已生成并可以执行 commit。
+
+- **存量项目接入先决条件 (Legacy Project Baseline)**:
+  - 对于已有一定历史多语言沉淀的旧项目，在首次尝试大规模优化前，**必须**主动引导用户执行 `/i18n-learn`，以便将现有翻译学习并锁定为 `APPROVED` 基线，避免误判和全量重译。
+
 - **跨语言参照优化 (Reference-based Optimization)**:
   - 执行 `<venv_python> -m i18n_agent_skill pivot-sync <pivot_lang> <target_lang>`。
   - **核心逻辑**: 以用户熟悉的语言（如 zh-CN）的翻译成果为**语义参照**，对目标语言进行高保正同步，确保全语种语义对齐。
