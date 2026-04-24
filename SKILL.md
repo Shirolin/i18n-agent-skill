@@ -14,6 +14,8 @@ activation:
   - /i18n-agent-skill
   - i18n audit
   - scan i18n
+  - i18n quality audit
+  - i18n pivot sync
 provenance:
   maintainer: Shirolin
   source_references:

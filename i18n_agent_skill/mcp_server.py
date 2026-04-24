@@ -4,9 +4,13 @@ from i18n_agent_skill.tools import (
     check_project_status,
     commit_i18n_changes,
     extract_raw_strings,
+    generate_quality_report,
     get_missing_keys,
+    optimize_translations,
     propose_sync_i18n,
+    reference_optimize_translations,
     refine_i18n_proposal,
+    sync_manual_modifications,
     update_project_glossary,
 )
 
@@ -53,3 +57,27 @@ async def refine_proposal(proposal_id: str, feedback: str):
 async def learn_term(term: str, translation: str):
     """术语持久化：将特定术语的翻译存入 GLOSSARY.json 知识库。"""
     return await update_project_glossary(term, translation)
+
+
+@mcp.tool()
+async def quality_audit(lang_code: str):
+    """[专家巡检] 生成全量质量评审报告，识别术语冲突、不地道表达及语境错误。"""
+    return await generate_quality_report(lang_code)
+
+
+@mcp.tool()
+async def pivot_sync(pivot_lang: str, target_lang: str, keys: list[str] | None = None):
+    """[跨语言对齐] 参考熟悉语言（如 zh-CN）的翻译结果，对目标语言进行同步优化。"""
+    return await reference_optimize_translations(pivot_lang, target_lang, keys)
+
+
+@mcp.tool()
+async def optimize_drafts(lang_code: str):
+    """[幂等优化] 筛选 DRAFT 状态的词条进行批量优化，并提取已确认词条作为动态术语。"""
+    return await optimize_translations(lang_code)
+
+
+@mcp.tool()
+async def sync_manual(lang_code: str):
+    """[闭环反馈] 探测翻译文件的手动修改，并自动将其状态提升为 APPROVED。"""
+    return await sync_manual_modifications(lang_code)
