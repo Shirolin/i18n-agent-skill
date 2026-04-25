@@ -88,7 +88,9 @@ provenance:
     2. **LLM 批量处理**: 发挥大模型优势，翻译并优化所有词条。
     3. **写入结果文件**: 将处理后的新键值对（纯 JSON，非 Markdown 块）保存为一个临时文件（如 `.i18n-proposals/optimized_tmp.json`）。
     4. **通过文件执行 Sync**: **严禁将超大 JSON 拼接在命令行字符串中执行！** 必须使用文件路径传参：`<venv_python> -m i18n_agent_skill sync <lang> .i18n-proposals/optimized_tmp.json`。
-    5. **提示 Commit**: 成功后，通知用户提案（Proposal）已生成并可以执行 commit。
+    5. **展示预览并提示 Commit**: `sync` 执行成功后，Agent **必须**告知用户预览文件路径（如 `.i18n-proposals/sync_preview_<lang>.md`），让用户核对语义优化效果。
+    6. **执行 Commit**: 经用户确认后，执行 `<venv_python> -m i18n_agent_skill commit <lang>` 应用变更。**推荐直接使用语言代码（如 zh-CN）代替复杂的 UUID**。如果是全语种同步，可以使用 `commit all`。
+    7. **成果展示 (Dashboard)**: Commit 成功后，Agent **必须**使用 Markdown 表格或卡片形式展示本次优化的成果（如：新增词条数、节省 Token 数、提升的质量得分等），让用户感受到明显的价值提升。
 
 - **存量项目接入先决条件 (Legacy Project Baseline)**:
   - 对于已有一定历史多语言沉淀的旧项目，在首次尝试大规模优化前，**必须**主动引导用户执行 `/i18n-learn`，以便将现有翻译学习并锁定为 `APPROVED` 基线，避免误判和全量重译。
@@ -125,5 +127,6 @@ provenance:
 - `/i18n-audit`: 快速执行全项目 i18n 覆盖率与差异审计。
 - `/i18n-audit-quality`: [专家巡检] 对指定语言生成全量质量评审报告，列出争议项。
 - `/i18n-pivot-sync`: [语义对齐] 参考您熟悉的语种优化结果，对其他语种进行自动化同步。
-- `/i18n-sync`: 智能识别 Git 变更并生成增量翻译提案。
+- `/i18n-sync`: 智能识别 Git 变更并生成增量翻译提案。**执行后务必告知用户 Preview 路径。**
+- `/i18n-commit`: 应用提案。支持传入 `UUID`、`语言代码` (如 `ja`) 或 `all`。
 - `/i18n-fix`: 自动探测环境异常并生成全量修复提案。

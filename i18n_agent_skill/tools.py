@@ -1,9 +1,9 @@
+import glob
 import hashlib
 import json
 import os
 import re
 import time
-import uuid
 from typing import Any
 
 import aiofiles
@@ -423,15 +423,12 @@ async def propose_sync_i18n(
     file_p = _validate_safe_path(os.path.join(target_dir, f"{lang_code}.json"))
     base_p = _validate_safe_path(os.path.join(target_dir, "en.json"))
 
-    cur_d, base_d, val_errs, style_feedbacks = {}, {}, [], []
+    base_d, val_errs, style_feedbacks = {}, [], []
 
     try:
         if os.path.exists(base_p):
             async with aiofiles.open(base_p, encoding="utf-8") as f:
                 base_d = _flatten_dict(json.loads(await f.read()))
-        if os.path.exists(file_p):
-            async with aiofiles.open(file_p, encoding="utf-8") as f:
-                cur_d = json.loads(await f.read())
     except Exception:
         pass
 
@@ -455,28 +452,85 @@ async def propose_sync_i18n(
             TranslationStyleLinter.lint(k, v, lang_code, config.protected_lang_key_patterns)
         )
 
-    p_id = str(uuid.uuid4())
+    # 加载磁盘原始数据
+    disk_data = await _load_locale_data(target_dir, lang_code)
+    
+    # 暂存区文件路径 (Singleton per language)
+    temp_file = os.path.join(WORKSPACE_ROOT, PROPOSALS_DIR, f"proposal_{lang_code}.json")
     os.makedirs(os.path.join(WORKSPACE_ROOT, PROPOSALS_DIR), exist_ok=True)
-    temp_file = os.path.join(WORKSPACE_ROOT, PROPOSALS_DIR, f"{p_id}.json")
-    final_data = _deep_update(cur_d.copy(), _unflatten_dict(new_pairs), ConflictStrategy.OVERWRITE)
 
+    # 累加逻辑：如果已有暂存提案，以其为基准；否则以磁盘文件为基准
+    base_data = disk_data.copy()
+    existing_reasoning = ""
+    if os.path.exists(temp_file):
+        try:
+            with open(temp_file, encoding="utf-8") as f:
+                p_data = json.load(f)
+                base_data = p_data.get("content", disk_data)
+                existing_reasoning = p_data.get("reason", "")
+        except Exception:
+            pass
+
+    # 将新变更合并到基准数据中
+    final_data = _deep_update(base_data, _unflatten_dict(new_pairs), ConflictStrategy.OVERWRITE)
+    
+    # 合并推理理由
+    if existing_reasoning and reasoning not in existing_reasoning:
+        combined_reason = f"{existing_reasoning}\n+ {reasoning}"
+    else:
+        combined_reason = reasoning
+
+    # 保存新的暂存提案
+    proposal_data = {
+        "target_file": file_p,
+        "content": final_data,
+        "lang": lang_code,
+        "reason": combined_reason,
+    }
     with open(temp_file, "w", encoding="utf-8") as f:
-        json.dump(
-            {"target_file": file_p, "content": final_data, "lang": lang_code, "reason": reasoning},
-            f,
-            indent=2,
-            ensure_ascii=False,
+        json.dump(proposal_data, f, indent=2, ensure_ascii=False)
+
+    # 计算自磁盘以来的“全量累加变更”，用于预览
+    flat_disk = _flatten_dict(disk_data)
+    flat_final = _flatten_dict(final_data)
+    accumulated_changes = {k: v for k, v in flat_final.items() if flat_disk.get(k) != v}
+
+    # 生成 Markdown 预览，展示当前“暂存区”与“磁盘”的完整差异
+    preview_file = os.path.join(WORKSPACE_ROOT, PROPOSALS_DIR, f"sync_preview_{lang_code}.md")
+    with open(preview_file, "w", encoding="utf-8") as f:
+        f.write(f"# i18n Sync Preview ({lang_code})\n\n")
+        f.write(
+            "请审阅当前**暂存区 (Staging Area)**中的完整变更。满意后请执行 `commit` 指令应用。\n\n"
         )
+        f.write(f"- **Language**: `{lang_code}`\n")
+        f.write(f"- **Target File**: `{file_p}`\n")
+        f.write(f"- **Accumulated Changes**: {len(accumulated_changes)}\n")
+        f.write(f"- **Reasoning History**:\n```text\n{combined_reason}\n```\n\n")
+        
+        f.write("## 变更明细 (Disk vs. Staging Area)\n\n")
+        f.write("| Key | Current (Disk) | Proposed (Staging) |\n")
+        f.write("| :--- | :--- | :--- |\n")
+        
+        # 仅显示前 100 条预览
+        for i, (k, v) in enumerate(accumulated_changes.items()):
+            if i >= 100:
+                f.write(f"| ... | ... | (+ {len(accumulated_changes)-100} more keys) |\n")
+                break
+            old_val = flat_disk.get(k, "*[NEW KEY]*")
+            safe_old = str(old_val).replace("\n", "\\n").replace("|", "\\|")
+            safe_new = str(v).replace("\n", "\\n").replace("|", "\\|")
+            f.write(f"| `{k}` | {safe_old} | **{safe_new}** |\n")
 
     return SyncProposal(
-        proposal_id=p_id,
+        proposal_id=lang_code, # 提案 ID 即为语言代码，实现单例模式
         lang_code=lang_code,
-        changes_count=len(new_pairs),
-        diff_summary=new_pairs,
-        reasoning=reasoning,
+        changes_count=len(accumulated_changes),
+        diff_summary=accumulated_changes,
+        reasoning=combined_reason,
         file_path=file_p,
         validation_errors=val_errs,
         style_suggestions=style_feedbacks,
+        preview_file_path=preview_file
     )
 
 
@@ -502,32 +556,60 @@ async def _load_project_preferences():
 
 
 async def commit_i18n_changes(proposal_id: str) -> str:
-    """[工业级恢复] 正式应用变更并更新快照与状态"""
-    temp_p = os.path.join(WORKSPACE_ROOT, PROPOSALS_DIR, f"{proposal_id}.json")
-    if not os.path.exists(temp_p):
-        return "Error: Proposal not found."
-    with open(temp_p, encoding="utf-8") as f:
-        data = json.load(f)
+    """[工业级恢复] 正式应用变更并更新快照与状态。支持按语言代码或 'all' 提交。"""
+    proposals_path = os.path.join(WORKSPACE_ROOT, PROPOSALS_DIR)
+    to_commit = []
 
-    safe_target = _validate_safe_path(data["target_file"])
-    await _save_locale_data(safe_target, data["content"])
+    if proposal_id.lower() == "all":
+        # 提交所有待处理提案
+        to_commit = glob.glob(os.path.join(proposals_path, "proposal_*.json"))
+    else:
+        # 优先匹配新格式：proposal_{lang}.json
+        exact_p = os.path.join(proposals_path, f"proposal_{proposal_id}.json")
+        if os.path.exists(exact_p):
+            to_commit = [exact_p]
+        else:
+            # 兼容旧格式（V6 之前的 {uuid}.json 或 V6 版本的 proposal_{lang}_{uuid}.json）
+            old_p = os.path.join(proposals_path, f"{proposal_id}.json")
+            if os.path.exists(old_p):
+                to_commit = [old_p]
+            else:
+                pattern = os.path.join(proposals_path, f"proposal_*_{proposal_id}.json")
+                matches = glob.glob(pattern)
+                if matches:
+                    to_commit = [matches[0]]
+                else:
+                    return f"Error: No pending proposals found for '{proposal_id}'."
 
-    # 更新快照，默认标记为 APPROVED（因为用户通过 commit 确认了）
+    if not to_commit:
+        return "No proposals to commit."
+
+    committed_files = []
     snapshot_mgr = TranslationSnapshotManager(WORKSPACE_ROOT)
-    flattened = _flatten_dict(data["content"])
-    content_hash = hashlib.md5(json.dumps(flattened).encode("utf-8")).hexdigest()
+    for temp_p in to_commit:
+        with open(temp_p, encoding="utf-8") as f:
+            data = json.load(f)
 
-    for k, v in flattened.items():
-        await snapshot_mgr.update_snapshot(
-            key=k,
-            translation=v,
-            score=10,
-            status=TranslationStatus.APPROVED,
-            content_hash=content_hash,
-        )
+        safe_target = _validate_safe_path(data["target_file"])
+        await _save_locale_data(safe_target, data["content"])
 
-    os.remove(temp_p)
-    return f"Committed: {safe_target}"
+        # 更新快照，默认标记为 APPROVED（因为用户通过 commit 确认了）
+        flattened = _flatten_dict(data["content"])
+        content_hash = hashlib.md5(json.dumps(flattened).encode("utf-8")).hexdigest()
+
+        for k, v in flattened.items():
+            await snapshot_mgr.update_snapshot(
+                key=k,
+                translation=v,
+                score=10,
+                status=TranslationStatus.APPROVED,
+                content_hash=content_hash,
+            )
+
+        os.remove(temp_p)
+        committed_files.append(os.path.basename(safe_target))
+
+    return f"Successfully committed {len(committed_files)} proposals: {', '.join(committed_files)}"
 
 
 async def optimize_translations(lang_code: str, include_approved: bool = False) -> dict[str, Any]:
@@ -823,9 +905,23 @@ async def sync_i18n_files(new_pairs: dict, lang_code: str):
 
 
 async def refine_i18n_proposal(proposal_id: str, feedback: str) -> str:
-    temp_p = os.path.join(WORKSPACE_ROOT, PROPOSALS_DIR, f"{proposal_id}.json")
-    if not os.path.exists(temp_p):
-        return "Not found"
+    # 优先匹配新格式：proposal_{lang}.json
+    exact_p = os.path.join(WORKSPACE_ROOT, PROPOSALS_DIR, f"proposal_{proposal_id}.json")
+    if os.path.exists(exact_p):
+        temp_p = exact_p
+    else:
+        # 兼容旧格式（V6 之前的 {uuid}.json 或 V6 版本的 proposal_{lang}_{uuid}.json）
+        old_p = os.path.join(WORKSPACE_ROOT, PROPOSALS_DIR, f"{proposal_id}.json")
+        if os.path.exists(old_p):
+            temp_p = old_p
+        else:
+            pattern = os.path.join(WORKSPACE_ROOT, PROPOSALS_DIR, f"proposal_*_{proposal_id}.json")
+            matches = glob.glob(pattern)
+            if matches:
+                temp_p = matches[0]
+            else:
+                return "Error: Proposal not found."
+
     async with aiofiles.open(temp_p, encoding="utf-8") as f:
         data = json.loads(await f.read())
     data.setdefault("feedback_history", []).append(feedback)

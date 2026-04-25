@@ -183,6 +183,7 @@ class SyncProposal(BaseModel):
         default_factory=list, description="校验失败"
     )
     style_suggestions: list[StyleFeedback] = Field(default_factory=list, description="风格建议")
+    preview_file_path: str | None = Field(None, description="生成的 Markdown 预览文件路径")
     regression_alert: RegressionResult | None = Field(None, description="质量退化")
     telemetry: TelemetryData | None = Field(None, description="效能指标")
 
