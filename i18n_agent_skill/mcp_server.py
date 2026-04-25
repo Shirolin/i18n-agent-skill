@@ -84,9 +84,9 @@ async def pivot_sync(pivot_lang: str, target_lang: str, keys: list[str] | None =
 
 
 @mcp.tool()
-async def optimize_drafts(lang_code: str):
-    """[批量优化] 找出待优化词条，并导出为 JSON 任务文件。AI 应读取该文件进行翻译后，再将结果写入新文件，最后通过 propose_sync 提交。"""
-    return await optimize_translations(lang_code)
+async def optimize_drafts(lang_code: str, include_approved: bool = False):
+    """[批量优化] 找出待优化词条并导出为任务文件。include_approved=True 可用于全量存量润色。"""
+    return await optimize_translations(lang_code, include_approved=include_approved)
 
 
 @mcp.tool()

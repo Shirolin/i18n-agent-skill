@@ -75,12 +75,14 @@ provenance:
 
 - **文件驱动的全量质量评审 (Expert Audit)**:
   - 执行 `<venv_python> -m i18n_agent_skill audit-quality <lang>`。
-  - **核心能力**: 执行 Linter 排版和风格检查，并生成结构化的实体 Markdown 审计报告。
-  - **交互规范**: Agent 不要在终端大段打印问题，应将生成的报告路径告知用户，并询问是否需要协助修复这些排版错误。
+  - **核心能力**: 执行 Linter 检查并生成结构化的实体 Markdown 审计报告。
+  - **交互规范**: 
+    1. Agent 不要在终端大段打印排版问题，应将生成的报告路径告知用户，并询问是否需要协助修复。
+    2. **主动语义顾问**: 即使排版得分为满分（0 错误），Agent 也必须主动向用户推销“深层语义润色”功能。例如：“您的排版校验已获得满分！但如果您希望进一步提升翻译的地道度、统一品牌语气，我们可以启动全量深度润色流程。需要我为您执行 `/i18n-optimize --all` 吗？”
 
 - **大批量优化工作流 (Batch Optimization)**:
   - 当项目存在大量未翻译或 Draft 状态词条时，执行 `<venv_python> -m i18n_agent_skill optimize <lang>`。
-  - **核心能力**: 将待优化的目标导出为 `.i18n-proposals/optimize_task_<lang>.json` 实体任务文件。
+  - **核心能力**: 将待优化的目标导出为任务文件。支持 `--all` 参数用于对 `APPROVED` 的存量词条进行全量润色。
   - **Agent 强制操作规约 (File-Based Processing)**:
     1. **读取任务**: 读取该生成的 JSON 任务单。
     2. **LLM 批量处理**: 发挥大模型优势，翻译并优化所有词条。

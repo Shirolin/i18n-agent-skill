@@ -103,12 +103,12 @@ async def cli_main():
     # 7. optimize
     opt_parser = subparsers.add_parser("optimize", help="[幂等优化] 筛选待优化词条并提取动态术语")
     opt_parser.add_argument("lang", help="目标语言代码")
+    opt_parser.add_argument("--all", action="store_true", help="强制包含已确认的词条进行全量优化")
 
     # 8. learn
     learn_parser = subparsers.add_parser("learn", help="[闭环反馈] 探测手动修改并提升词条状态")
     learn_parser.add_argument("lang", help="目标语言代码")
 
-    # 9. audit-quality
     audit_q_parser = subparsers.add_parser("audit-quality", help="[专家巡检] 生成全量质量评审报告")
     audit_q_parser.add_argument("lang", help="目标语言代码")
 
@@ -136,7 +136,7 @@ async def cli_main():
         _print_json({"message": init_msg})
 
     elif args.command == "optimize":
-        opt_res = await optimize_translations(args.lang)
+        opt_res = await optimize_translations(args.lang, include_approved=args.all)
         _print_json(opt_res)
 
     elif args.command == "learn":

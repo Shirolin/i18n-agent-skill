@@ -530,7 +530,7 @@ async def commit_i18n_changes(proposal_id: str) -> str:
     return f"Committed: {safe_target}"
 
 
-async def optimize_translations(lang_code: str) -> dict[str, Any]:
+async def optimize_translations(lang_code: str, include_approved: bool = False) -> dict[str, Any]:
     """
     [幂等优化引擎] 筛选待优化词条，并提取 APPROVED 词条作为动态术语。
     """
@@ -545,11 +545,11 @@ async def optimize_translations(lang_code: str) -> dict[str, Any]:
 
     for k, v in flat_data.items():
         status = await snapshot_mgr.get_status(k)
-        if status == TranslationStatus.APPROVED:
+        if status == TranslationStatus.APPROVED and not include_approved:
             # 已确认的词条作为“真值”加入术语表
             glossary[k] = v
         else:
-            # DRAFT 或 REVIEWED 的词条进入优化队列
+            # DRAFT/REVIEWED 或强制全量优化的词条进入队列
             to_optimize[k] = v
 
     os.makedirs(os.path.join(WORKSPACE_ROOT, PROPOSALS_DIR), exist_ok=True)
