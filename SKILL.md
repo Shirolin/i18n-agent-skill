@@ -98,6 +98,11 @@ provenance:
 - **跨语言参照优化 (Reference-based Optimization)**:
   - 执行 `<venv_python> -m i18n_agent_skill pivot-sync <pivot_lang> <target_lang>`。
   - **核心逻辑**: 以用户熟悉的语言（如 zh-CN）的翻译成果为**语义参照**，对目标语言进行高保正同步，确保全语种语义对齐。
+  - **Agent 强制操作规约**:
+    1. `pivot-sync` 仅提取待优化的词条并输出 JSON，**不会生成提案，也不会自动提交！**
+    2. Agent 必须读取返回的 `targets` 字典，利用大模型参照 `reference_mapping` 执行精准翻译。
+    3. 翻译完成后，必须将其写入本地临时 JSON 文件，并执行 `sync <target_lang> <temp_file>` 生成暂存提案。
+    4. 预览无误后，再执行 `commit <target_lang>`。**严禁跳过 sync 环节凭空捏造 ID 直接 commit！**
 
 ## 🔒 核心指令约束 (Guardrails)
 

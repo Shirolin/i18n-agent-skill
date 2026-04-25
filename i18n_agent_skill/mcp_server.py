@@ -41,6 +41,7 @@ async def propose_sync(new_pairs_or_file: dict | str, lang_code: str, reasoning:
     if isinstance(new_pairs_or_file, str):
         import json
         import os
+
         if os.path.isfile(new_pairs_or_file):
             with open(new_pairs_or_file, encoding="utf-8") as f:
                 new_pairs = json.load(f)

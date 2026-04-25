@@ -139,17 +139,17 @@ async def test_proposal_accumulation(mock_workspace):
     await tools.propose_sync_i18n(
         new_pairs={"key1": "value1"}, lang_code="ja", reasoning="First sync"
     )
-    
+
     # 第二次 Sync (不同 Key)
     await tools.propose_sync_i18n(
         new_pairs={"key2": "value2"}, lang_code="ja", reasoning="Second sync"
     )
-    
+
     # 第三次 Sync (覆写 key1)
     proposal_v3 = await tools.propose_sync_i18n(
         new_pairs={"key1": "new_value1"}, lang_code="ja", reasoning="Overwrite key1"
     )
-    assert proposal_v3.changes_count == 2 # key1, key2
+    assert proposal_v3.changes_count == 2  # key1, key2
     assert proposal_v3.diff_summary["key1"] == "new_value1"
     assert proposal_v3.diff_summary["key2"] == "value2"
     assert "First sync" in proposal_v3.reasoning
@@ -177,11 +177,11 @@ async def test_refine_proposal_integration(mock_workspace):
     await tools.propose_sync_i18n(
         new_pairs={"ui.test": "Test"}, lang_code="ja", reasoning="Initial"
     )
-    
+
     # 2. 调用 refine (使用语言代码作为 ID)
     res = await tools.refine_i18n_proposal(proposal_id="ja", feedback="Make it more polite")
     assert res == "Recorded."
-    
+
     # 3. 验证反馈已记录到提案文件中
     proposal_file = mock_workspace / ".i18n-proposals" / "proposal_ja.json"
     async with aiofiles.open(str(proposal_file), encoding="utf-8") as f:

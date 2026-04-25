@@ -58,11 +58,27 @@ from i18n_agent_skill.tools import (  # noqa: E402
 
 
 def _print_json(data: Any):
-    """确保输出是 AI 可解析的 JSON"""
-    print(json.dumps(data, indent=2, ensure_ascii=False, default=str))
+    """确保输出是 AI 可解析的 JSON，且强制使用 UTF-8 编码"""
+    json_str = json.dumps(data, indent=2, ensure_ascii=False, default=str)
+    try:
+        print(json_str)
+    except UnicodeEncodeError:
+        # 兜底方案：如果标准输出编码不是 UTF-8，直接写入字节流
+        sys.stdout.buffer.write(json_str.encode("utf-8"))
+        sys.stdout.buffer.write(b"\n")
+        sys.stdout.buffer.flush()
 
 
 async def cli_main():
+    # [Windows 专用] 强制标准输出使用 UTF-8，解决 GBK 环境下的编码崩溃问题
+    if sys.platform == "win32":
+        import io
+
+        if hasattr(sys.stdout, "buffer"):
+            sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
+        if hasattr(sys.stderr, "buffer"):
+            sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8")
+
     parser = argparse.ArgumentParser(description="I18n Agent Skill 引擎 v0.1.0")
     parser.add_argument(
         "--workspace-root", type=str, help="显式指定项目根目录，在嵌套结构下推荐使用"

@@ -454,7 +454,7 @@ async def propose_sync_i18n(
 
     # 加载磁盘原始数据
     disk_data = await _load_locale_data(target_dir, lang_code)
-    
+
     # 暂存区文件路径 (Singleton per language)
     temp_file = os.path.join(WORKSPACE_ROOT, PROPOSALS_DIR, f"proposal_{lang_code}.json")
     os.makedirs(os.path.join(WORKSPACE_ROOT, PROPOSALS_DIR), exist_ok=True)
@@ -473,7 +473,7 @@ async def propose_sync_i18n(
 
     # 将新变更合并到基准数据中
     final_data = _deep_update(base_data, _unflatten_dict(new_pairs), ConflictStrategy.OVERWRITE)
-    
+
     # 合并推理理由
     if existing_reasoning and reasoning not in existing_reasoning:
         combined_reason = f"{existing_reasoning}\n+ {reasoning}"
@@ -506,15 +506,15 @@ async def propose_sync_i18n(
         f.write(f"- **Target File**: `{file_p}`\n")
         f.write(f"- **Accumulated Changes**: {len(accumulated_changes)}\n")
         f.write(f"- **Reasoning History**:\n```text\n{combined_reason}\n```\n\n")
-        
+
         f.write("## 变更明细 (Disk vs. Staging Area)\n\n")
         f.write("| Key | Current (Disk) | Proposed (Staging) |\n")
         f.write("| :--- | :--- | :--- |\n")
-        
+
         # 仅显示前 100 条预览
         for i, (k, v) in enumerate(accumulated_changes.items()):
             if i >= 100:
-                f.write(f"| ... | ... | (+ {len(accumulated_changes)-100} more keys) |\n")
+                f.write(f"| ... | ... | (+ {len(accumulated_changes) - 100} more keys) |\n")
                 break
             old_val = flat_disk.get(k, "*[NEW KEY]*")
             safe_old = str(old_val).replace("\n", "\\n").replace("|", "\\|")
@@ -522,7 +522,7 @@ async def propose_sync_i18n(
             f.write(f"| `{k}` | {safe_old} | **{safe_new}** |\n")
 
     return SyncProposal(
-        proposal_id=lang_code, # 提案 ID 即为语言代码，实现单例模式
+        proposal_id=lang_code,  # 提案 ID 即为语言代码，实现单例模式
         lang_code=lang_code,
         changes_count=len(accumulated_changes),
         diff_summary=accumulated_changes,
@@ -530,7 +530,7 @@ async def propose_sync_i18n(
         file_path=file_p,
         validation_errors=val_errs,
         style_suggestions=style_feedbacks,
-        preview_file_path=preview_file
+        preview_file_path=preview_file,
     )
 
 
@@ -636,7 +636,7 @@ async def optimize_translations(lang_code: str, include_approved: bool = False) 
 
     os.makedirs(os.path.join(WORKSPACE_ROOT, PROPOSALS_DIR), exist_ok=True)
     task_file = os.path.join(WORKSPACE_ROOT, PROPOSALS_DIR, f"optimize_task_{lang_code}.json")
-    
+
     task_data = {
         "targets": to_optimize,
         "dynamic_glossary": glossary,
@@ -644,9 +644,9 @@ async def optimize_translations(lang_code: str, include_approved: bool = False) 
             "Please read 'targets', provide optimized translations, "
             "and save the result as a new JSON file (key-value pairs only). "
             "Then run 'sync' with the new file path."
-        )
+        ),
     }
-    
+
     with open(task_file, "w", encoding="utf-8") as f:
         json.dump(task_data, f, indent=2, ensure_ascii=False)
 
@@ -703,7 +703,7 @@ async def generate_quality_report(lang_code: str) -> EvaluationReport:
     # 生成 Markdown 报告
     os.makedirs(os.path.join(WORKSPACE_ROOT, PROPOSALS_DIR), exist_ok=True)
     report_file = os.path.join(WORKSPACE_ROOT, PROPOSALS_DIR, f"audit_report_{lang_code}.md")
-    
+
     with open(report_file, "w", encoding="utf-8") as f:
         f.write(f"# i18n Quality Audit Report ({lang_code})\n\n")
         f.write(f"- **Total Keys**: {len(flat_data)}\n")
@@ -732,7 +732,7 @@ async def generate_quality_report(lang_code: str) -> EvaluationReport:
         controversial_items=controversial,
         overall_score=overall_score,
         summary=f"Audit complete. Found {error_count} issues. Report saved to {report_file}.",
-        report_file_path=report_file
+        report_file_path=report_file,
     )
 
 
