@@ -1,8 +1,8 @@
 ---
 name: i18n-agent-skill
 description: >-
-  专门用于前端国际化 (i18n) 工程化任务。核心优势：基于 Tree-sitter AST 的语法级提取、100% 物理隔离注释、
-  支持嵌套模板字符串及 JSX/Vue 文本节点。适用于全量审计、精准提取、自动化同步及排版规范校验。
+  高性能前端国际化专家。支持基于 Tree-sitter AST 的精准文案提取、全量覆盖率审计、自动化同步及专家级质量巡检（Quality Audit）。
+  新增“文件驱动”优化工作流，支持大批量词条的导出优化与同步，确保存量项目翻译的专业性与排版规范。
 license: Apache-2.0
 metadata:
   author: Shirolin
