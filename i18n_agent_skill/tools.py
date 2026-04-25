@@ -558,7 +558,11 @@ async def optimize_translations(lang_code: str, include_approved: bool = False) 
     task_data = {
         "targets": to_optimize,
         "dynamic_glossary": glossary,
-        "instructions": "Please read 'targets', provide optimized translations, and save the result as a new JSON file (key-value pairs only). Then run 'sync' with the new file path."
+        "instructions": (
+            "Please read 'targets', provide optimized translations, "
+            "and save the result as a new JSON file (key-value pairs only). "
+            "Then run 'sync' with the new file path."
+        )
     }
     
     with open(task_file, "w", encoding="utf-8") as f:
@@ -570,7 +574,8 @@ async def optimize_translations(lang_code: str, include_approved: bool = False) 
             f"Optimization task exported to {task_file}. "
             f"Found {len(to_optimize)} keys to optimize, "
             f"using {len(glossary)} approved terms as anchor. "
-            f"Agent MUST read this file, perform optimization, save to a temporary JSON file, and call 'sync' with the temporary file path."
+            f"Agent MUST read this file, perform optimization, "
+            f"save to a temporary JSON file, and call 'sync' with the temporary file path."
         ),
     }
 
@@ -596,7 +601,9 @@ async def generate_quality_report(lang_code: str) -> EvaluationReport:
             approved_count += 1
 
         # 执行真实排版校验
-        style_feedbacks = TranslationStyleLinter.lint(k, v, lang_code, config.protected_lang_key_patterns)
+        style_feedbacks = TranslationStyleLinter.lint(
+            k, v, lang_code, config.protected_lang_key_patterns
+        )
         if style_feedbacks:
             for fb in style_feedbacks:
                 error_count += 1
@@ -627,7 +634,10 @@ async def generate_quality_report(lang_code: str) -> EvaluationReport:
             for item in controversial:
                 safe_curr = item.current_translation.replace("\n", "\\n").replace("|", "\\|")
                 safe_sugg = item.suggested_translation.replace("\n", "\\n").replace("|", "\\|")
-                f.write(f"| `{item.key}` | `{safe_curr}` | `{safe_sugg}` | {item.issue_type} | {item.reasoning} |\n")
+                f.write(
+                    f"| `{item.key}` | `{safe_curr}` | `{safe_sugg}` | "
+                    f"{item.issue_type} | {item.reasoning} |\n"
+                )
         else:
             f.write("## No issues found!\n\nAll checked items conform to style rules.\n")
 

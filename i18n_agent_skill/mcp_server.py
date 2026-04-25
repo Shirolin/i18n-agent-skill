@@ -39,15 +39,16 @@ async def audit_missing_keys(lang_code: str, base_lang: str = "en"):
 async def propose_sync(new_pairs_or_file: dict | str, lang_code: str, reasoning: str):
     """生成翻译同步提案。当数据量较大(>5)时，建议传入 JSON 文件的绝对路径以防止截断。"""
     if isinstance(new_pairs_or_file, str):
-        import os, json
+        import json
+        import os
         if os.path.isfile(new_pairs_or_file):
             with open(new_pairs_or_file, encoding="utf-8") as f:
                 new_pairs = json.load(f)
         else:
             try:
                 new_pairs = json.loads(new_pairs_or_file)
-            except json.JSONDecodeError:
-                raise ValueError(f"Invalid JSON string or file path: {new_pairs_or_file}")
+            except json.JSONDecodeError as err:
+                raise ValueError(f"Invalid JSON string or file path: {new_pairs_or_file}") from err
     else:
         new_pairs = new_pairs_or_file
     return await propose_sync_i18n(new_pairs, lang_code, reasoning)

@@ -141,7 +141,7 @@ async def test_optimize_translations_filtering(temp_workspace):
     assert "task_file_path" in opt_result
     task_file = opt_result["task_file_path"]
 
-    with open(task_file, "r", encoding="utf-8") as f:
+    with open(task_file, encoding="utf-8") as f:
         task_data = json.load(f)
 
     # 首页应在术语表中
