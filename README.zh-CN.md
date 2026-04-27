@@ -2,7 +2,7 @@
 
 [English](../README.md) | [简体中文]
 
-> **Hey AI!** 欲安装此技能，只需克隆本仓库并运行 `./install.sh` 即可。它会自动处理虚拟环境与平台规则。
+> **Hey AI!** 欲安装此技能，只需克隆本仓库并运行 `./install.sh` 即可。它会自动处理隔离环境 (.venv)、依赖安装与平台规则路径探测。
 
 [![Runtime: Python 3.10-3.12](https://img.shields.io/badge/Runtime-Python%203.10--3.12-blue)](https://www.python.org/)
 [![Spec: Agent Skill v4.0](https://img.shields.io/badge/Spec-Agent%20Skill%20v4.0-darkgreen)](https://github.com/FrancyJGLisboa/agent-skill-creator)
@@ -14,10 +14,11 @@
 ## ✨ 核心优势
 
 - **Tree-sitter AST 引擎**: 毫秒级语法解析，100% 物理隔离注释，支持 JSX/Vue/TSX 深度嵌套提取。
-- **进化型迭代优化**: 基于翻译生命周期的幂等优化，自动锁定精选翻译。
-- **环境绝对隔离**: 自动创建 `.venv` 隔离空间，不污染您的全局 Python 环境。
-- **零配置安装**: 一键探测并部署至 10+ 种主流 AI Agent 平台。
-- **隐私盾 (Privacy Guard)**: 本地化脱敏，确保敏感数据不出本地沙箱。
+- **进化型迭代优化**: 基于翻译生命周期的幂等优化。支持从人工修正中自动学习术语。
+- **专家级质量巡检**: 自动生成深度评审报告，识别术语不一致、语境缺失及地道度问题。
+- **跨语言语义对齐**: 支持以您熟悉的语种（如 zh-CN）为基准，确保全球表达语义一致。
+- **隐私盾 (Privacy Guard)**: 本地化哈希与脱敏，确保源代码与敏感数据不出本地沙箱。
+- **完全隔离与零配置**: 自动创建 `.venv` 环境，一键部署至 10+ 种主流 AI Agent 平台。
 
 ---
 
@@ -58,23 +59,25 @@ iwr -useb https://raw.githubusercontent.com/Shirolin/i18n-agent-skill/main/insta
 
 | 指令 | 说明 |
 | :--- | :--- |
+| `/i18n-init` | **项目初始化**：扫描项目并生成 `.i18n-skill.json` 配置文件。 |
+| `/i18n-status` | 状态验证：检查项目配置与环境就绪状态。 |
 | `/i18n-audit` | 覆盖率审计：检查各语言包的缺失情况。 |
 | `/i18n-audit-quality` | **质量巡检**：生成专家报告，识别争议项与地道度问题。 |
 | `/i18n-pivot-sync` | **跨语言对齐**：根据已优化的母语版本，同步修正其他语种。 |
+| `/i18n-sync` | 智能同步：生成翻译同步提案。 |
+| `/i18n-commit` | **应用变更**：正式提交提案并写入物理文件。 |
 | `/i18n-fix` | 快捷修复：自动扫描环境异常，生成全量修复提案。 |
-| `/i18n-status` | 状态验证：检查项目配置与就绪状态。 |
-| `/i18n-sync` | 智能同步：执行增量翻译同步。 |
 
 ---
 
-## 📂 项目结构 (optimized by agent-skill-creator)
+## 📂 项目结构
 
 ```text
 i18n-agent-skill/
 ├── i18n_agent_skill/   # 核心 Python 逻辑包
-├── scripts/            # [NEW] 自动化脚本：install.sh, cli-tools
-├── references/         # [NEW] 技术文档：AST 原理、隐私脱敏协议、Linter 规范
-├── assets/             # [NEW] 配置资产：词汇表模板等
+├── scripts/            # 自动化脚本：install.sh, cli-tools
+├── references/         # 技术文档：AST 原理、隐私脱敏协议、Linter 规范
+├── assets/             # 配置资产：词汇表模板等
 ├── tests/              # 自动化测试套件 (Unit & Integration)
 ├── SKILL.md            # 核心执行协议 (v4.0 规范)
 └── pyproject.toml      # 依赖管理与项目索引
@@ -96,6 +99,17 @@ python .agents/skills/agent-skill-creator/scripts/security_scan.py .
 # 运行测试
 pytest
 ```
+
+---
+
+## 💖 支持项目
+
+如果您觉得 **i18n-agent-skill** 对您有所帮助，请考虑：
+
+- 给项目点一个 **Star** ⭐ 以表鼓励。
+- 将它分享给更多需要处理前端国际化的朋友。
+- **爱发电**: [https://ifdian.net/a/shirolin](https://ifdian.net/a/shirolin)
+- **Ko-fi**: [https://ko-fi.com/shirolin](https://ko-fi.com/shirolin)
 
 ---
 
