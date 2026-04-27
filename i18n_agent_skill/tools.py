@@ -171,6 +171,7 @@ def _mask_sensitive_data(text: str, level: PrivacyLevel) -> tuple[str, bool]:
     if lvl_str == "basic":
         patterns_to_check = ["EMAIL", "API_KEY"]
     else:
+        # STRICT mode includes PHONE, ID_CARD, IP_ADDR, etc.
         patterns_to_check = ["ID_CARD", "API_KEY", "EMAIL", "PHONE", "IP_ADDR"]
 
     for p_type in patterns_to_check:
@@ -334,6 +335,15 @@ async def extract_raw_strings(
         )
 
     start_ts = time.perf_counter()
+    if not os.path.exists(safe_p):
+        return ExtractOutput(
+            error=ErrorInfo(
+                error_code="PATH_ERR",
+                message=f"File not found: {file_path}",
+                suggested_action="Verify the file path exists within your workspace.",
+            )
+        )
+
     async with aiofiles.open(safe_p, encoding="utf-8") as f:
         content = await f.read()
     ext = os.path.splitext(file_path)[1].lower()
@@ -790,14 +800,19 @@ async def _load_locale_data(target_dir: str, lang: str) -> dict:
             if match:
                 obj_str = match.group(1)
                 try:
+                    # 1. Clean comments
                     obj_str = re.sub(r"//.*", "", obj_str)
                     obj_str = re.sub(r"/\*.*?\*/", "", obj_str, flags=re.DOTALL)
-                    obj_str = re.sub(
-                        r"([{,]\s*)([a-zA-Z_$][a-zA-Z0-9_$]*)\s*:", r'\1"\2":', obj_str
-                    )
-                    obj_str = re.sub(r"':\s*'([^']*)'", r'": "\1"', obj_str)
+
+                    # 2. Key normalization: 'key': or key: -> "key":
+                    obj_str = re.sub(r"(['\"]?)([a-zA-Z0-9_$]+)\1\s*:", r'"\2":', obj_str)
+
+                    # 3. Value normalization: : 'val' -> : "val"
                     obj_str = re.sub(r":\s*'([^']*)'", r': "\1"', obj_str)
+
+                    # 4. Trailing commas
                     obj_str = re.sub(r",\s*([}\]])", r"\1", obj_str)
+
                     obj_str = obj_str.strip().rstrip(";")
                     return json.loads(obj_str)
                 except Exception as e:
