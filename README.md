@@ -55,6 +55,20 @@ Automatically detects and deploys to the following rule/skill directories:
 
 ---
 
+## 🌍 Language Support Matrix
+
+| Language Family | Extraction (AST) | Translation (AI) | Typography Linting | Status |
+| :--- | :---: | :---: | :---: | :--- |
+| **English / Western** | ✅ | ✅ | ✅ | **Production** |
+| **CJK (ZH, JA, KO)** | ✅ | ✅ | ✅ | **Production** |
+| **European (Latin)** | ✅ | ✅ | ✅ | **Stable** |
+| **RTL (Arabic, Hebrew)**| ✅ | ✅ | ⚠️ (Bypass) | **Beta (Sync only)** |
+| **Other (Hindi, Thai)** | ✅ | ✅ | ⚠️ (Bypass) | **Beta (Sync only)** |
+
+> **Note**: While AST extraction and AI translation are language-agnostic, professional typography rules (e.g., CJK spacing) are currently optimized for the language families marked as "✅".
+
+---
+
 ## 📖 Core Command Set
 
 | Command | Description |
