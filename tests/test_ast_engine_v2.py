@@ -5,7 +5,7 @@ from i18n_agent_skill import tools
 
 @pytest.mark.asyncio
 async def test_vue_sfc_region_recursion(tmp_path):
-    """验证 Vue SFC 深度解析：template 的 HTML 与 script setup 的 JS 均能提取，排除 style。"""
+    """Verify Vue SFC deep parsing: template HTML and script setup JS are both extracted."""
     vue_content = """
     <template>
       <button title="点击提交">Submit</button>
@@ -20,7 +20,7 @@ async def test_vue_sfc_region_recursion(tmp_path):
     f = tmp_path / "App.vue"
     f.write_text(vue_content, encoding="utf-8")
 
-    # 模拟 WORKSPACE_ROOT 以通过沙箱校验
+    # Mock WORKSPACE_ROOT for sandbox validation
     tools.WORKSPACE_ROOT = str(tmp_path)
 
     output = await tools.extract_raw_strings("App.vue")
@@ -36,7 +36,7 @@ async def test_vue_sfc_region_recursion(tmp_path):
 
 @pytest.mark.asyncio
 async def test_jsx_text_node_capture(tmp_path):
-    """验证 JSX 文本节点、属性及模板字符串的全面覆盖。"""
+    """Verify JSX text nodes, attributes, and template strings coverage."""
     tsx_content = """
     export const Comp = () => (
       <div title="全局设置">
@@ -56,26 +56,24 @@ async def test_jsx_text_node_capture(tmp_path):
     texts = [r.text for r in output.results]
     assert "全局设置" in texts
     assert "保存修改" in texts
-    assert "确认{var}" in texts  # 模板字符串子节点处理
+    assert "确认{var}" in texts
 
 
 @pytest.mark.asyncio
-async def test_multilingual_召回率(tmp_path):  # noqa: N802
-    """验证对日语、德语等非 ASCII 自然语言的 100% 召回。"""
+async def test_multilingual_recall(tmp_path):
+    """Verify 100% recall for non-ASCII natural languages like Japanese and German."""
     code = """
     const labels = {
       ja: "キャンセル",
       de: "Bestätigen"
     };
     """
-    f = tmp_path / "global.js"
+    f = tmp_path / "labels.js"
     f.write_text(code, encoding="utf-8")
 
     tools.WORKSPACE_ROOT = str(tmp_path)
-    output = await tools.extract_raw_strings("global.js")
-    if output.error and output.error.error_code == "DEP_ERR":
-        pytest.skip("AST engine missing")
-
+    output = await tools.extract_raw_strings("labels.js")
     texts = [r.text for r in output.results]
+
     assert "キャンセル" in texts
     assert "Bestätigen" in texts

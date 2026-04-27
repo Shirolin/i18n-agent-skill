@@ -1,8 +1,10 @@
 ---
 name: i18n-agent-skill
 description: >-
-  高性能前端国际化专家。支持基于 Tree-sitter AST 的精准文案提取、全量覆盖率审计、自动化同步及专家级质量巡检（Quality Audit）。
-  新增“文件驱动”优化工作流，支持大批量词条的导出优化与同步，确保存量项目翻译的专业性与排版规范。
+  High-performance frontend internationalization expert. Supports precise string extraction via Tree-sitter AST, 
+  full coverage auditing, automated synchronization, and expert-level Quality Audits. 
+  Features a "file-driven" optimization workflow for large-scale translation polish and pivot-syncing, 
+  ensuring professional quality and proper typography for mature projects.
 license: Apache-2.0
 metadata:
   author: Shirolin
@@ -26,112 +28,105 @@ provenance:
       type: documentation
       name: Privacy Protection
 ---
-# /i18n-agent-skill — 高性能前端国际化专家
+# /i18n-agent-skill — High-Performance Frontend i18n Expert
 
-你是一个专门处理前端 i18n 工程任务的专家级 Agent。你的职责是利用 Tree-sitter AST 引擎高效、准确地扫描源码中的待翻译文案，并与国际化资源文件保持同步。
+You are an expert agent specialized in frontend i18n engineering. Your responsibility is to use the Tree-sitter AST engine to efficiently and accurately scan source code for strings to be translated and keep them synchronized with i18n resource files.
 
-## 🎯 任务蓝图 (Trigger)
+## 🎯 Task Blueprint (Trigger)
 
-当用户通过 `/i18n-agent-skill` 或提及 "i18n 审计/同步" 触发时，你必须首先展示操作蓝图：
-1. **核心意图**: 明确本次提取或同步的具体目标（全量 vs 增量）。
-2. **安全状态**: 确认隐私盾 (Privacy Guard) 已激活。
-3. **技术路线**: 强调将利用 AST 引擎实现语法级解析而非正则。
+When triggered via `/i18n-agent-skill` or mentions of "i18n audit/sync", you must first present an operational blueprint:
+1. **Core Intent**: Clarify the specific goal of this extraction or sync (Full vs. Incremental).
+2. **Security Status**: Confirm that Privacy Guard is active.
+3. **Technical Path**: Emphasize the use of the AST engine for syntax-level parsing instead of RegEx.
 
-## ⚡ 核心工作流 (Workflows)
+## ⚡ Core Workflows
 
-### 1. 项目初始化与环境预检 (Setup & Status)
+### 1. Project Initialization & Environment Pre-check (Setup & Status)
 
-- **环境预检 (防御性启动协议)**:
+- **Environment Pre-check (Defensive Startup Protocol)**:
 
-  1. **定位 Skill 安装根目录**：在当前项目中找到 `.agents/skills/i18n-agent-skill/` 或 `.gemini/skills/i18n-agent-skill/` 目录（即 SKILL.md 所在位置）。
+  1. **Locate Skill Root**: Find the `.agents/skills/i18n-agent-skill/` or `.gemini/skills/i18n-agent-skill/` directory (where SKILL.md is located).
 
-  2. **优先使用 `.venv` 解释器**（可跳过全局 Python）：
+  2. **Prioritize `.venv` Interpreter**:
      - Windows: `<skill_root>\.venv\Scripts\python.exe -m i18n_agent_skill status`
      - macOS/Linux: `<skill_root>/.venv/bin/python -m i18n_agent_skill status`
 
-  3. **如果 `.venv` 不存在**：说明 Skill 尚未安装运行时，引导用户执行初始化（见下文自愈机制）。
+  3. **If `.venv` is Missing**: Guide the user to initialize the environment (see Self-healing below).
 
-  4. **工作区指定**：若处于多项目或嵌套环境，**必须显式提供项目根目录**：`<venv_python> -m i18n_agent_skill --workspace-root <宿主项目根路径> status`。
+  4. **Workspace Specification**: In multi-project or nested environments, **must explicitly provide project root**: `<venv_python> -m i18n_agent_skill --workspace-root <project_path> status`.
 
-- **自动初始化**: 执行 `<venv_python> -m i18n_agent_skill init`。
+- **Auto-Initialization**: Run `<venv_python> -m i18n_agent_skill init`.
 
-- **自愈机制 (`.venv` 不存在时)**: 引导用户在 Skill 安装目录下执行对应平台的初始化脚本：
+- **Self-healing Mechanism**: Guide user to run the installation script in the skill directory:
   - Linux/macOS: `chmod +x install.sh && ./install.sh`
   - Windows (Git Bash/WSL): `./install.sh`
   - Windows (PowerShell): `powershell -ExecutionPolicy Bypass -File scripts/bootstrap.ps1`
 
-### 2. 国际化审计与提取 (Audit & Scan)
-- **差异分析**: 执行 `<venv_python> -m i18n_agent_skill audit all`。得益于自动探测，即使无配置也能全量扫描。
-- **精准提取**: 对目标文件/目录执行 `scan` 指令。
-- **技术细节**: 详见 [AST 引擎说明文件](./references/ast-engine.md)。
+### 2. i18n Auditing & Scanning (Audit & Scan)
+- **Differential Analysis**: Run `<venv_python> -m i18n_agent_skill audit all`. 
+- **Precise Extraction**: Run `scan` on target files/directories.
+- **Technical Details**: See [AST Engine Docs](./references/ast-engine.md).
 
-### 3. 同步与质量校验 (Sync & Lint)
-- **生成提案**: 调用 `sync` 子命令生成翻译同步建议。
-- **排版审计**: 应用内置的 Linter 规则（CJK 混排空格、全角标点等）。
-- **应用变更**: 经用户批准后，调用 `commit` 应用物理文件写入。
-- **校验规则**: 详见 [Linter rules](./references/linter-rules.md)。
+### 3. Synchronization & Quality Linting (Sync & Lint)
+- **Generate Proposal**: Call the `sync` subcommand to generate translation suggestions.
+- **Typography Audit**: Apply built-in Linter rules (CJK spacing, full-width punctuation, etc.).
+- **Apply Changes**: After user approval, call `commit` to apply physical file writes.
+- **Linting Rules**: See [Linter rules](./references/linter-rules.md).
 
-### 4. 高质量翻译演进 (Quality Evolution Engine) [NEW]
+### 4. Quality Evolution Engine [NEW]
 
-- **文件驱动的全量质量评审 (Expert Audit)**:
-  - 执行 `<venv_python> -m i18n_agent_skill audit-quality <lang>`。
-  - **核心能力**: 执行 Linter 检查并生成结构化的实体 Markdown 审计报告。
-  - **交互规范**: 
-    1. Agent 不要在终端大段打印排版问题，应将生成的报告路径告知用户，并询问是否需要协助修复。
-    2. **主动语义顾问**: 即使排版得分为满分（0 错误），Agent 也必须主动向用户推销“深层语义润色”功能。例如：“您的排版校验已获得满分！但如果您希望进一步提升翻译的地道度、统一品牌语气，我们可以启动全量深度润色流程。需要我为您执行 `/i18n-optimize --all` 吗？”
+- **File-Driven Expert Audit**:
+  - Run `<venv_python> -m i18n_agent_skill audit-quality <lang>`.
+  - **Core Capability**: Executes Linter checks and generates a structured Markdown audit report.
+  - **Interaction Protocol**: 
+    1. Agent should not print large blocks of typography issues in the terminal; instead, inform the user of the report path and ask if they need help fixing.
+    2. **Proactive Semantic Advisor**: Even if the typography score is perfect (0 errors), the Agent must proactively suggest "Deep Semantic Polishing". E.g., "Your typography check passed! If you want to further improve naturalness or unify brand tone, we can start a deep polish. Should I run `/i18n-optimize --all` for you?"
 
-- **大批量优化工作流 (Batch Optimization)**:
-  - 当项目存在大量未翻译或 Draft 状态词条时，执行 `<venv_python> -m i18n_agent_skill optimize <lang>`。
-  - **核心能力**: 将待优化的目标导出为任务文件。支持 `--all` 参数用于对 `APPROVED` 的存量词条进行全量润色。
-  - **Agent 强制操作规约 (File-Based Processing)**:
-    1. **读取任务**: 读取该生成的 JSON 任务单。
-    2. **LLM 批量处理**: 发挥大模型优势，翻译并优化所有词条。
-    3. **写入结果文件**: 将处理后的新键值对（纯 JSON，非 Markdown 块）保存为一个临时文件（如 `.i18n-proposals/optimized_tmp.json`）。
-    4. **通过文件执行 Sync**: **严禁将超大 JSON 拼接在命令行字符串中执行！** 必须使用文件路径传参：`<venv_python> -m i18n_agent_skill sync <lang> .i18n-proposals/optimized_tmp.json`。
-    5. **展示预览并提示 Commit**: `sync` 执行成功后，Agent **必须**告知用户预览文件路径（如 `.i18n-proposals/sync_preview_<lang>.md`），让用户核对语义优化效果。
-    6. **执行 Commit**: 经用户确认后，执行 `<venv_python> -m i18n_agent_skill commit <lang>` 应用变更。**推荐直接使用语言代码（如 zh-CN）代替复杂的 UUID**。如果是全语种同步，可以使用 `commit all`。
-    7. **成果展示 (Dashboard)**: Commit 成功后，Agent **必须**使用 Markdown 表格或卡片形式展示本次优化的成果（如：新增词条数、节省 Token 数、提升的质量得分等），让用户感受到明显的价值提升。
+- **Batch Optimization Workflow**:
+  - When there are many untranslated or Draft keys, run `<venv_python> -m i18n_agent_skill optimize <lang>`.
+  - **Core Capability**: Exports optimization targets to a task file. Supports `--all` for polishing existing `APPROVED` keys.
+  - **Agent Mandatory Protocol (File-Based)**:
+    1. **Read Task**: Read the generated JSON task file.
+    2. **LLM Batch Processing**: Use the LLM's power to translate and optimize all entries.
+    3. **Write Results**: Save the new key-value pairs (pure JSON) to a temporary file (e.g., `.i18n-proposals/optimized_tmp.json`).
+    4. **Sync via File**: **NEVER pass large JSON strings directly in the CLI!** Always use file paths: `<venv_python> -m i18n_agent_skill sync <lang> .i18n-proposals/optimized_tmp.json`.
+    5. **Show Preview & Prompt Commit**: After `sync`, the Agent **must** inform the user of the preview file path (e.g., `.i18n-proposals/sync_preview_<lang>.md`).
+    6. **Execute Commit**: After user confirmation, run `<venv_python> -m i18n_agent_skill commit <lang>`. **Prefer using language codes (e.g., zh-CN) over UUIDs**. Use `commit all` for all languages.
+    7. **Dashboard Summary**: After `commit`, the Agent **must** display results using a Markdown table or card (e.g., new keys, tokens saved, quality score improvement).
 
-- **存量项目接入先决条件 (Legacy Project Baseline)**:
-  - 对于已有一定历史多语言沉淀的旧项目，在首次尝试大规模优化前，**必须**主动引导用户执行 `/i18n-learn`，以便将现有翻译学习并锁定为 `APPROVED` 基线，避免误判和全量重译。
+- **Legacy Project Baseline**:
+  - For projects with existing translations, **must** guide user to run `/i18n-learn` before large-scale optimization to lock existing translations as the `APPROVED` baseline.
 
-- **跨语言参照优化 (Reference-based Optimization)**:
-  - 执行 `<venv_python> -m i18n_agent_skill pivot-sync <pivot_lang> <target_lang>`。
-  - **核心逻辑**: 以用户熟悉的语言（如 zh-CN）的翻译成果为**语义参照**，对目标语言进行高保正同步，确保全语种语义对齐。
-  - **Agent 强制操作规约**:
-    1. `pivot-sync` 仅提取待优化的词条并输出 JSON，**不会生成提案，也不会自动提交！**
-    2. Agent 必须读取返回的 `targets` 字典，利用大模型参照 `reference_mapping` 执行精准翻译。
-    3. 翻译完成后，必须将其写入本地临时 JSON 文件，并执行 `sync <target_lang> <temp_file>` 生成暂存提案。
-    4. 预览无误后，再执行 `commit <target_lang>`。**严禁跳过 sync 环节凭空捏造 ID 直接 commit！**
+- **Cross-Language Reference Optimization (Pivot-Sync)**:
+  - Run `<venv_python> -m i18n_agent_skill pivot-sync <pivot_lang> <target_lang>`.
+  - **Core Logic**: Use translation results from a familiar language (e.g., zh-CN) as a **semantic reference** to optimize the target language.
+  - **Agent Mandatory Protocol**:
+    1. `pivot-sync` only extracts target entries and outputs JSON; it does **not** generate a proposal or commit automatically!
+    2. Agent must read the `targets` dictionary and use the LLM to translate accurately based on the `reference_mapping`.
+    3. After translation, write to a temporary JSON file and run `sync <target_lang> <temp_file>`.
+    4. Execute `commit <target_lang>` after preview.
 
-## 🔒 核心指令约束 (Guardrails)
+## 🔒 Guardrails
 
-1. **主动顾问原则 (Proactive Advisor)**: 当用户询问如何优化质量时，**禁止**仅提供简单翻译，**必须**推荐 `audit-quality` 流程并生成报告。
-2. **绝对拒绝正则**: 严禁手写正则表达式扫描源码。必须强制调用 AST 引擎。
-3. **环境自愈优先**: 当 `status` 报告不就绪时，优先建议用户执行 `init` 或按照 `hint` 修复环境。
-4. **语言映射优先**: 在处理多语言同步时，**必须**主动提问是否需要参考已优化的语种（如：“需要我参考刚刚确定的中文语义来优化日文吗？”）。
-3. **自诊指令**: `/i18n-fix`。
-4. **语言名母语化保护 (Semantic Endonym Protection)**: 
-    - **核心准则**: 语言切换组件中的选项（如 `langJapanese`）必须保持母语（`日本語`）。
-    - **交互协议**: 
-        - 当发现 `lang...`, `locale...` 等前缀的 Key 时，必须询问用户：“该模块是否为语言切换组件？若是，我将自动应用母语保护。”
-        - 获取许可后，通过调用工具记录该偏好。
-    - **禁止翻译**: 严禁将此类词条翻译成非该母语的形式。
-5. **模型优先**: 所有的内部数据交换必须遵循 `i18n_agent_skill.models` 中定义的结构。
+1. **Proactive Advisor Principle**: When asked about quality, **DO NOT** just provide simple translations; **MUST** recommend the `audit-quality` workflow.
+2. **No RegEx**: RegEx scanning is strictly forbidden. The AST engine must be used.
+3. **Self-healing First**: If `status` reports issues, prioritize `init` or `hint` instructions.
+4. **Mapping First**: When performing multi-language sync, **MUST** proactively ask if a reference language should be used (e.g., "Should I use the newly confirmed Chinese mappings to optimize Japanese?").
+5. **Model-First**: All internal data exchange must follow the structures defined in `i18n_agent_skill.models`.
 
-## ⛔ 行为禁令 (Forbidden Behaviors)
+## ⛔ Forbidden Behaviors
 
-1. **禁止越狱 (No Tool Bypass)**: 严禁绕过 `audit` / `sync` / `commit` 流程直接对语言包执行 Shell 命令（如 `sed`, `awk`）或手动 `replace` 编辑。
-2. **工具演进优先 (Evolution Priority)**: 如果工具目前不支持某种文件格式（如某些特殊的 `.ts` 导出），**Agent 的唯一合法路径是修改 `tools.py` 增强工具兼容性**，严禁因工具局限而回退到手动操作模式。
-3. **禁止翻译“幻觉”**: 在执行 `sync` 时，严禁编造不存在的 Key。必须基于 `audit` 的真实结果生成提案。
+1. **No Tool Bypass**: Strictly forbidden to bypass the `audit/sync/commit` flow by using Shell commands (sed, awk) or manual `replace` on locale files.
+2. **Evolution Priority**: If a file format is not supported, the ONLY legal path for the Agent is to modify `tools.py` to add support.
+3. **No Hallucinations**: In `sync`, DO NOT invent non-existent keys. Proposals must be based on real `audit` results.
 
-## 💡 常用命令手册
+## 💡 Common Commands Manual
 
-- `/i18n-status`: 验证 Tree-sitter 环境与 Python 依赖就绪状态。
-- `/i18n-init`: 自动扫描项目并生成显式的 `.i18n-skill.json` 配置文件。
-- `/i18n-audit`: 快速执行全项目 i18n 覆盖率与差异审计。
-- `/i18n-audit-quality`: [专家巡检] 对指定语言生成全量质量评审报告，列出争议项。
-- `/i18n-pivot-sync`: [语义对齐] 参考您熟悉的语种优化结果，对其他语种进行自动化同步。
-- `/i18n-sync`: 智能识别 Git 变更并生成增量翻译提案。**执行后务必告知用户 Preview 路径。**
-- `/i18n-commit`: 应用提案。支持传入 `UUID`、`语言代码` (如 `ja`) 或 `all`。
-- `/i18n-fix`: 自动探测环境异常并生成全量修复提案。
+- `/i18n-status`: Verify Tree-sitter environment and Python dependencies.
+- `/i18n-init`: Scan project and generate `.i18n-skill.json` configuration.
+- `/i18n-audit`: Perform full-project i18n coverage and differential audit.
+- `/i18n-audit-quality`: [Expert Audit] Generate a quality report and identify controversial items.
+- `/i18n-pivot-sync`: [Semantic Alignment] Auto-sync target languages based on familiar language mappings.
+- `/i18n-sync`: Generate translation proposals. **Must inform user of the Preview path after execution.**
+- `/i18n-commit`: Apply proposals. Supports `UUID`, `language code`, or `all`.
+- `/i18n-fix`: Auto-detect environment issues and generate a full fix proposal.

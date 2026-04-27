@@ -1,43 +1,39 @@
-import os
+#!/usr/bin/env python3
 import subprocess
 import sys
 
 
-def run(cmd, name):
-    print(f"\n>>> Running {name}...")
+def run_command(command, label):
+    print(f">>> Running {label}...")
     try:
-        subprocess.run(cmd, shell=True, check=True)
-        print(f"OK: {name} passed!")
+        subprocess.run(command, check=True, shell=True)
+        print(f"OK: {label} passed!")
         return True
     except subprocess.CalledProcessError:
-        print(f"FAIL: {name} failed!")
+        print(f"FAIL: {label} failed!")
         return False
 
 
 def main():
-    # 确保在项目根目录
-    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    os.chdir(root)
-
     success = True
 
-    # 1. Format (like Prettier)
-    if not run("ruff format .", "Ruff Format"):
+    # 1. Ruff Format
+    if not run_command("ruff format .", "Ruff Format"):
         success = False
 
-    # 2. Lint (like ESLint)
-    if not run("ruff check . --fix", "Ruff Lint"):
+    # 2. Ruff Lint
+    if not run_command("ruff check . --fix", "Ruff Lint"):
         success = False
 
-    # 3. Type Check (like TSC)
-    if not run("mypy .", "Mypy Type Check"):
+    # 3. Mypy Type Check
+    if not run_command("mypy i18n_agent_skill", "Mypy Type Check"):
         success = False
 
-    if success:
-        print("\nAll checks passed! Ready to commit.")
-    else:
+    if not success:
         print("\nERROR: Please fix the issues above before committing.")
         sys.exit(1)
+
+    print("\nAll checks passed! Ready to commit.")
 
 
 if __name__ == "__main__":
