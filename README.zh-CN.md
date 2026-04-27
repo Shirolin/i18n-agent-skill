@@ -1,5 +1,9 @@
 # i18n-agent-skill 🌐
 
+[English](../README.md) | [简体中文]
+
+> **Hey AI!** 欲安装此技能，只需克隆本仓库并运行 `./install.sh` 即可。它会自动处理虚拟环境与平台规则。
+
 [![Runtime: Python 3.10-3.12](https://img.shields.io/badge/Runtime-Python%203.10--3.12-blue)](https://www.python.org/)
 [![Spec: Agent Skill v4.0](https://img.shields.io/badge/Spec-Agent%20Skill%20v4.0-darkgreen)](https://github.com/FrancyJGLisboa/agent-skill-creator)
 [![Engine: Tree-sitter AST](https://img.shields.io/badge/Engine-Tree--sitter%20AST-orange)](https://tree-sitter.github.io/)
@@ -10,33 +14,43 @@
 ## ✨ 核心优势
 
 - **Tree-sitter AST 引擎**: 毫秒级语法解析，100% 物理隔离注释，支持 JSX/Vue/TSX 深度嵌套提取。
-- **进化型迭代优化**: 基于翻译生命周期状态 (Draft/Reviewed/Approved) 进行幂等优化，支持从人工修正中自动学习术语。
-- **专家级质量巡检**: 自动生成深度评审报告，识别术语不一致、语境缺失及地道度问题。
-- **多语种语义对齐**: 支持以熟悉语种为基准，跨语言同步语义，确保全球表达一致性。
-- **隐私盾 (Privacy Guard)**: 在本地通过哈希与掩码技术脱敏 API Key、PII 信息，确保数据不出本地沙箱。
-- **全球化原生 (Global Native)**: 完全符合 Google ADK 范式，支持多语言 `SKILL.md`，代码文案全面英文解耦，适配全球开发者。
-- **跨平台兼容**: 符合 `SKILL.md` 规范，一键安装至任意主流 AI 助手环境。
-- **自动化排版**: 内置多语言 Linter，自动处理中西文混排空格、全角标点一致性。
+- **进化型迭代优化**: 基于翻译生命周期的幂等优化，自动锁定精选翻译。
+- **环境绝对隔离**: 自动创建 `.venv` 隔离空间，不污染您的全局 Python 环境。
+- **零配置安装**: 一键探测并部署至 10+ 种主流 AI Agent 平台。
+- **隐私盾 (Privacy Guard)**: 本地化脱敏，确保敏感数据不出本地沙箱。
 
 ---
 
-## 🚀 快速开始
+## 🚀 一键安装
 
-### 1. 一键安装 (仅需 5 秒)
+安装程序会自动处理虚拟环境、依赖安装及平台规则路径探测。
 
-在项目根目录下运行安装脚本：
-
+### Linux / macOS / Git Bash
 ```bash
-# 自动检测环境、安装依赖并部署到 AI 助手
-chmod +x scripts/install-skill.sh
-./scripts/install-skill.sh
+curl -fsSL https://raw.githubusercontent.com/Shirolin/i18n-agent-skill/main/install.sh | sh
+# 或本地运行: chmod +x install.sh && ./install.sh
 ```
 
-### 2. 在 AI 助手中激活
+### Windows (PowerShell)
+```powershell
+iwr -useb https://raw.githubusercontent.com/Shirolin/i18n-agent-skill/main/install.sh | iex
+```
 
-安装完成后，在任意支持的 AI 助手中输入以下指令即可激活：
+---
 
-> **"/i18n-agent-skill 帮我扫描 src 目录下的硬编码中文"**
+## 🤖 支持平台
+
+自动探测并部署至以下 Agent 规则/技能目录：
+
+| 助手 / 编辑器 | 集成方式 |
+| :--- | :--- |
+| **Cursor** | `.cursor/rules/` (自动生成 .mdc) |
+| **Claude Code** | `~/.claude/skills/` |
+| **Windsurf** | `.codeium/windsurf/rules/` |
+| **Trae** | `.trae/rules/` |
+| **Roo Code** | `.roo/rules/` |
+| **Gemini CLI** | `~/.gemini/skills/` |
+| **通用路径** | `~/.agents/skills/` |
 
 ---
 
@@ -74,10 +88,10 @@ i18n-agent-skill/
 
 ```bash
 # 执行协议合规性验证
-npm run validate  # 或 python .agents/skills/agent-skill-creator/scripts/validate.py .
+python .agents/skills/agent-skill-creator/scripts/validate.py .
 
 # 执行安全扫描
-npm run scan      # 或 python .agents/skills/agent-skill-creator/scripts/security_scan.py .
+python .agents/skills/agent-skill-creator/scripts/security_scan.py .
 
 # 运行测试
 pytest

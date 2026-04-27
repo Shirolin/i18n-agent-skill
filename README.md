@@ -2,6 +2,8 @@
 
 [English] | [简体中文](./README.zh-CN.md)
 
+> **Hey AI!** To install this skill, just clone this repo and run `./install.sh`. It handles its own environment and platform rules.
+
 [![Runtime: Python 3.10-3.12](https://img.shields.io/badge/Runtime-Python%203.10--3.12-blue)](https://www.python.org/)
 [![Spec: Agent Skill v4.0](https://img.shields.io/badge/Spec-Agent%20Skill%20v4.0-darkgreen)](https://github.com/FrancyJGLisboa/agent-skill-creator)
 [![Engine: Tree-sitter AST](https://img.shields.io/badge/Engine-Tree--sitter%20AST-orange)](https://tree-sitter.github.io/)
@@ -12,33 +14,43 @@
 ## ✨ Core Advantages
 
 - **Tree-sitter AST Engine**: Millisecond-level parsing with 100% comment isolation. Supports deep nesting in JSX, Vue, and TSX.
-- **Quality Evolution Engine**: Idempotent optimization based on translation lifecycle states (Draft/Reviewed/Approved). Automatically learns terminology from human corrections.
-- **Expert Quality Audit**: Generates in-depth reports identifying terminology inconsistencies, missing context, and non-native phrasing.
-- **Cross-Language Semantic Projection**: Anchors translations to your familiar language (e.g., zh-CN) to ensure semantic consistency across all target languages.
-- **Privacy Shield**: Local hashing and masking for API Keys and PII, ensuring sensitive data never leaves your sandbox.
-- **Global Native**: Fully compliant with Google ADK paradigms, supporting multi-language `SKILL.md` and decoupled English-first code logic.
-- **Cross-Platform**: Standard `SKILL.md` format for one-click installation into any modern AI assistant environment.
-- **Automated Typography**: Built-in multi-language Linter for CJK spacing and punctuation consistency.
+- **Quality Evolution Engine**: Idempotent optimization based on translation lifecycle states.
+- **Fully Isolated**: Automatic `.venv` creation. No pollution to your global Python environment.
+- **Zero-Config**: One-click deployment to 10+ AI Agent platforms.
+- **Privacy Shield**: Local hashing and masking for sensitive data.
 
 ---
 
-## 🚀 Quick Start
+## 🚀 One-Click Installation
 
-### 1. One-click Installation (5 seconds)
+The installer automatically handles virtual environments, dependencies, and platform detection.
 
-Run the installer in your project root:
-
+### Linux / macOS / Git Bash
 ```bash
-# Auto-detects environment, installs dependencies, and deploys to AI assistants
-chmod +x scripts/install-skill.sh
-./scripts/install-skill.sh
+curl -fsSL https://raw.githubusercontent.com/Shirolin/i18n-agent-skill/main/install.sh | sh
+# OR local: chmod +x install.sh && ./install.sh
 ```
 
-### 2. Activate in AI Assistant
+### Windows (PowerShell)
+```powershell
+iwr -useb https://raw.githubusercontent.com/Shirolin/i18n-agent-skill/main/install.sh | iex
+```
 
-Once installed, type the following in any supported AI assistant:
+---
 
-> **"/i18n-agent-skill scan hardcoded strings in src directory"**
+## 🤖 Supported Platforms
+
+Automatically detects and deploys to the following rule/skill directories:
+
+| Agent / Editor | Integration Method |
+| :--- | :--- |
+| **Cursor** | `.cursor/rules/` (Auto .mdc) |
+| **Claude Code** | `~/.claude/skills/` |
+| **Windsurf** | `.codeium/windsurf/rules/` |
+| **Trae** | `.trae/rules/` |
+| **Roo Code** | `.roo/rules/` |
+| **Gemini CLI** | `~/.gemini/skills/` |
+| **Generic** | `~/.agents/skills/` |
 
 ---
 

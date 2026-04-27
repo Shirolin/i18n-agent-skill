@@ -1,57 +1,67 @@
-# bootstrap.ps1 — i18n-agent-skill Windows env setup
-# Usage: powershell -ExecutionPolicy Bypass -File scripts/bootstrap.ps1
+# bootstrap.ps1 — Level 5 Autonomous Installer (Windows)
+# Fully compliant with Google ADK & agent-skill-creator standards
 
-$ErrorActionPreference = 'Stop'
-$ScriptDir  = Split-Path -Parent $MyInvocation.MyCommand.Path
-$SkillRoot  = Split-Path -Parent $ScriptDir
-$VenvDir    = Join-Path $SkillRoot '.venv'
-$VenvPython = Join-Path $VenvDir 'Scripts\python.exe'
+$SKILL_NAME = "i18n-agent-skill"
+$VERSION = "0.1.0"
+$root_dir = Resolve-Path "$PSScriptRoot\.."
 
-Write-Host '==> i18n-agent-skill Windows bootstrap' -ForegroundColor Cyan
+Write-Host "`ni18n-agent-skill Autonomous Installer" -ForegroundColor White -BackgroundColor Black
+Write-Host "========================================"
 
-# --- 1. Find Python 3.10+ ---
-$PythonBin = $null
-foreach ($cmd in 'py', 'python3', 'python') {
-    try {
-        $ver = & $cmd --version 2>&1  # outputs: "Python 3.10.11"
-        if ($ver -match '^Python (\d+)\.(\d+)') {
-            if ([int]$Matches[1] -ge 3 -and [int]$Matches[2] -ge 10) {
-                $PythonBin = $cmd
-                Write-Host ('==> Found ' + $ver + ' (' + $cmd + ')') -ForegroundColor Green
-                break
-            }
-        }
-    } catch { }
-}
+# 1. Isolated Environment Setup
+Write-Host "[INFO]  Preparing isolated environment (.venv)..." -ForegroundColor Cyan
+Set-Location $root_dir
 
-if (-not $PythonBin) {
-    Write-Host '[ERROR] Python 3.10+ not found. Install via:' -ForegroundColor Red
-    Write-Host '  1. https://www.python.org/downloads/' -ForegroundColor Red
-    Write-Host '  2. winget install -e --id Python.Python.3.12' -ForegroundColor Red
-    Write-Host '  3. Microsoft Store -> search Python' -ForegroundColor Red
+if (!(Get-Command python -ErrorAction SilentlyContinue)) {
+    Write-Error "Python not found. Please install Python 3.10+ from python.org."
     exit 1
 }
 
-# --- 2. Create .venv ---
-if (Test-Path $VenvPython) {
-    Write-Host '==> .venv already exists, skipping.' -ForegroundColor Green
-} else {
-    Write-Host '==> Creating .venv ...' -ForegroundColor Cyan
-    & $PythonBin -m venv $VenvDir
-    Write-Host '==> .venv created.' -ForegroundColor Green
+if (!(Test-Path ".venv")) {
+    python -m venv .venv
 }
 
-# --- 3. Install dependencies ---
-Write-Host '==> Installing dependencies (editable mode) ...' -ForegroundColor Cyan
-& $VenvPython -m pip install --upgrade pip --quiet
-& $VenvPython -m pip install -e $SkillRoot --quiet
-Write-Host '==> Done.' -ForegroundColor Green
+# Install dependencies into .venv
+$venv_python = Join-Path $root_dir ".venv\Scripts\python.exe"
+if (!(Test-Path $venv_python)) {
+    Write-Error "Failed to create virtual environment."
+    exit 1
+}
+& $venv_python -m pip install --upgrade pip --quiet
+& $venv_python -m pip install -e . --quiet
+Write-Host "[OK]    Isolated environment ready." -ForegroundColor Green
 
-# --- 4. Verify ---
-Write-Host '==> Verifying install ...' -ForegroundColor Cyan
-& $VenvPython -m i18n_agent_skill status
+# 2. Level 5 Detection Sequence
+$target_paths = @(
+    "$env:USERPROFILE\.claude\skills\$SKILL_NAME",
+    "$env:USERPROFILE\.cursor\rules\$SKILL_NAME",
+    "$env:USERPROFILE\.gemini\skills\$SKILL_NAME",
+    "$env:USERPROFILE\.agents\skills\$SKILL_NAME",
+    "$env:USERPROFILE\.codeium\windsurf\rules\$SKILL_NAME",
+    "$env:USERPROFILE\.clinerules\$SKILL_NAME",
+    "$env:USERPROFILE\.trae\rules\$SKILL_NAME",
+    "$env:USERPROFILE\.roo\rules\$SKILL_NAME"
+)
 
-Write-Host ''
-Write-Host '==> Bootstrap complete!' -ForegroundColor Green
-Write-Host ('==> Use this Python to invoke the skill (no activation needed):') -ForegroundColor Green
-Write-Host ('     ' + $VenvPython + ' -m i18n_agent_skill <command>') -ForegroundColor Green
+$deploy_count = 0
+foreach ($p in $target_paths) {
+    $parent = Split-Path $p
+    if (Test-Path $parent) {
+        Write-Host "[INFO]  Deploying to platform path: $p" -ForegroundColor Cyan
+        if (Test-Path $p) { Remove-Item $p -Recurse -Force }
+        New-Item -ItemType Junction -Path $p -Target $root_dir | Out-Null
+        $deploy_count++
+    }
+}
+
+if ($deploy_count -eq 0) {
+    $universal = Join-Path $env:USERPROFILE ".agents\skills\$SKILL_NAME"
+    $u_parent = Split-Path $universal
+    if (!(Test-Path $u_parent)) { New-Item -ItemType Directory -Path $u_parent -Force }
+    if (Test-Path $universal) { Remove-Item $universal -Recurse -Force }
+    New-Item -ItemType Junction -Path $universal -Target $root_dir | Out-Null
+    Write-Host "[INFO]  Deployed to universal path: $universal" -ForegroundColor Cyan
+}
+
+Write-Host "`nInstallation Successful!" -ForegroundColor Green
+Write-Host "To activate, type: /$SKILL_NAME in your AI assistant.`n"
