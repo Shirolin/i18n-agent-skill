@@ -1,97 +1,104 @@
 from mcp.server.fastmcp import FastMCP
 
-from i18n_agent_skill.tools import (
-    check_project_status,
-    commit_i18n_changes,
-    extract_raw_strings,
-    generate_quality_report,
-    get_missing_keys,
-    optimize_translations,
-    propose_sync_i18n,
-    reference_optimize_translations,
-    refine_i18n_proposal,
-    sync_manual_modifications,
-    update_project_glossary,
-)
+from i18n_agent_skill import tools
 
 mcp = FastMCP("i18n-agent-skill")
 
 
 @mcp.tool()
-async def get_status():
-    """探测当前项目的 i18n 状态，包括已启用语言、源码目录、隐私级别和 VCS (Git) 变更情况。"""
-    return await check_project_status()
+async def check_status():
+    """
+    Check the current i18n status of the project, including enabled languages,
+    source directories, privacy levels, and VCS (Git) changes.
+    """
+    return await tools.check_project_status()
 
 
 @mcp.tool()
-async def scan_file(file_path: str, use_cache: bool = True, vcs_mode: bool = False):
-    """提取指定文件中的硬编码中文。支持哈希缓存和 VCS (Git) 增量扫描。自动执行隐私脱敏。"""
-    return await extract_raw_strings(file_path, use_cache, vcs_mode)
+async def scan_strings(path: str, use_cache: bool = True, vcs_mode: bool = False):
+    """
+    Extract hardcoded strings from specified files or directories.
+    Supports hash caching and VCS (Git) incremental scanning.
+    Automatically performs privacy masking.
+    """
+    return await tools.extract_raw_strings(path, use_cache, vcs_mode)
 
 
 @mcp.tool()
-async def audit_missing_keys(lang_code: str, base_lang: str = "en"):
-    """执行差异审计：对比基准语言与目标语言，找出缺失的翻译词条。"""
-    return await get_missing_keys(lang_code, base_lang)
+async def audit_missing(lang_code: str, base_lang: str = "en"):
+    """
+    Perform differential audit: compare the base language with the target language
+    to find missing translation keys.
+    """
+    return await tools.get_missing_keys(lang_code, base_lang)
 
 
 @mcp.tool()
-async def propose_sync(new_pairs_or_file: dict | str, lang_code: str, reasoning: str):
-    """生成翻译同步提案。当数据量较大(>5)时，建议传入 JSON 文件的绝对路径以防止截断。"""
-    if isinstance(new_pairs_or_file, str):
-        import json
-        import os
-
-        if os.path.isfile(new_pairs_or_file):
-            with open(new_pairs_or_file, encoding="utf-8") as f:
-                new_pairs = json.load(f)
-        else:
-            try:
-                new_pairs = json.loads(new_pairs_or_file)
-            except json.JSONDecodeError as err:
-                raise ValueError(f"Invalid JSON string or file path: {new_pairs_or_file}") from err
-    else:
-        new_pairs = new_pairs_or_file
-    return await propose_sync_i18n(new_pairs, lang_code, reasoning)
+async def propose_sync(new_pairs: dict, lang_code: str, reason: str = "Manual sync"):
+    """
+    Generate a translation synchronization proposal.
+    For large data (>5 items), passing the absolute path to a JSON file is recommended
+    to prevent truncation.
+    """
+    return await tools.propose_sync_i18n(new_pairs, lang_code, reason)
 
 
 @mcp.tool()
 async def commit_changes(proposal_id: str):
-    """正式应用并提交翻译提案，更新质量回归快照并清理临时缓存。"""
-    return await commit_i18n_changes(proposal_id)
+    """
+    Formally apply and commit a translation proposal,
+    update quality regression snapshots, and clean up temporary caches.
+    """
+    return await tools.commit_i18n_changes(proposal_id)
 
 
 @mcp.tool()
 async def refine_proposal(proposal_id: str, feedback: str):
-    """根据反馈微调已生成的提案。"""
-    return await refine_i18n_proposal(proposal_id, feedback)
+    """
+    Refine an existing proposal based on human feedback.
+    """
+    return await tools.refine_i18n_proposal(proposal_id, feedback)
 
 
 @mcp.tool()
-async def learn_term(term: str, translation: str):
-    """术语持久化：将特定术语的翻译存入 GLOSSARY.json 知识库。"""
-    return await update_project_glossary(term, translation)
+async def save_glossary(term: str, translation: str):
+    """
+    Terminology persistence: Save specific term translations into the GLOSSARY.json knowledge base.
+    """
+    return await tools.update_project_glossary(term, translation)
 
 
 @mcp.tool()
-async def quality_audit(lang_code: str):
-    """[专家巡检] 生成全量质量评审报告。结果将导出为 Markdown 审计报告文件。"""
-    return await generate_quality_report(lang_code)
+async def audit_quality(lang_code: str):
+    """
+    [Expert Audit] Generate a full quality review report.
+    Results are exported to a Markdown audit report file.
+    """
+    return await tools.generate_quality_report(lang_code)
 
 
 @mcp.tool()
-async def pivot_sync(pivot_lang: str, target_lang: str, keys: list[str] | None = None):
-    """[跨语言对齐] 参考熟悉语言（如 zh-CN）的翻译结果，对目标语言进行同步优化。"""
-    return await reference_optimize_translations(pivot_lang, target_lang, keys)
+async def pivot_sync(pivot_lang: str, target_lang: str):
+    """
+    [Cross-Language Alignment] Optimize the target language by referencing
+    translation results from a familiar language (e.g., zh-CN).
+    """
+    return await tools.reference_optimize_translations(pivot_lang, target_lang)
 
 
 @mcp.tool()
-async def optimize_drafts(lang_code: str, include_approved: bool = False):
-    """[批量优化] 找出待优化词条并导出为任务文件。include_approved=True 可用于全量存量润色。"""
-    return await optimize_translations(lang_code, include_approved=include_approved)
+async def optimize_targets(lang_code: str, include_approved: bool = False):
+    """
+    [Batch Optimization] Identify entries to be optimized and export them as a task file.
+    Set include_approved=True for full polishing of existing entries.
+    """
+    return await tools.optimize_translations(lang_code, include_approved)
 
 
 @mcp.tool()
-async def sync_manual(lang_code: str):
-    """[闭环反馈] 探测翻译文件的手动修改，并自动将其状态提升为 APPROVED。"""
-    return await sync_manual_modifications(lang_code)
+async def learn_fixes(lang_code: str):
+    """
+    [Feedback Loop] Detect manual modifications in translation files
+    and automatically promote their status to APPROVED.
+    """
+    return await tools.sync_manual_modifications(lang_code)

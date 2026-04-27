@@ -80,7 +80,7 @@ class TranslationSnapshotManager:
         old_score = existing.get("score", 0)
         old_status = TranslationStatus(existing.get("status", TranslationStatus.DRAFT))
 
-        # 如果状态更高（如从 DRAFT 变为 APPROVED），或者得分更高，则更新
+        # If status is higher (e.g., DRAFT -> APPROVED), or score is higher, update
         status_priority = {
             TranslationStatus.DRAFT: 0,
             TranslationStatus.REVIEWED: 1,

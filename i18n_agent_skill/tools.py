@@ -8,9 +8,9 @@ from typing import Any
 
 import aiofiles
 
-# 核心依赖：Tree-sitter 词法分析套件
+# Core dependencies: Tree-sitter lexical analysis suite
 try:
-    # 强制版本校验
+    # Enforce version check
     import importlib.metadata
 
     import tree_sitter
@@ -19,7 +19,7 @@ try:
 
     ts_version = importlib.metadata.version("tree-sitter")
 
-    # 使用简单的元组比较，避免引入 packaging 依赖
+    # Use simple tuple comparison to avoid 'packaging' dependency
     v_parts = [int(p) for p in ts_version.split(".")[:3]]
     if tuple(v_parts) < (0, 25, 0):
         DEPENDENCIES_INSTALLED = False
@@ -53,7 +53,7 @@ from i18n_agent_skill.models import (
 )
 from i18n_agent_skill.snapshot import TranslationSnapshotManager
 
-# 全局常量
+# Global Constants
 CACHE_FILE = ".i18n-cache.json"
 PROPOSALS_DIR = ".i18n-proposals"
 GLOSSARY_FILE = "GLOSSARY.json"
@@ -111,24 +111,20 @@ def set_workspace_root(path: str | None = None):
     WORKSPACE_ROOT = _resolve_workspace_root(path)
 
 
-# [工业级恢复] 敏感信息防御矩阵
+# Sensitive Information Defense Matrix
 SENSITIVE_PATTERNS = {
     "EMAIL": r"[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+",
     "API_KEY": r"(?:sk-[a-zA-Z0-9-]{20,}|AKIA[a-zA-Z0-9]{16}|[a-zA-Z0-9]{32,})",
     "IP_ADDR": r"\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}",
-    # 简化电话匹配：支持 + 或 00 开头，或 13/14... 开头的 11 位手机号，或带区号的固话
     "PHONE": r"(?:\+|00)?[1-9]\d{6,14}|1[3-9]\d{9}|(?:0\d{2,3}-)?\d{7,8}",
-    # 简化身份证匹配：18位数字，或末尾带 X
     "ID_CARD": r"[1-9]\d{16}[0-9Xx]",
 }
 
 UI_ATTRS = {"placeholder", "title", "label", "aria-label", "alt", "value"}
 
-# ----------------- 字典与同步核心算法 (全量实现) -----------------
-
 
 def _flatten_dict(d: dict, p_key: str = "", sep: str = ".") -> dict:
-    """拍平嵌套 JSON 为点号连接的键值对"""
+    """Flatten nested JSON into dot-separated key-value pairs."""
     items: list[tuple[str, str]] = []
     for k, v in d.items():
         new_key = f"{p_key}{sep}{k}" if p_key else k
@@ -140,7 +136,7 @@ def _flatten_dict(d: dict, p_key: str = "", sep: str = ".") -> dict:
 
 
 def _unflatten_dict(d: dict, sep: str = ".") -> dict:
-    """还原点号连接的键值对为嵌套 JSON"""
+    """Restore dot-separated key-value pairs into nested JSON."""
     res: dict[str, Any] = {}
     for k, v in d.items():
         parts = k.split(sep)
@@ -154,7 +150,7 @@ def _unflatten_dict(d: dict, sep: str = ".") -> dict:
 def _deep_update(
     d: dict, u: dict, strategy: ConflictStrategy = ConflictStrategy.KEEP_EXISTING
 ) -> dict:
-    """深度合并嵌套字典，遵循指定冲突策略"""
+    """Deep merge nested dictionaries following specified conflict strategy."""
     for k, v in u.items():
         if isinstance(v, dict) and k in d and isinstance(d[k], dict):
             _deep_update(d[k], v, strategy)
@@ -166,7 +162,7 @@ def _deep_update(
 
 
 def _mask_sensitive_data(text: str, level: PrivacyLevel) -> tuple[str, bool]:
-    """[工业级恢复] 启发式隐私脱敏引擎"""
+    """Heuristic Privacy Masking Engine."""
     lvl_str = str(level.value if hasattr(level, "value") else level).lower()
     if lvl_str == "off":
         return text, False
@@ -175,7 +171,6 @@ def _mask_sensitive_data(text: str, level: PrivacyLevel) -> tuple[str, bool]:
     if lvl_str == "basic":
         patterns_to_check = ["EMAIL", "API_KEY"]
     else:
-        # STRICT 模式下包含 PHONE, ID_CARD, IP_ADDR 等
         patterns_to_check = ["ID_CARD", "API_KEY", "EMAIL", "PHONE", "IP_ADDR"]
 
     for p_type in patterns_to_check:
@@ -191,7 +186,7 @@ def _mask_sensitive_data(text: str, level: PrivacyLevel) -> tuple[str, bool]:
 
 
 def _validate_safe_path(path: str) -> str:
-    """[工业级恢复] 严格沙箱校验"""
+    """Strict Sandbox Validation."""
     ws_root = os.path.normpath(os.path.abspath(WORKSPACE_ROOT)).lower()
     target_path = os.path.normpath(os.path.abspath(os.path.join(WORKSPACE_ROOT, path)))
     if not target_path.lower().startswith(ws_root):
@@ -199,7 +194,6 @@ def _validate_safe_path(path: str) -> str:
     return target_path
 
 
-# ----------------- Tree-sitter AST 解析引擎 -----------------
 QUERY_STRINGS = {
     "jsx": """
         (jsx_text) @text
@@ -222,16 +216,15 @@ QUERY_STRINGS = {
 
 
 class TreeSitterScanner:
-    """基于 Tree-sitter 的像素级扫描引擎 [v3.0 现代版]"""
+    """Tree-sitter based pixel-perfect scanning engine."""
 
     def __init__(self, content: str, file_ext: str):
         self.content_bytes = content.encode("utf-8")
         self.file_ext = file_ext
 
     def _get_lang(self, lang_name: str) -> Language | None:
-        """现代型语言加载器：使用 language_pack 获取全量支持"""
+        """Modern language loader: use language_pack for full support."""
         try:
-            # 使用 Any 适配 Mypy 对动态语言名称字面量的严格要求
             return tree_sitter_language_pack.get_language(lang_name)  # type: ignore
         except Exception:
             return None
@@ -257,12 +250,9 @@ class TreeSitterScanner:
             return []
 
         try:
-            # 适配 tree-sitter 0.21+ API
             parser = Parser(lang)
             tree = parser.parse(target_bytes)
             query_str = QUERY_STRINGS.get(q_key, QUERY_STRINGS["js"])
-
-            # 适配 tree-sitter 0.25+ API
             query = tree_sitter.Query(lang, query_str)
             cursor = tree_sitter.QueryCursor(query)
             matches = cursor.matches(tree.root_node)
@@ -270,7 +260,6 @@ class TreeSitterScanner:
             res = []
             for _, captures in matches:
                 for c_name, nodes in captures.items():
-                    # 过滤属性名，只保留值
                     if c_name == "attr_name":
                         continue
 
@@ -282,8 +271,6 @@ class TreeSitterScanner:
                             continue
 
                         line_no = node.start_point[0] + 1 + line_offset
-
-                        # 如果捕捉到的是 Vue 脚本块，递归进行 JS/TS 解析
                         if c_name == "script":
                             res.extend(self.scan(text_bytes, ".js", line_offset=line_no - 1))
                             continue
@@ -305,27 +292,20 @@ class TreeSitterScanner:
 
 
 def _is_natural_language(text: str, origin: str) -> bool:
-    """[v2.0] 全球化能供性判定"""
+    """Globalization eligibility determination."""
     t = text.strip()
     if len(t) < 2:
         return False
 
-    # [工业级修复] 物理放行：匹配敏感信息的必须提取，以便执行脱敏
     for pattern in SENSITIVE_PATTERNS.values():
         if re.search(pattern, t, re.IGNORECASE):
             return True
 
-    # 物理放行：非 ASCII 100% 提取
     if re.search(r"[^\x00-\x7f]", t):
         return True
-    # 来源加权
     if origin == "text_node":
         return True
-    # 英文句子/短语特征
     return bool(" " in t or re.search(r"[.!?:]$", t))
-
-
-# ----------------- 顶级 API 接口 (全闭环) -----------------
 
 
 async def extract_raw_strings(
@@ -334,7 +314,7 @@ async def extract_raw_strings(
     vcs_mode: bool = False,
     privacy_level: PrivacyLevel | None = None,
 ) -> ExtractOutput:
-    """[v2.0] Strict AST scanning, no RegEx fallback."""
+    """Strict AST scanning, no RegEx fallback."""
     try:
         safe_p = _validate_safe_path(file_path)
     except Exception as e:
@@ -358,7 +338,6 @@ async def extract_raw_strings(
         content = await f.read()
     ext = os.path.splitext(file_path)[1].lower()
 
-    # Cache logic
     cache_path = os.path.join(WORKSPACE_ROOT, CACHE_FILE)
     content_hash = hashlib.md5(content.encode("utf-8")).hexdigest()
     if use_cache and os.path.exists(cache_path):
@@ -392,7 +371,6 @@ async def extract_raw_strings(
             results.append(ExtractedString(text=masked, line=line, context=ctx, is_masked=is_m))
             extracted_set.add((text, line))
 
-    # Update cache
     if use_cache:
         cache = {}
         if os.path.exists(cache_path):
@@ -419,7 +397,6 @@ async def propose_sync_i18n(
     config = await _load_project_config()
     target_dir = _detect_locale_dir(config)
 
-    # Use absolute paths for robustness
     file_p = _validate_safe_path(os.path.join(target_dir, f"{lang_code}.json"))
     base_p = _validate_safe_path(os.path.join(target_dir, "en.json"))
 
@@ -432,7 +409,6 @@ async def propose_sync_i18n(
     except Exception:
         pass
 
-    # Placeholder consistency check
     for k, v in new_pairs.items():
         if k in base_d:
             exp = re.findall(r"\{\{.*?\}\}|\{.*?\}", base_d[k])
@@ -447,19 +423,14 @@ async def propose_sync_i18n(
                     )
                 )
 
-        # Style and typography check
         style_feedbacks.extend(
             TranslationStyleLinter.lint(k, v, lang_code, config.protected_lang_key_patterns)
         )
 
-    # Load original disk data
     disk_data = await _load_locale_data(target_dir, lang_code)
-
-    # Staging area file path (Singleton per language)
     temp_file = os.path.join(WORKSPACE_ROOT, PROPOSALS_DIR, f"proposal_{lang_code}.json")
     os.makedirs(os.path.join(WORKSPACE_ROOT, PROPOSALS_DIR), exist_ok=True)
 
-    # Accumulation logic: if staging exists, use it; otherwise use disk
     base_data = disk_data.copy()
     existing_reasoning = ""
     if os.path.exists(temp_file):
@@ -471,16 +442,13 @@ async def propose_sync_i18n(
         except Exception:
             pass
 
-    # Merge new changes into base data
     final_data = _deep_update(base_data, _unflatten_dict(new_pairs), ConflictStrategy.OVERWRITE)
 
-    # Merge reasoning
     if existing_reasoning and reasoning not in existing_reasoning:
         combined_reason = f"{existing_reasoning}\n+ {reasoning}"
     else:
         combined_reason = reasoning
 
-    # Save new staging proposal
     proposal_data = {
         "target_file": file_p,
         "content": final_data,
@@ -490,12 +458,10 @@ async def propose_sync_i18n(
     with open(temp_file, "w", encoding="utf-8") as f:
         json.dump(proposal_data, f, indent=2, ensure_ascii=False)
 
-    # Calculate accumulated changes since disk for preview
     flat_disk = _flatten_dict(disk_data)
     flat_final = _flatten_dict(final_data)
     accumulated_changes = {k: v for k, v in flat_final.items() if flat_disk.get(k) != v}
 
-    # Generate Markdown preview
     preview_file = os.path.join(WORKSPACE_ROOT, PROPOSALS_DIR, f"sync_preview_{lang_code}.md")
     with open(preview_file, "w", encoding="utf-8") as f:
         f.write(f"# i18n Sync Preview ({lang_code})\n\n")
@@ -512,7 +478,6 @@ async def propose_sync_i18n(
         f.write("| Key | Current (Disk) | Proposed (Staging) |\n")
         f.write("| :--- | :--- | :--- |\n")
 
-        # Limit preview to 100 entries
         for i, (k, v) in enumerate(accumulated_changes.items()):
             if i >= 100:
                 f.write(f"| ... | ... | (+ {len(accumulated_changes) - 100} more keys) |\n")
@@ -552,25 +517,22 @@ async def save_project_preference(pattern: str, is_native_protection: bool = Tru
 
 
 async def _load_project_preferences():
-    # 兼容性空占位符，防止其他地方调用产生崩溃
+    # Compatibility placeholder
     return await _load_project_config()
 
 
 async def commit_i18n_changes(proposal_id: str) -> str:
-    """[工业级恢复] 正式应用变更并更新快照与状态。支持按语言代码或 'all' 提交。"""
+    """Commit changes and update snapshots. Supports language code or 'all'."""
     proposals_path = os.path.join(WORKSPACE_ROOT, PROPOSALS_DIR)
     to_commit = []
 
     if proposal_id.lower() == "all":
-        # 提交所有待处理提案
         to_commit = glob.glob(os.path.join(proposals_path, "proposal_*.json"))
     else:
-        # 优先匹配新格式：proposal_{lang}.json
         exact_p = os.path.join(proposals_path, f"proposal_{proposal_id}.json")
         if os.path.exists(exact_p):
             to_commit = [exact_p]
         else:
-            # 兼容旧格式（V6 之前的 {uuid}.json 或 V6 版本的 proposal_{lang}_{uuid}.json）
             old_p = os.path.join(proposals_path, f"{proposal_id}.json")
             if os.path.exists(old_p):
                 to_commit = [old_p]
@@ -594,7 +556,6 @@ async def commit_i18n_changes(proposal_id: str) -> str:
         safe_target = _validate_safe_path(data["target_file"])
         await _save_locale_data(safe_target, data["content"])
 
-        # 更新快照，默认标记为 APPROVED（因为用户通过 commit 确认了）
         flattened = _flatten_dict(data["content"])
         content_hash = hashlib.md5(json.dumps(flattened).encode("utf-8")).hexdigest()
 
@@ -614,9 +575,7 @@ async def commit_i18n_changes(proposal_id: str) -> str:
 
 
 async def optimize_translations(lang_code: str, include_approved: bool = False) -> dict[str, Any]:
-    """
-    [幂等优化引擎] 筛选待优化词条，并提取 APPROVED 词条作为动态术语。
-    """
+    """Export entries for idempotent optimization."""
     config = await _load_project_config()
     target_dir = _detect_locale_dir(config)
     locale_data = await _load_locale_data(target_dir, lang_code)
@@ -629,10 +588,8 @@ async def optimize_translations(lang_code: str, include_approved: bool = False) 
     for k, v in flat_data.items():
         status = await snapshot_mgr.get_status(k)
         if status == TranslationStatus.APPROVED and not include_approved:
-            # 已确认的词条作为“真值”加入术语表
             glossary[k] = v
         else:
-            # DRAFT/REVIEWED 或强制全量优化的词条进入队列
             to_optimize[k] = v
 
     os.makedirs(os.path.join(WORKSPACE_ROOT, PROPOSALS_DIR), exist_ok=True)
@@ -656,17 +613,13 @@ async def optimize_translations(lang_code: str, include_approved: bool = False) 
         "message": (
             f"Optimization task exported to {task_file}. "
             f"Found {len(to_optimize)} keys to optimize, "
-            f"using {len(glossary)} approved terms as anchor. "
-            f"Agent MUST read this file, perform optimization, "
-            f"save to a temporary JSON file, and call 'sync' with the temporary file path."
+            f"using {len(glossary)} approved terms as anchor."
         ),
     }
 
 
 async def generate_quality_report(lang_code: str) -> EvaluationReport:
-    """
-    [专家巡检] 生成全量质量评审报告，识别争议项。
-    """
+    """Expert Audit: Generate comprehensive quality report."""
     config = await _load_project_config()
     target_dir = _detect_locale_dir(config)
     locale_data = await _load_locale_data(target_dir, lang_code)
@@ -675,7 +628,6 @@ async def generate_quality_report(lang_code: str) -> EvaluationReport:
     snapshot_mgr = TranslationSnapshotManager(WORKSPACE_ROOT)
     approved_count = 0
     controversial = []
-
     error_count = 0
 
     for k, v in flat_data.items():
@@ -683,7 +635,6 @@ async def generate_quality_report(lang_code: str) -> EvaluationReport:
         if status == TranslationStatus.APPROVED:
             approved_count += 1
 
-        # 执行真实排版校验
         style_feedbacks = TranslationStyleLinter.lint(
             k, v, lang_code, config.protected_lang_key_patterns
         )
@@ -701,7 +652,6 @@ async def generate_quality_report(lang_code: str) -> EvaluationReport:
                     )
                 )
 
-    # 生成 Markdown 报告
     os.makedirs(os.path.join(WORKSPACE_ROOT, PROPOSALS_DIR), exist_ok=True)
     report_file = os.path.join(WORKSPACE_ROOT, PROPOSALS_DIR, f"audit_report_{lang_code}.md")
 
@@ -740,13 +690,10 @@ async def generate_quality_report(lang_code: str) -> EvaluationReport:
 async def reference_optimize_translations(
     pivot_lang: str, target_lang: str, keys: list[str] | None = None
 ) -> dict[str, Any]:
-    """
-    [跨语言参照优化] 根据已确认的翻译对齐（如 en -> zh-CN）优化目标语言。
-    """
+    """Cross-language reference optimization."""
     config = await _load_project_config()
     target_dir = _detect_locale_dir(config)
 
-    # 加载 Base (en), Pivot (如 zh-CN), Target (如 ja)
     base_data = _flatten_dict(await _load_locale_data(target_dir, "en"))
     pivot_data = _flatten_dict(await _load_locale_data(target_dir, pivot_lang))
     target_data = _flatten_dict(await _load_locale_data(target_dir, target_lang))
@@ -754,12 +701,10 @@ async def reference_optimize_translations(
     snapshot_mgr = TranslationSnapshotManager(WORKSPACE_ROOT)
     semantic_mappings = {}
 
-    # 提取 Pivot 中已确认的语义映射
     for k, v in pivot_data.items():
         if k in base_data and (await snapshot_mgr.get_status(k)) == TranslationStatus.APPROVED:
             semantic_mappings[k] = {"base": base_data[k], "reference": v}
 
-    # 筛选待同步词条
     to_optimize = {}
     keys_to_process = keys or target_data.keys()
 
@@ -781,9 +726,7 @@ async def reference_optimize_translations(
 
 
 async def sync_manual_modifications(lang_code: str) -> str:
-    """
-    [闭环反馈钩子] 探测翻译文件的手动修改，并自动提升状态为 APPROVED。
-    """
+    """Feedback Loop: Learn manual edits and promote status to APPROVED."""
     config = await _load_project_config()
     target_dir = _detect_locale_dir(config)
     locale_data = await _load_locale_data(target_dir, lang_code)
@@ -798,9 +741,7 @@ async def sync_manual_modifications(lang_code: str) -> str:
         old_val = existing.get("translation")
         old_status = existing.get("status")
 
-        # 如果内容变了，且不是通过 Agent 提交的（或者状态还不是 APPROVED）
         if old_val != v or old_status != TranslationStatus.APPROVED.value:
-            # 计算当前内容的哈希，防止重复处理
             current_hash = hashlib.md5(v.encode("utf-8")).hexdigest()
             if existing.get("hash") != current_hash:
                 await snapshot_mgr.update_snapshot(
@@ -830,7 +771,7 @@ async def get_missing_keys(lang_code: str, base_lang: str = "en") -> dict:
 
 
 async def _load_locale_data(target_dir: str, lang: str) -> dict:
-    """[v2.1] Load locale data across formats (json -> ts -> js)"""
+    """Load locale data across formats (json -> ts -> js)"""
     for ext in (".json", ".ts", ".js"):
         p = _validate_safe_path(os.path.join(target_dir, f"{lang}{ext}"))
         if not os.path.exists(p):
@@ -843,31 +784,20 @@ async def _load_locale_data(target_dir: str, lang: str) -> dict:
             if ext == ".json":
                 return json.loads(content)
 
-            # Handle export default in .ts/.js
             match = re.search(
                 r"(?:export\s+default|module\.exports\s*=)\s*({.*});?", content, re.DOTALL
             )
             if match:
                 obj_str = match.group(1)
-                # Heuristic cleanup to adapt JS object literal to JSON
                 try:
-                    # 1. Remove inline comments
                     obj_str = re.sub(r"//.*", "", obj_str)
-                    # 2. Remove block comments
                     obj_str = re.sub(r"/\*.*?\*/", "", obj_str, flags=re.DOTALL)
-
-                    # 3. Add quotes to unquoted keys
                     obj_str = re.sub(
                         r"([{,]\s*)([a-zA-Z_$][a-zA-Z0-9_$]*)\s*:", r'\1"\2":', obj_str
                     )
-
-                    # 4. Handle single quotes
                     obj_str = re.sub(r"':\s*'([^']*)'", r'": "\1"', obj_str)
                     obj_str = re.sub(r":\s*'([^']*)'", r': "\1"', obj_str)
-
-                    # 5. Remove trailing commas
                     obj_str = re.sub(r",\s*([}\]])", r"\1", obj_str)
-
                     obj_str = obj_str.strip().rstrip(";")
                     return json.loads(obj_str)
                 except Exception as e:
@@ -880,7 +810,7 @@ async def _load_locale_data(target_dir: str, lang: str) -> dict:
 
 
 async def _save_locale_data(path: str, data: dict):
-    """[v2.1] Write back locale data across formats."""
+    """Write back locale data across formats."""
     ext = os.path.splitext(path)[1]
     json_str = json.dumps(data, indent=2, ensure_ascii=False, sort_keys=True)
 
@@ -900,12 +830,10 @@ async def sync_i18n_files(new_pairs: dict, lang_code: str):
 
 
 async def refine_i18n_proposal(proposal_id: str, feedback: str) -> str:
-    # 优先匹配新格式：proposal_{lang}.json
     exact_p = os.path.join(WORKSPACE_ROOT, PROPOSALS_DIR, f"proposal_{proposal_id}.json")
     if os.path.exists(exact_p):
         temp_p = exact_p
     else:
-        # 兼容旧格式（V6 之前的 {uuid}.json 或 V6 版本的 proposal_{lang}_{uuid}.json）
         old_p = os.path.join(WORKSPACE_ROOT, PROPOSALS_DIR, f"{proposal_id}.json")
         if os.path.exists(old_p):
             temp_p = old_p
@@ -925,13 +853,12 @@ async def refine_i18n_proposal(proposal_id: str, feedback: str) -> str:
     return "Recorded."
 
 
-# ----------------- 环境感知与支撑 -----------------
+# ----------------- Environment Sensing & Support -----------------
 
 
 async def _load_project_config() -> ProjectConfig:
     p = os.path.join(WORKSPACE_ROOT, CONFIG_FILE)
     if not os.path.exists(p):
-        # 零配置探测模式
         config = ProjectConfig()
         loc_dir = _detect_locale_dir(config)
         detected_langs = _detect_enabled_langs(loc_dir)
@@ -943,7 +870,6 @@ async def _load_project_config() -> ProjectConfig:
     try:
         async with aiofiles.open(p, encoding="utf-8") as f:
             data = json.loads(await f.read())
-            # 如果配置中没写语言，也尝试探测一次
             config = ProjectConfig(**data)
             if not data.get("enabled_langs"):
                 detected = _detect_enabled_langs(config.locales_dir)
@@ -981,36 +907,33 @@ def _detect_locale_dir(config: ProjectConfig) -> str:
 
 
 def _detect_enabled_langs(locale_dir: str) -> list[str]:
-    """[v2.0] 自动搜寻 locales 目录下的语言包"""
+    """Auto-search for locale files in the locales directory."""
     target = os.path.join(WORKSPACE_ROOT, locale_dir)
     if not os.path.exists(target):
         return []
 
     langs = []
-    # 匹配模式：文件名. (json|ts|js)
     pattern = re.compile(r"^([a-zA-Z0-9_-]+)\.(json|ts|js)$")
     for f in os.listdir(target):
         match = pattern.match(f)
         if match:
             lang_code = match.group(1)
-            if lang_code not in ("index", "types"):  # 排除常见的库入口文件
+            if lang_code not in ("index", "types"):
                 langs.append(lang_code)
     return sorted(list(set(langs)))
 
 
 async def initialize_project_config() -> str:
-    """[v2.0] Scan project and persist configuration."""
+    """Scan project and persist configuration."""
     config = ProjectConfig()
     config.locales_dir = _detect_locale_dir(config)
     config.enabled_langs = _detect_enabled_langs(config.locales_dir) or ["en", "zh-CN"]
 
-    # Try to detect source directories
     for d in ["src", "lib", "app"]:
         if os.path.isdir(os.path.join(WORKSPACE_ROOT, d)):
             config.source_dirs = [d]
             break
 
-    # Auto-update .gitignore
     gitignore_p = os.path.join(WORKSPACE_ROOT, ".gitignore")
     ignore_lines = [
         "\n# i18n-agent-skill runtime files",

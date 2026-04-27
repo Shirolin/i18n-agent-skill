@@ -4,14 +4,14 @@ import subprocess
 
 def get_git_hunks(workspace_root: str) -> dict[str, set[int]]:
     """
-    解析 git diff -U0 的输出，提取每个变动文件的“变动行号集合”。
-    用于实现 PR 级 Hunk 精准文案提取。
+    Parse the output of 'git diff -U0' and extract the set of changed line numbers for each file.
+    Used for precise string extraction at the PR/Hunk level.
     """
     hunks: dict[str, set[int]] = {}
     current_file = ""
 
     try:
-        # -U0 表示不包含上下文行，仅输出变动行
+        # -U0 means no context lines, only changed lines are output
         result = subprocess.run(
             ["git", "diff", "-U0"],
             cwd=workspace_root,
@@ -25,18 +25,18 @@ def get_git_hunks(workspace_root: str) -> dict[str, set[int]]:
             return {}
 
         for line in result.stdout.splitlines():
-            # 匹配文件名
+            # Match filename
             if line.startswith("+++ b/"):
                 current_file = line[6:]
                 hunks[current_file] = set()
-            # 匹配变动行区间: @@ -1,1 +1,1 @@ -> 提取第 2 组 (目标文件行)
+            # Match line range: @@ -1,1 +1,1 @@ -> Extract 2nd group (target file lines)
             elif line.startswith("@@ ") and current_file:
                 match = re.search(r"@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@", line)
                 if match:
                     start_line = int(match.group(1))
                     line_count = int(match.group(2)) if match.group(2) else 1
 
-                    # 记录变动的行区间（包含前后 1 行缓冲）
+                    # Record changed line range (including 1-line buffer)
                     for i in range(start_line - 1, start_line + line_count + 1):
                         hunks[current_file].add(i)
 

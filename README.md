@@ -1,96 +1,98 @@
 # i18n-agent-skill 🌐
 
+[English] | [简体中文](./README.zh-CN.md)
+
 [![Runtime: Python 3.10-3.12](https://img.shields.io/badge/Runtime-Python%203.10--3.12-blue)](https://www.python.org/)
 [![Spec: Agent Skill v4.0](https://img.shields.io/badge/Spec-Agent%20Skill%20v4.0-darkgreen)](https://github.com/FrancyJGLisboa/agent-skill-creator)
 [![Engine: Tree-sitter AST](https://img.shields.io/badge/Engine-Tree--sitter%20AST-orange)](https://tree-sitter.github.io/)
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 
-**i18n-agent-skill** 是一款专为 AI 助手设计的**工业级前端国际化全链路自动化工具**。它基于最新的 **Agent Skill 开放标准** 进行了深度优化，适配包括 Cursor, Claude Code, Windsurf 在内的 20+ 种主流 AI 编码助手。
+**i18n-agent-skill** is an industrial-grade frontend internationalization automation tool specifically designed for AI agents. Deeply optimized for the **Agent Skill Open Standard**, it seamlessly integrates with 20+ leading AI coding assistants including Cursor, Claude Code, and Windsurf.
 
-## ✨ 核心优势
+## ✨ Core Advantages
 
-- **Tree-sitter AST 引擎**: 毫秒级语法解析，100% 物理隔离注释，支持 JSX/Vue/TSX 深度嵌套提取。
-- **进化型迭代优化**: 基于翻译生命周期状态 (Draft/Reviewed/Approved) 进行幂等优化，支持从人工修正中自动学习术语。
-- **专家级质量巡检**: 自动生成深度评审报告，识别术语不一致、语境缺失及地道度问题。
-- **多语种语义对齐**: 支持以熟悉语种为基准，跨语言同步语义，确保全球表达一致性。
-- **隐私盾 (Privacy Guard)**: 在本地通过哈希与掩码技术脱敏 API Key、PII 信息，确保数据不出本地沙箱。
-- **全球化原生 (Global Native)**: 完全符合 Google ADK 范式，支持多语言 `SKILL.md`，代码文案全面英文解耦，适配全球开发者。
-- **跨平台兼容**: 符合 `SKILL.md` 规范，一键安装至任意主流 AI 助手环境。
-- **自动化排版**: 内置多语言 Linter，自动处理中西文混排空格、全角标点一致性。
+- **Tree-sitter AST Engine**: Millisecond-level parsing with 100% comment isolation. Supports deep nesting in JSX, Vue, and TSX.
+- **Quality Evolution Engine**: Idempotent optimization based on translation lifecycle states (Draft/Reviewed/Approved). Automatically learns terminology from human corrections.
+- **Expert Quality Audit**: Generates in-depth reports identifying terminology inconsistencies, missing context, and non-native phrasing.
+- **Cross-Language Semantic Projection**: Anchors translations to your familiar language (e.g., zh-CN) to ensure semantic consistency across all target languages.
+- **Privacy Shield**: Local hashing and masking for API Keys and PII, ensuring sensitive data never leaves your sandbox.
+- **Global Native**: Fully compliant with Google ADK paradigms, supporting multi-language `SKILL.md` and decoupled English-first code logic.
+- **Cross-Platform**: Standard `SKILL.md` format for one-click installation into any modern AI assistant environment.
+- **Automated Typography**: Built-in multi-language Linter for CJK spacing and punctuation consistency.
 
 ---
 
-## 🚀 快速开始
+## 🚀 Quick Start
 
-### 1. 一键安装 (仅需 5 秒)
+### 1. One-click Installation (5 seconds)
 
-在项目根目录下运行安装脚本：
+Run the installer in your project root:
 
 ```bash
-# 自动检测环境、安装依赖并部署到 AI 助手
+# Auto-detects environment, installs dependencies, and deploys to AI assistants
 chmod +x scripts/install-skill.sh
 ./scripts/install-skill.sh
 ```
 
-### 2. 在 AI 助手中激活
+### 2. Activate in AI Assistant
 
-安装完成后，在任意支持的 AI 助手中输入以下指令即可激活：
+Once installed, type the following in any supported AI assistant:
 
-> **"/i18n-agent-skill 帮我扫描 src 目录下的硬编码中文"**
+> **"/i18n-agent-skill scan hardcoded strings in src directory"**
 
 ---
 
-## 📖 核心指令集
+## 📖 Core Command Set
 
-| 指令 | 说明 |
+| Command | Description |
 | :--- | :--- |
-| `/i18n-audit` | 覆盖率审计：检查各语言包的缺失情况。 |
-| `/i18n-audit-quality` | **质量巡检**：生成专家报告，识别争议项与地道度问题。 |
-| `/i18n-pivot-sync` | **跨语言对齐**：根据已优化的母语版本，同步修正其他语种。 |
-| `/i18n-fix` | 快捷修复：自动扫描环境异常，生成全量修复提案。 |
-| `/i18n-status` | 状态验证：检查项目配置与就绪状态。 |
-| `/i18n-sync` | 智能同步：执行增量翻译同步。 |
+| `/i18n-audit` | Coverage Audit: Check for missing keys across locale files. |
+| `/i18n-audit-quality` | **Quality Audit**: Generate expert reports on phrasing and consistency. |
+| `/i18n-pivot-sync` | **Semantic Projection**: Sync target languages based on a familiar reference language. |
+| `/i18n-fix` | Quick Fix: Auto-detect environment issues and generate recovery proposals. |
+| `/i18n-status` | Status Check: Verify project configuration and readiness. |
+| `/i18n-sync` | Smart Sync: Perform incremental translation synchronization. |
 
 ---
 
-## 📂 项目结构 (optimized by agent-skill-creator)
+## 📂 Project Structure
 
 ```text
 i18n-agent-skill/
-├── i18n_agent_skill/   # 核心 Python 逻辑包
-├── scripts/            # [NEW] 自动化脚本：install.sh, cli-tools
-├── references/         # [NEW] 技术文档：AST 原理、隐私脱敏协议、Linter 规范
-├── assets/             # [NEW] 配置资产：词汇表模板等
-├── tests/              # 自动化测试套件 (Unit & Integration)
-├── SKILL.md            # 核心执行协议 (v4.0 规范)
-└── pyproject.toml      # 依赖管理与项目索引
+├── i18n_agent_skill/   # Core Python logic package
+├── scripts/            # Automation scripts: install.sh, CLI tools
+├── references/         # Technical docs: AST, Privacy, Linter rules
+├── assets/             # Configuration assets: glossary templates, etc.
+├── tests/              # Automated test suite (Unit & Integration)
+├── SKILL.md            # Primary execution protocol (v4.0 Spec)
+└── pyproject.toml      # Dependency management and project index
 ```
 
 ---
 
-## 🛠 开发与自检
+## 🛠 Development & Validation
 
-本项目集成了标准的自检工具：
+This project integrates standard validation tools:
 
 ```bash
-# 执行协议合规性验证
-npm run validate  # 或 python .agents/skills/agent-skill-creator/scripts/validate.py .
+# Verify protocol compliance
+python .agents/skills/agent-skill-creator/scripts/validate.py .
 
-# 执行安全扫描
-npm run scan      # 或 python .agents/skills/agent-skill-creator/scripts/security_scan.py .
+# Run security scan
+python .agents/skills/agent-skill-creator/scripts/security_scan.py .
 
-# 运行测试
+# Run tests
 pytest
 ```
 
 ---
 
-## 🔒 安全说明
+## 🔒 Security Policy
 
-我们承诺绝不将您的源代码上传至任何第三方服务器。所有的代码解析、隐私脱敏和建议生成均在您的本地环境完成。AI 仅在您明确许可的情况下获取脱敏后的文案片段以协助翻译。
+We guarantee that your source code is never uploaded to third-party servers. All parsing, de-identification, and suggestion generation occur locally. The AI only receives masked snippets to assist with translation under your explicit permission.
 
 ---
 
-## 📄 开源协议
+## 📄 License
 
 [Apache-2.0](LICENSE)

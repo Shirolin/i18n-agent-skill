@@ -93,7 +93,7 @@ class EvaluationFeedback(BaseModel):
     """AI automated review feedback model"""
 
     score: int = Field(..., ge=0, le=10, description="Translation quality score (0-10).")
-    地道度建议: str = Field(..., description="Review suggestions.")
+    fluency_suggestions: str = Field(..., description="Review suggestions.")
     is_pass: bool = Field(..., description="Whether the quality check passed.")
 
 

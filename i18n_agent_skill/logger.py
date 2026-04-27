@@ -1,28 +1,23 @@
 import logging
-import sys
 
-from pythonjsonlogger import jsonlogger
+from pythonjsonlogger import json
 
 
-def setup_logger(name: str = "i18n-agent") -> logging.Logger:
+def setup_logger():
     """
-    配置结构化 JSON 日志。
-    适配 ELK、Datadog 等日志系统。
+    Configure structured JSON logging.
+    Suitable for ELK, Datadog, and other log management systems.
     """
-    logger = logging.getLogger(name)
-    log_handler = logging.StreamHandler(sys.stdout)
+    logger = logging.getLogger("i18n_agent_skill")
+    log_handler = logging.StreamHandler()
 
-    # 定义输出字段
-    formatter = jsonlogger.JsonFormatter(
-        "%(timestamp)s %(levelname)s %(name)s %(message)s %(trace_id)s %(duration_ms)s"
-    )
-
+    # Define output fields
+    formatter = json.JsonFormatter("%(asctime)s %(levelname)s %(name)s %(message)s")
     log_handler.setFormatter(formatter)
-    if not logger.handlers:
-        logger.addHandler(log_handler)
+    logger.addHandler(log_handler)
     logger.setLevel(logging.INFO)
     return logger
 
 
-# 全局实例
+# Global instance
 structured_logger = setup_logger()

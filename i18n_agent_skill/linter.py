@@ -11,17 +11,17 @@ LATIN_LANGS = {"en", "es", "fr", "de", "it", "pt", "nl", "ru", "pl", "tr", "vi",
 # Common language names mapping (Endonyms)
 # Format: internal_id -> { "native": "Native Name", "search": [keywords for recognition] }
 ENDONYM_MAP = {
-    "en": {"native": "English", "search": ["english", "英语", "英語"]},
-    "ja": {"native": "日本語", "search": ["japanese", "日语", "日本語", "日本语"]},
+    "en": {"native": "English", "search": ["english"]},
+    "ja": {"native": "日本語", "search": ["japanese", "日本語"]},
     "zh": {"native": "中文", "search": ["chinese", "中文", "中国语", "中国語"]},
-    "de": {"native": "Deutsch", "search": ["german", "deutsch", "德语", "德語", "ドイツ語"]},
-    "ko": {"native": "한국어", "search": ["korean", "韩国语", "韓國語", "韓国語", "한국어"]},
-    "fr": {"native": "Français", "search": ["french", "français", "法语", "法語", "フランス語"]},
+    "de": {"native": "Deutsch", "search": ["german", "deutsch"]},
+    "ko": {"native": "한국어", "search": ["korean", "한국어"]},
+    "fr": {"native": "Français", "search": ["french", "français"]},
     "es": {
         "native": "Español",
-        "search": ["spanish", "español", "西班牙语", "西班牙語", "スペイン語"],
+        "search": ["spanish", "español"],
     },
-    "auto": {"native": "Auto", "search": ["auto", "自动", "自動"]},
+    "auto": {"native": "Auto", "search": ["auto"]},
 }
 
 # Semantic heuristic fingerprints: Keys matching these patterns are likely
