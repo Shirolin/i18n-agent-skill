@@ -224,6 +224,21 @@ class MissingKeysInput(BaseModel):
     base_dir: str | None = Field(None, description="Locales directory.")
 
 
+class ProjectPersona(BaseModel):
+    """Project business persona model"""
+
+    domain: str = Field(
+        default="", description="Business domain (e.g., Fintech, E-commerce, Gaming)"
+    )
+    audience: str = Field(
+        default="", description="Target audience (e.g., B2B Professionals, Gen Z Users)"
+    )
+    tone: str = Field(default="", description="Expected tone (e.g., Formal, Friendly, Humorous)")
+    custom_guidelines: list[str] = Field(
+        default_factory=list, description="Other custom translation guidelines"
+    )
+
+
 class ProjectConfig(BaseModel):
     """Project configuration contract."""
 
@@ -239,6 +254,9 @@ class ProjectConfig(BaseModel):
         default_factory=lambda: ["en", "zh-CN"], description="Enabled languages."
     )
     privacy_level: PrivacyLevel = Field(default=PrivacyLevel.BASIC, description="Privacy level.")
+
+    # Persona for idiomatic translations
+    persona: ProjectPersona = Field(default_factory=ProjectPersona, description="Business persona.")
 
     # Evolutionary memory fields
     protected_lang_key_patterns: list[str] = Field(

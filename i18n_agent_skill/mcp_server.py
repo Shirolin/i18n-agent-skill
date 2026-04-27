@@ -102,3 +102,19 @@ async def learn_fixes(lang_code: str):
     and automatically promote their status to APPROVED.
     """
     return await tools.sync_manual_modifications(lang_code)
+
+
+@mcp.tool()
+async def distill_persona():
+    """
+    [Agentic Distillation] Sample project metadata to help AI infer the business persona.
+    """
+    return await tools.distill_project_persona()
+
+
+@mcp.tool()
+async def save_persona(persona_data: dict):
+    """
+    Save the confirmed business persona (domain, audience, tone) to configuration.
+    """
+    return await tools.save_project_persona(persona_data)

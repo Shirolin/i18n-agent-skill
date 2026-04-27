@@ -608,7 +608,10 @@ async def optimize_translations(lang_code: str, include_approved: bool = False) 
     task_data = {
         "targets": to_optimize,
         "dynamic_glossary": glossary,
+        "persona": config.persona.model_dump(),
         "instructions": (
+            f"You are translating for a {config.persona.domain} app "
+            f"targeting {config.persona.audience} with a {config.persona.tone} tone. "
             "Please read 'targets', provide optimized translations, "
             "and save the result as a new JSON file (key-value pairs only). "
             "Then run 'sync' with the new file path."
@@ -986,6 +989,69 @@ async def update_project_glossary(t, tr):
 
 async def _get_file_hash(p):
     return "hash"
+
+
+async def distill_project_persona() -> dict[str, Any]:
+    """
+    [Agentic Distillation] Sample project files to help AI infer the business persona.
+    Returns a dict containing README snippets, package.json info, and sample UI keys.
+    """
+    config = await _load_project_config()
+    samples: dict[str, Any] = {"package_info": {}, "readme_snippet": "", "ui_samples": []}
+
+    # 1. Sample package.json
+    pkg_p = os.path.join(WORKSPACE_ROOT, "package.json")
+    if os.path.exists(pkg_p):
+        try:
+            with open(pkg_p, encoding="utf-8") as f:
+                pkg = json.load(f)
+                samples["package_info"] = {
+                    "name": pkg.get("name"),
+                    "description": pkg.get("description"),
+                    "dependencies": list(pkg.get("dependencies", {}).keys())[:10],
+                }
+        except Exception:
+            pass
+
+    # 2. Sample README.md
+    readme_p = os.path.join(WORKSPACE_ROOT, "README.md")
+    if os.path.exists(readme_p):
+        try:
+            async with aiofiles.open(readme_p, encoding="utf-8") as f:
+                content = await f.read()
+                samples["readme_snippet"] = content[:1000]  # First 1k chars
+        except Exception:
+            pass
+
+    # 3. Sample UI Keys from locales
+    target_dir = _detect_locale_dir(config)
+    en_p = os.path.join(WORKSPACE_ROOT, target_dir, "en.json")
+    if os.path.exists(en_p):
+        try:
+            with open(en_p, encoding="utf-8") as f:
+                data = _flatten_dict(json.load(f))
+                samples["ui_samples"] = list(data.items())[:15]
+        except Exception:
+            pass
+
+    return samples
+
+
+async def save_project_persona(persona_data: dict) -> str:
+    """Save the confirmed business persona to .i18n-skill.json."""
+    config = await _load_project_config()
+    config.persona.domain = persona_data.get("domain", config.persona.domain)
+    config.persona.audience = persona_data.get("audience", config.persona.audience)
+    config.persona.tone = persona_data.get("tone", config.persona.tone)
+    config.persona.custom_guidelines = persona_data.get(
+        "custom_guidelines", config.persona.custom_guidelines
+    )
+
+    p = os.path.join(WORKSPACE_ROOT, CONFIG_FILE)
+    async with aiofiles.open(p, "w", encoding="utf-8") as f:
+        await f.write(json.dumps(config.model_dump(), indent=2, ensure_ascii=False))
+
+    return "Business persona saved to configuration."
 
 
 async def _read_cache():

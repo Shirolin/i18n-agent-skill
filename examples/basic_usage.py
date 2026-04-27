@@ -53,7 +53,10 @@ async def run_example():
     # Simulated run
     result = await runner.run(
         session_id="i18n_task_001",
-        user_input="Sync src/ui/Header.js. Please use the glossary to ensure consistent translation of 'Submit'.",
+        user_input=(
+            "Sync src/ui/Header.js. Please use the glossary "
+            "to ensure consistent translation of 'Submit'."
+        ),
     )
 
     print("\n" + "=" * 50)

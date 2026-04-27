@@ -106,6 +106,17 @@ When triggered via `/i18n-agent-skill` or mentions of "i18n audit/sync", you mus
     3. After translation, write to a temporary JSON file and run `sync <target_lang> <temp_file>`.
     4. Execute `commit <target_lang>` after preview.
 
+### 5. Autonomous Persona Distillation [NEW]
+
+- **Project Persona Setup**:
+  - Run `<venv_python> -m i18n_agent_skill distill-persona`.
+  - **Core Logic**: Samples project metadata (README, package.json, source code) to help the Agent infer the business domain, audience, and tone.
+  - **Agent Mandatory Protocol**:
+    1. **Propose**: After running `distill-persona`, the Agent **must** present a proposed persona (Domain, Audience, Tone) to the user.
+    2. **Refine**: Ask the user: "I've analyzed your project. Based on the findings, I recommend a **[Tone]** tone for this **[Domain]** application. Does this sound right?"
+    3. **Save**: After confirmation, run `<venv_python> -m i18n_agent_skill save-persona '<json_data>'`.
+    4. **Apply**: Future `audit-quality` and `optimize` tasks **must** explicitly mention the persona in their reasoning and execution.
+
 ## 🔒 Guardrails
 
 1. **Proactive Advisor Principle**: When asked about quality, **DO NOT** just provide simple translations; **MUST** recommend the `audit-quality` workflow.

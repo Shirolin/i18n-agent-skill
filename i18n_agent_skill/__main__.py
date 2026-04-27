@@ -43,6 +43,7 @@ from i18n_agent_skill import tools  # noqa: E402
 from i18n_agent_skill.tools import (  # noqa: E402
     check_project_status,
     commit_i18n_changes,
+    distill_project_persona,
     extract_raw_strings,
     generate_quality_report,
     get_missing_keys,
@@ -50,6 +51,7 @@ from i18n_agent_skill.tools import (  # noqa: E402
     optimize_translations,
     propose_sync_i18n,
     reference_optimize_translations,
+    save_project_persona,
     sync_manual_modifications,
 )
 
@@ -154,7 +156,16 @@ async def cli_main():
     pivot_parser.add_argument("pivot", help="Reference language (e.g., zh-CN).")
     pivot_parser.add_argument("target", help="Target language (e.g., ja).")
 
-    # 11. mcp
+    # 11. distill-persona
+    subparsers.add_parser(
+        "distill-persona", help="[Agentic] Sample project to help AI infer business persona."
+    )
+
+    # 12. save-persona
+    save_p_parser = subparsers.add_parser("save-persona", help="Save confirmed business persona.")
+    save_p_parser.add_argument("data", help="JSON string of persona (domain, audience, tone).")
+
+    # 13. mcp
     subparsers.add_parser("mcp", help="Run as MCP Server.")
 
     args = parser.parse_args()
@@ -185,6 +196,18 @@ async def cli_main():
     elif args.command == "pivot-sync":
         pivot_res = await reference_optimize_translations(args.pivot, args.target)
         _print_json(pivot_res)
+
+    elif args.command == "distill-persona":
+        samples = await distill_project_persona()
+        _print_json(samples)
+
+    elif args.command == "save-persona":
+        try:
+            p_data = json.loads(args.data)
+            save_res = await save_project_persona(p_data)
+            _print_json({"message": save_res})
+        except json.JSONDecodeError:
+            _print_json({"error": "Invalid JSON string for persona data."})
 
     elif args.command == "scan":
         if os.path.isdir(args.path):
