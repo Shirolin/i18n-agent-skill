@@ -400,6 +400,11 @@ async def extract_raw_strings(
     return ExtractOutput(results=results, telemetry=telemetry)
 
 
+def _extract_placeholders(text: str) -> set[str]:
+    """Extract variable placeholders like {name} or {{count}}."""
+    return set(re.findall(r"\{\{.*?\}\}|\{.*?\}", text))
+
+
 async def propose_sync_i18n(
     new_pairs: dict, lang_code: str, reasoning: str, **kwargs
 ) -> SyncProposal:
@@ -421,14 +426,14 @@ async def propose_sync_i18n(
 
     for k, v in new_pairs.items():
         if k in base_d:
-            exp = re.findall(r"\{\{.*?\}\}|\{.*?\}", base_d[k])
-            act = re.findall(r"\{\{.*?\}\}|\{.*?\}", v)
-            if set(exp) != set(act):
+            exp = _extract_placeholders(base_d[k])
+            act = _extract_placeholders(v)
+            if exp != act:
                 val_errs.append(
                     ValidationFeedback(
                         key=k,
-                        expected_placeholders=exp,
-                        actual_placeholders=act,
+                        expected_placeholders=list(exp),
+                        actual_placeholders=list(act),
                         message="Variable placeholders mismatch.",
                     )
                 )
@@ -632,11 +637,14 @@ async def optimize_translations(lang_code: str, include_approved: bool = False) 
 
 
 async def generate_quality_report(lang_code: str) -> EvaluationReport:
-    """Expert Audit: Generate comprehensive quality report."""
+    """Expert Audit: Generate comprehensive quality report with variable safety check."""
     config = await _load_project_config()
     target_dir = _detect_locale_dir(config)
     locale_data = await _load_locale_data(target_dir, lang_code)
     flat_data = _flatten_dict(locale_data)
+
+    # Load base language for variable consistency check
+    base_data = _flatten_dict(await _load_locale_data(target_dir, "en"))
 
     snapshot_mgr = TranslationSnapshotManager(WORKSPACE_ROOT)
     approved_count = 0
@@ -648,6 +656,28 @@ async def generate_quality_report(lang_code: str) -> EvaluationReport:
         if status == TranslationStatus.APPROVED:
             approved_count += 1
 
+        # 1. Variable Mismatch Check (Variable Safety Lock)
+        if k in base_data:
+            base_placeholders = _extract_placeholders(base_data[k])
+            target_placeholders = _extract_placeholders(v)
+            if base_placeholders != target_placeholders:
+                error_count += 1
+                controversial.append(
+                    ReviewItem(
+                        key=k,
+                        current_translation=v,
+                        suggested_translation=base_data[k],
+                        issue_type="VARIABLE_MISMATCH",
+                        confidence="High",
+                        reasoning=(
+                            f"Base language uses placeholders {list(base_placeholders)}, "
+                            f"but target uses {list(target_placeholders)}. "
+                            "This will cause rendering errors."
+                        ),
+                    )
+                )
+
+        # 2. Style and Typography Check
         style_feedbacks = TranslationStyleLinter.lint(
             k, v, lang_code, config.protected_lang_key_patterns
         )

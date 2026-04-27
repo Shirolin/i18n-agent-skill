@@ -77,10 +77,11 @@ When triggered via `/i18n-agent-skill` or mentions of "i18n audit/sync", you mus
 
 - **File-Driven Expert Audit**:
   - Run `<venv_python> -m i18n_agent_skill audit-quality <lang>`.
-  - **Core Capability**: Executes Linter checks and generates a structured Markdown audit report.
+  - **Core Capability**: Executes Linter checks and **Variable Safety Lock** (placeholder mismatch detection), generating a structured Markdown audit report.
   - **Interaction Protocol**: 
     1. Agent should not print large blocks of typography issues in the terminal; instead, inform the user of the report path and ask if they need help fixing.
-    2. **Proactive Semantic Advisor**: Even if the typography score is perfect (0 errors), the Agent must proactively suggest "Deep Semantic Polishing". E.g., "Your typography check passed! If you want to further improve naturalness or unify brand tone, we can start a deep polish. Should I run `/i18n-optimize --all` for you?"
+    2. **Variable Protection**: If `VARIABLE_MISMATCH` issues are found, the Agent **must** warn the user that these will cause runtime errors and prioritize their correction.
+    3. **Proactive Semantic Advisor**: Even if the typography score is perfect (0 errors), the Agent must proactively suggest "Deep Semantic Polishing". E.g., "Your typography check passed! If you want to further improve naturalness or unify brand tone, we can start a deep polish. Should I run `/i18n-optimize --all` for you?"
 
 - **Batch Optimization Workflow**:
   - When there are many untranslated or Draft keys, run `<venv_python> -m i18n_agent_skill optimize <lang>`.

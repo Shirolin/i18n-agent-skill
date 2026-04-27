@@ -53,6 +53,31 @@ async def test_generate_quality_report(temp_workspace):
 
 
 @pytest.mark.asyncio
+async def test_generate_quality_report_variable_mismatch(temp_workspace):
+    """Test that quality report flags mismatched placeholders."""
+    locales_dir = os.path.join(temp_workspace, "locales")
+
+    # 1. Base has {name}
+    with open(os.path.join(locales_dir, "en.json"), "w", encoding="utf-8") as f:
+        json.dump({"greeting": "Hello, {name}!"}, f)
+
+    # 2. Target has {username} (Mismatch!)
+    with open(os.path.join(locales_dir, "zh-CN.json"), "w", encoding="utf-8") as f:
+        json.dump({"greeting": "你好，{username}！"}, f)
+
+    report = await generate_quality_report("zh-CN")
+
+    # Verify the mismatch is flagged
+    mismatches = [
+        item for item in report.controversial_items if item.issue_type == "VARIABLE_MISMATCH"
+    ]
+    assert len(mismatches) == 1
+    assert mismatches[0].key == "greeting"
+    assert "{name}" in mismatches[0].reasoning
+    assert "{username}" in mismatches[0].reasoning
+
+
+@pytest.mark.asyncio
 async def test_reference_optimize_translations(temp_workspace):
     locales_dir = os.path.join(temp_workspace, "locales")
 
