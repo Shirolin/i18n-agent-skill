@@ -61,7 +61,7 @@ CONFIG_FILE = ".i18n-skill.json"
 
 
 def _is_skill_source_dir(directory: str) -> bool:
-    """[工业级防护] 检查该目录是否是本工具自身的源代码"""
+    """[Defensive] Check if the directory contains the source code of this tool itself."""
     skill_md = os.path.join(directory, "SKILL.md")
     pyproject = os.path.join(directory, "pyproject.toml")
     try:
@@ -79,7 +79,7 @@ def _is_skill_source_dir(directory: str) -> bool:
 
 
 def _resolve_workspace_root(explicit_root: str | None = None) -> str:
-    """依靠边界指纹动态测算项目根目录"""
+    """Dynamically resolve project root based on file markers."""
     if explicit_root:
         return os.path.abspath(explicit_root)
     env_root = os.environ.get("I18N_WORKSPACE_ROOT")
@@ -334,7 +334,7 @@ async def extract_raw_strings(
     vcs_mode: bool = False,
     privacy_level: PrivacyLevel | None = None,
 ) -> ExtractOutput:
-    """[v2.0] 正式版：严格 AST 扫描，杜绝正则降级。"""
+    """[v2.0] Strict AST scanning, no RegEx fallback."""
     try:
         safe_p = _validate_safe_path(file_path)
     except Exception as e:
@@ -358,7 +358,7 @@ async def extract_raw_strings(
         content = await f.read()
     ext = os.path.splitext(file_path)[1].lower()
 
-    # 缓存逻辑 [工业级恢复]
+    # Cache logic
     cache_path = os.path.join(WORKSPACE_ROOT, CACHE_FILE)
     content_hash = hashlib.md5(content.encode("utf-8")).hexdigest()
     if use_cache and os.path.exists(cache_path):
@@ -392,7 +392,7 @@ async def extract_raw_strings(
             results.append(ExtractedString(text=masked, line=line, context=ctx, is_masked=is_m))
             extracted_set.add((text, line))
 
-    # 更新缓存
+    # Update cache
     if use_cache:
         cache = {}
         if os.path.exists(cache_path):
@@ -415,11 +415,11 @@ async def extract_raw_strings(
 async def propose_sync_i18n(
     new_pairs: dict, lang_code: str, reasoning: str, **kwargs
 ) -> SyncProposal:
-    """[工业级恢复] 生成带占位符校验的同步提案"""
+    """Generate a synchronization proposal with placeholder validation."""
     config = await _load_project_config()
     target_dir = _detect_locale_dir(config)
 
-    # 使用绝对路径确保测试环境鲁棒性
+    # Use absolute paths for robustness
     file_p = _validate_safe_path(os.path.join(target_dir, f"{lang_code}.json"))
     base_p = _validate_safe_path(os.path.join(target_dir, "en.json"))
 
@@ -432,7 +432,7 @@ async def propose_sync_i18n(
     except Exception:
         pass
 
-    # 占位符一致性校验
+    # Placeholder consistency check
     for k, v in new_pairs.items():
         if k in base_d:
             exp = re.findall(r"\{\{.*?\}\}|\{.*?\}", base_d[k])
@@ -443,23 +443,23 @@ async def propose_sync_i18n(
                         key=k,
                         expected_placeholders=exp,
                         actual_placeholders=act,
-                        message="变量占位符不匹配。",
+                        message="Variable placeholders mismatch.",
                     )
                 )
 
-        # 风格与排版校验（包含母语化保护）
+        # Style and typography check
         style_feedbacks.extend(
             TranslationStyleLinter.lint(k, v, lang_code, config.protected_lang_key_patterns)
         )
 
-    # 加载磁盘原始数据
+    # Load original disk data
     disk_data = await _load_locale_data(target_dir, lang_code)
 
-    # 暂存区文件路径 (Singleton per language)
+    # Staging area file path (Singleton per language)
     temp_file = os.path.join(WORKSPACE_ROOT, PROPOSALS_DIR, f"proposal_{lang_code}.json")
     os.makedirs(os.path.join(WORKSPACE_ROOT, PROPOSALS_DIR), exist_ok=True)
 
-    # 累加逻辑：如果已有暂存提案，以其为基准；否则以磁盘文件为基准
+    # Accumulation logic: if staging exists, use it; otherwise use disk
     base_data = disk_data.copy()
     existing_reasoning = ""
     if os.path.exists(temp_file):
@@ -471,16 +471,16 @@ async def propose_sync_i18n(
         except Exception:
             pass
 
-    # 将新变更合并到基准数据中
+    # Merge new changes into base data
     final_data = _deep_update(base_data, _unflatten_dict(new_pairs), ConflictStrategy.OVERWRITE)
 
-    # 合并推理理由
+    # Merge reasoning
     if existing_reasoning and reasoning not in existing_reasoning:
         combined_reason = f"{existing_reasoning}\n+ {reasoning}"
     else:
         combined_reason = reasoning
 
-    # 保存新的暂存提案
+    # Save new staging proposal
     proposal_data = {
         "target_file": file_p,
         "content": final_data,
@@ -490,28 +490,29 @@ async def propose_sync_i18n(
     with open(temp_file, "w", encoding="utf-8") as f:
         json.dump(proposal_data, f, indent=2, ensure_ascii=False)
 
-    # 计算自磁盘以来的“全量累加变更”，用于预览
+    # Calculate accumulated changes since disk for preview
     flat_disk = _flatten_dict(disk_data)
     flat_final = _flatten_dict(final_data)
     accumulated_changes = {k: v for k, v in flat_final.items() if flat_disk.get(k) != v}
 
-    # 生成 Markdown 预览，展示当前“暂存区”与“磁盘”的完整差异
+    # Generate Markdown preview
     preview_file = os.path.join(WORKSPACE_ROOT, PROPOSALS_DIR, f"sync_preview_{lang_code}.md")
     with open(preview_file, "w", encoding="utf-8") as f:
         f.write(f"# i18n Sync Preview ({lang_code})\n\n")
         f.write(
-            "请审阅当前**暂存区 (Staging Area)**中的完整变更。满意后请执行 `commit` 指令应用。\n\n"
+            "Please review the changes in the **Staging Area**. "
+            "When ready, run `commit` to apply.\n\n"
         )
         f.write(f"- **Language**: `{lang_code}`\n")
         f.write(f"- **Target File**: `{file_p}`\n")
         f.write(f"- **Accumulated Changes**: {len(accumulated_changes)}\n")
         f.write(f"- **Reasoning History**:\n```text\n{combined_reason}\n```\n\n")
 
-        f.write("## 变更明细 (Disk vs. Staging Area)\n\n")
+        f.write("## Change Details (Disk vs. Staging Area)\n\n")
         f.write("| Key | Current (Disk) | Proposed (Staging) |\n")
         f.write("| :--- | :--- | :--- |\n")
 
-        # 仅显示前 100 条预览
+        # Limit preview to 100 entries
         for i, (k, v) in enumerate(accumulated_changes.items()):
             if i >= 100:
                 f.write(f"| ... | ... | (+ {len(accumulated_changes) - 100} more keys) |\n")
@@ -522,7 +523,7 @@ async def propose_sync_i18n(
             f.write(f"| `{k}` | {safe_old} | **{safe_new}** |\n")
 
     return SyncProposal(
-        proposal_id=lang_code,  # 提案 ID 即为语言代码，实现单例模式
+        proposal_id=lang_code,
         lang_code=lang_code,
         changes_count=len(accumulated_changes),
         diff_summary=accumulated_changes,
@@ -535,7 +536,7 @@ async def propose_sync_i18n(
 
 
 async def save_project_preference(pattern: str, is_native_protection: bool = True):
-    """保存用户偏好：直接持久化到 .i18n-skill.json 主配置文件。"""
+    """Save user preferences to .i18n-skill.json."""
     config = await _load_project_config()
     if is_native_protection:
         if pattern not in config.protected_lang_key_patterns:
@@ -815,7 +816,7 @@ async def sync_manual_modifications(lang_code: str) -> str:
 
 
 async def get_missing_keys(lang_code: str, base_lang: str = "en") -> dict:
-    """[工业级恢复] 精算缺失词条"""
+    """Calculate missing entries by comparing with base language."""
     config = await _load_project_config()
     target_dir = _detect_locale_dir(config)
 
@@ -829,7 +830,7 @@ async def get_missing_keys(lang_code: str, base_lang: str = "en") -> dict:
 
 
 async def _load_locale_data(target_dir: str, lang: str) -> dict:
-    """[v2.1] 跨格式加载语言包 (json -> ts -> js)"""
+    """[v2.1] Load locale data across formats (json -> ts -> js)"""
     for ext in (".json", ".ts", ".js"):
         p = _validate_safe_path(os.path.join(target_dir, f"{lang}{ext}"))
         if not os.path.exists(p):
@@ -842,40 +843,34 @@ async def _load_locale_data(target_dir: str, lang: str) -> dict:
             if ext == ".json":
                 return json.loads(content)
 
-            # 处理 .ts/.js 中的 export default
-            # 提取第一个 { 和 最后一个 } 之间的内容
+            # Handle export default in .ts/.js
             match = re.search(
                 r"(?:export\s+default|module\.exports\s*=)\s*({.*});?", content, re.DOTALL
             )
             if match:
                 obj_str = match.group(1)
-                # 简单粗暴的转换：将 JS 对象字面量适配为 JSON (仅支持简单结构)
-                # 生产环境建议用 AST，这里采用启发式清理
+                # Heuristic cleanup to adapt JS object literal to JSON
                 try:
-                    # 1. 移除行内注释
+                    # 1. Remove inline comments
                     obj_str = re.sub(r"//.*", "", obj_str)
-                    # 2. 移除块注释
+                    # 2. Remove block comments
                     obj_str = re.sub(r"/\*.*?\*/", "", obj_str, flags=re.DOTALL)
 
-                    # 3. 补齐未打引号的 Key (匹配 key: 格式)
-                    # 排除已经有双引号或单引号的情况
+                    # 3. Add quotes to unquoted keys
                     obj_str = re.sub(
                         r"([{,]\s*)([a-zA-Z_$][a-zA-Z0-9_$]*)\s*:", r'\1"\2":', obj_str
                     )
 
-                    # 4. 处理单引号字符串为双引号 (需处理转义，此处采用启发式)
-                    # 如果内容本身简单，直接替换；否则可能需要更复杂的逻辑
-                    # 为安全起见，仅替换包裹字符串的单引号
-                    obj_str = re.sub(r"':\s*'([^']*)'", r'": "\1"', obj_str)  # 针对 'key': 'val'
-                    obj_str = re.sub(r":\s*'([^']*)'", r': "\1"', obj_str)  # 针对 key: 'val'
+                    # 4. Handle single quotes
+                    obj_str = re.sub(r"':\s*'([^']*)'", r'": "\1"', obj_str)
+                    obj_str = re.sub(r":\s*'([^']*)'", r': "\1"', obj_str)
 
-                    # 5. 移除末尾逗号
+                    # 5. Remove trailing commas
                     obj_str = re.sub(r",\s*([}\]])", r"\1", obj_str)
 
                     obj_str = obj_str.strip().rstrip(";")
                     return json.loads(obj_str)
                 except Exception as e:
-                    # 如果清理失败，回退到更激进的正则提取或返回空（待优化）
                     logger.warning(f"Failed to parse JS/TS locale via regex: {p}. Error: {e}")
                     return {}
         except Exception as e:
@@ -885,7 +880,7 @@ async def _load_locale_data(target_dir: str, lang: str) -> dict:
 
 
 async def _save_locale_data(path: str, data: dict):
-    """[v2.1] 跨格式写回语言包"""
+    """[v2.1] Write back locale data across formats."""
     ext = os.path.splitext(path)[1]
     json_str = json.dumps(data, indent=2, ensure_ascii=False, sort_keys=True)
 
@@ -1004,20 +999,19 @@ def _detect_enabled_langs(locale_dir: str) -> list[str]:
 
 
 async def initialize_project_config() -> str:
-    """[v2.0] 扫描项目并固化配置"""
+    """[v2.0] Scan project and persist configuration."""
     config = ProjectConfig()
     config.locales_dir = _detect_locale_dir(config)
     config.enabled_langs = _detect_enabled_langs(config.locales_dir) or ["en", "zh-CN"]
 
-    # 尝试探测源码目录
+    # Try to detect source directories
     for d in ["src", "lib", "app"]:
         if os.path.isdir(os.path.join(WORKSPACE_ROOT, d)):
             config.source_dirs = [d]
             break
 
-    # 自动更新 .gitignore
+    # Auto-update .gitignore
     gitignore_p = os.path.join(WORKSPACE_ROOT, ".gitignore")
-    # 采用全屏蔽策略，但通过 ! 排除主配置文件
     ignore_lines = [
         "\n# i18n-agent-skill runtime files",
         ".i18n-cache.json",

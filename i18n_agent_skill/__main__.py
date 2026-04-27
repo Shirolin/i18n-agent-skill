@@ -8,32 +8,29 @@ from typing import Any
 
 
 # =================================================================
-# [Venv Bootstrapper] 确保在隔离环境中运行，防止系统 Python 逃逸
+# [Venv Bootstrapper] Ensures running in isolated environment
 # =================================================================
 def bootstrap_venv():
-    # 查找技能根目录（即包含 .venv 的目录）
+    # Find skill root (directory containing .venv)
     skill_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     venv_path = os.path.join(skill_root, ".venv")
 
     if os.path.exists(venv_path):
-        # 确定 venv 中的 python 路径
+        # Determine python path in venv
         if sys.platform == "win32":
             venv_python = os.path.join(venv_path, "Scripts", "python.exe")
         else:
             venv_python = os.path.join(venv_path, "bin", "python")
 
         if os.path.exists(venv_python):
-            # 获取当前运行的 python 路径
+            # Get current python path
             current_python = os.path.abspath(sys.executable)
             target_python = os.path.abspath(venv_python)
 
-            # 如果当前 python 不是 venv 中的 python，且不是通过 venv python 递归调用的
+            # Re-launch with venv python if not already running it
             if current_python != target_python and os.environ.get("I18N_SKILL_BOOTSTRAPPED") != "1":
-                # 设置环境变量防止死循环
                 env = os.environ.copy()
                 env["I18N_SKILL_BOOTSTRAPPED"] = "1"
-                # 重新通过 venv python 启动自己
-                # 注：使用 sys.argv 完美透传所有参数
                 cmd = [target_python, "-m", "i18n_agent_skill"] + sys.argv[1:]
                 sys.exit(subprocess.call(cmd, env=env))
 
@@ -58,19 +55,19 @@ from i18n_agent_skill.tools import (  # noqa: E402
 
 
 def _print_json(data: Any):
-    """确保输出是 AI 可解析的 JSON，且强制使用 UTF-8 编码"""
+    """Ensure output is AI-parseable JSON, forced to UTF-8 encoding."""
     json_str = json.dumps(data, indent=2, ensure_ascii=False, default=str)
     try:
         print(json_str)
     except UnicodeEncodeError:
-        # 兜底方案：如果标准输出编码不是 UTF-8，直接写入字节流
+        # Fallback: Write directly to byte stream if stdout is not UTF-8
         sys.stdout.buffer.write(json_str.encode("utf-8"))
         sys.stdout.buffer.write(b"\n")
         sys.stdout.buffer.flush()
 
 
 async def cli_main():
-    # [Windows 专用] 强制标准输出使用 UTF-8，解决 GBK 环境下的编码崩溃问题
+    # [Windows Special] Force UTF-8 for stdout/stderr to avoid encoding crashes
     if sys.platform == "win32":
         import io
 
@@ -79,64 +76,86 @@ async def cli_main():
         if hasattr(sys.stderr, "buffer"):
             sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8")
 
-    parser = argparse.ArgumentParser(description="I18n Agent Skill 引擎 v0.1.0")
+    parser = argparse.ArgumentParser(description="I18n Agent Skill Engine v0.1.0")
     parser.add_argument(
-        "--workspace-root", type=str, help="显式指定项目根目录，在嵌套结构下推荐使用"
+        "--workspace-root",
+        type=str,
+        help="Explicitly specify project root (recommended for nested projects).",
     )
-    subparsers = parser.add_subparsers(dest="command", help="支持的子命令")
+    subparsers = parser.add_subparsers(dest="command", help="Available subcommands")
 
     # 1. status
-    subparsers.add_parser("status", help="检查当前项目 i18n 状态及环境感知")
+    subparsers.add_parser("status", help="Check current project i18n status and environment.")
 
     # 2. scan
-    scan_parser = subparsers.add_parser("scan", help="扫描源码中的硬编码中文并执行隐私脱敏")
-    scan_parser.add_argument("path", help="待扫描的文件或目录路径")
+    scan_parser = subparsers.add_parser(
+        "scan", help="Scan source code for hardcoded strings and mask sensitive data."
+    )
+    scan_parser.add_argument("path", help="Path to file or directory to scan.")
     scan_parser.add_argument(
-        "--vcs", action="store_true", help="开启 VCS 感知模式，仅扫描 Git 变动"
+        "--vcs", action="store_true", help="Enable VCS-aware mode (scan Git changes only)."
     )
     scan_parser.add_argument(
-        "--no-cache", action="store_false", dest="use_cache", help="禁用哈希缓存"
+        "--no-cache", action="store_false", dest="use_cache", help="Disable hash caching."
     )
 
     # 3. audit
-    audit_parser = subparsers.add_parser("audit", help="比对语言包差异，查找缺失的 Key")
-    audit_parser.add_argument("lang", help="目标对比语言代码 (如 en, ja) 或使用 'all' 执行全量体检")
-    audit_parser.add_argument("--base", default="en", help="基准语言代码 (默认 en)")
+    audit_parser = subparsers.add_parser(
+        "audit", help="Compare locale files and find missing keys."
+    )
+    audit_parser.add_argument(
+        "lang", help="Target language code (e.g., en, ja) or 'all' for full audit."
+    )
+    audit_parser.add_argument("--base", default="en", help="Base language code (defaults to 'en').")
 
     # 4. sync
-    sync_parser = subparsers.add_parser("sync", help="生成翻译同步提案")
-    sync_parser.add_argument("lang", help="目标语言")
-    sync_parser.add_argument("data", help="JSON 格式的键值对字符串或路径")
-    sync_parser.add_argument("--reason", default="Manual sync", help="变更理由")
+    sync_parser = subparsers.add_parser(
+        "sync", help="Generate a translation synchronization proposal."
+    )
+    sync_parser.add_argument("lang", help="Target language.")
+    sync_parser.add_argument("data", help="JSON string of key-value pairs or a file path.")
+    sync_parser.add_argument("--reason", default="Manual sync", help="Reason for changes.")
 
     # 5. commit
-    commit_parser = subparsers.add_parser("commit", help="正式提交并应用指定的提案")
-    commit_parser.add_argument("proposal_id", help="提案 ID")
+    commit_parser = subparsers.add_parser("commit", help="Commit and apply specified proposals.")
+    commit_parser.add_argument("proposal_id", help="Proposal ID (language code or 'all').")
 
     # 6. init
-    subparsers.add_parser("init", help="扫描项目并生成显式的 .i18n-skill.json 配置文件")
+    subparsers.add_parser(
+        "init", help="Scan project and generate explicit .i18n-skill.json configuration."
+    )
 
     # 7. optimize
-    opt_parser = subparsers.add_parser("optimize", help="[幂等优化] 筛选待优化词条并提取动态术语")
-    opt_parser.add_argument("lang", help="目标语言代码")
-    opt_parser.add_argument("--all", action="store_true", help="强制包含已确认的词条进行全量优化")
+    opt_parser = subparsers.add_parser(
+        "optimize", help="[Idempotent] Export targets for optimization."
+    )
+    opt_parser.add_argument("lang", help="Target language code.")
+    opt_parser.add_argument(
+        "--all", action="store_true", help="Include approved keys for full polish."
+    )
 
     # 8. learn
-    learn_parser = subparsers.add_parser("learn", help="[闭环反馈] 探测手动修改并提升词条状态")
-    learn_parser.add_argument("lang", help="目标语言代码")
+    learn_parser = subparsers.add_parser(
+        "learn", help="[Feedback Loop] Detect manual edits and promote entry status."
+    )
+    learn_parser.add_argument("lang", help="Target language code.")
 
-    audit_q_parser = subparsers.add_parser("audit-quality", help="[专家巡检] 生成全量质量评审报告")
-    audit_q_parser.add_argument("lang", help="目标语言代码")
+    # 9. audit-quality
+    audit_q_parser = subparsers.add_parser(
+        "audit-quality", help="[Expert Audit] Generate a full quality review report."
+    )
+    audit_q_parser.add_argument("lang", help="Target language code.")
 
     # 10. pivot-sync
     pivot_parser = subparsers.add_parser(
-        "pivot-sync", help="[参照优化] 根据已知语言映射优化目标语言"
+        "pivot-sync",
+        help="[Reference Sync] Optimize target language based on familiar language mappings.",
     )
-    pivot_parser.add_argument("pivot", help="参考语言 (如 zh-CN)")
-    pivot_parser.add_argument("target", help="目标语言 (如 ja)")
+    pivot_parser.add_argument("pivot", help="Reference language (e.g., zh-CN).")
+    pivot_parser.add_argument("target", help="Target language (e.g., ja).")
 
     # 11. mcp
-    subparsers.add_parser("mcp", help="以 MCP Server 模式运行")
+    subparsers.add_parser("mcp", help="Run as MCP Server.")
 
     args = parser.parse_args()
 
@@ -203,7 +222,6 @@ async def cli_main():
 
     elif args.command == "audit":
         if args.lang == "all":
-            # [核心修复] 实现 audit all 逻辑
             status_report = await check_project_status()
             target_langs = status_report.config.enabled_langs
             audit_results = {}

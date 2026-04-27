@@ -1,42 +1,71 @@
 {
   "name": "i18n-agent-skill",
   "version": "0.1.0",
-  "description": "前端项目国际化（i18n）全链路自动化工具。核心优势：AST 源码提取、隐私脱敏（Privacy Shield）、差异精算与质量回归保护。支持全功能 CLI 调用。",
-  "keywords": ["i18n", "internationalization", "react", "vue", "extract", "translate", "privacy-shield", "mcp", "cli", "audit", "optimization", "feedback-loop", "idempotency"],
+  "description": "Enterprise-grade frontend i18n automation tool. Features: AST-based extraction, Privacy Shielding, and Quality Evolution Engine. Optimized for AI agents (Cursor, Claude Code, Windsurf).",
+  "keywords": [
+    "i18n",
+    "internationalization",
+    "localization",
+    "react",
+    "vue",
+    "extract",
+    "translate",
+    "privacy-shield",
+    "mcp",
+    "cli",
+    "audit",
+    "optimization",
+    "feedback-loop",
+    "quality-evolution"
+  ],
   "homepage": "https://github.com/Shirolin/i18n-agent-skill",
   "discovery": {
     "intent_prompts": [
-      "我想把项目里的中文提出来做国际化",
-      "帮我找找源码里还有哪些没抽离的硬编码文案",
-      "同步一下多语言翻译包",
+      "audit my i18n files",
+      "extract hardcoded strings for i18n",
+      "sync translations for my project",
+      "improve translation quality with quality audit",
+      "pivot-sync based on familiar language",
+      "perform privacy-masked extraction",
+      "i18n health check",
+      "帮我把项目里的中文提出来做国际化",
       "检查项目里的 i18n 质量",
-      "优化已有的翻译质量",
-      "学习我对手工翻译的修改",
-      "幂等更新翻译文件",
-      "i18n refactor legacy project",
-      "sync i18n translations with git diff",
-      "audit my i18n files for missing keys",
-      "iterative optimization of translation quality",
-      "learn from manual translation fixes",
-      "执行隐私脱敏提取",
-      "i18n 体检"
+      "同步多语言翻译包",
+      "执行质量巡检",
+      "跨语言参照同步"
     ],
     "triggers": {
-      "file_patterns": ["**/*.js", "**/*.jsx", "**/*.ts", "**/*.tsx", "**/*.vue", "**/locales/*.json"],
-      "context_keywords": ["i18n", "translation", "locale", "internationalization", "privacy", "masking", "audit", "linter"]
+      "file_patterns": [
+        "**/*.js",
+        "**/*.jsx",
+        "**/*.ts",
+        "**/*.tsx",
+        "**/*.vue",
+        "**/locales/*.json"
+      ],
+      "context_keywords": [
+        "i18n",
+        "translation",
+        "locale",
+        "internationalization",
+        "privacy",
+        "masking",
+        "audit",
+        "linter",
+        "pivot-sync"
+      ]
     }
   },
   "examples": [
     {
-      "intent": "体检项目翻译质量",
+      "intent": "Quality health check for i18n",
       "actions": [
         "python -m i18n_agent_skill status",
-        "python -m i18n_agent_skill audit en",
-        "python -m i18n_agent_skill scan src --vcs"
+        "python -m i18n_agent_skill audit-quality en"
       ]
     },
     {
-      "intent": "提取 App.vue 中的硬编码中文并脱敏",
+      "intent": "Extract hardcoded Chinese and mask sensitive data",
       "actions": [
         "python -m i18n_agent_skill scan src/App.vue"
       ]

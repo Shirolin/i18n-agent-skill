@@ -11,7 +11,8 @@ SNAPSHOT_FILE = ".i18n-snapshots.json"
 
 class TranslationSnapshotManager:
     """
-    快照与状态管理器：记录历史上得分最高的翻译，并追踪词条生命周期状态。
+    Snapshot and Status Manager: Records historical high-score translations
+    and tracks entry lifecycle status.
     """
 
     def __init__(self, workspace_root: str):
@@ -33,7 +34,7 @@ class TranslationSnapshotManager:
             await f.write(json.dumps(snapshots, indent=2, ensure_ascii=False, sort_keys=True))
 
     async def get_status(self, key: str) -> TranslationStatus:
-        """获取词条状态，默认为 DRAFT"""
+        """Get entry status, defaults to DRAFT"""
         snapshots = await self._read_snapshots()
         if key not in snapshots:
             return TranslationStatus.DRAFT
@@ -41,7 +42,7 @@ class TranslationSnapshotManager:
 
     async def check_regression(self, key: str, current_score: int) -> RegressionResult | None:
         """
-        检查当前翻译得分是否低于历史最高快照得分。
+        Check if the current translation score is lower than the historical maximum.
         """
         snapshots = await self._read_snapshots()
         if key not in snapshots:
@@ -50,8 +51,9 @@ class TranslationSnapshotManager:
         snapshot_score = snapshots[key].get("score", 0)
         if current_score < snapshot_score:
             msg = (
-                f"质量退化告警：词条 '{key}' 的当前评分 ({current_score}) "
-                f"低于历史最高快照得分 ({snapshot_score})。请检查是否存在翻译退化。"
+                f"Quality Regression Warning: Entry '{key}' has a current score "
+                f"({current_score}) lower than the historical maximum "
+                f"({snapshot_score}). Please check for regression."
             )
             return RegressionResult(
                 is_degraded=True,
@@ -71,7 +73,7 @@ class TranslationSnapshotManager:
         content_hash: str | None = None,
     ):
         """
-        更新快照。仅当当前得分大于等于历史得分，或者显式提升状态时更新。
+        Update snapshot. Updates only if the score is higher/equal or status is promoted.
         """
         snapshots = await self._read_snapshots()
         existing = snapshots.get(key, {})
