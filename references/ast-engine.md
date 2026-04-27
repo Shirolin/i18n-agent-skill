@@ -1,26 +1,26 @@
-# Tree-sitter AST 提取引擎
+# Tree-sitter AST Extraction Engine
 
-`i18n-agent-skill` 放弃了传统的正则表达式匹配方案，转而采用 **Tree-sitter AST (Abstract Syntax Tree)** 语法树解析引擎。这是本项目能够实现 100% 物理隔离注释和高精度提取的核心原因。
+`i18n-agent-skill` leverages the **Tree-sitter AST (Abstract Syntax Tree)** parsing engine instead of traditional RegEx matching. This is the core reason why this project achieves 100% comment isolation and high-precision extraction.
 
-## 为什么拒绝正则表达式？
+## Why Refuse RegEx?
 
-正则表达式在处理前端代码时存在以下致命缺陷：
-1. **注释误判**: 难以区分代码中的字符串和注释中的字符串（如 `// console.log("todo")`）。
-2. **嵌套挑战**: 难以处理复杂的模板字符串嵌套（Nested Template Literals）。
-3. **上下文缺失**: 正则无法理解当前的字符串是处于 JSX 属性、文本节点还是普通的逻辑变量中。
+Regular expressions have fatal flaws when processing frontend code:
+1. **Comment Misidentification**: Difficulty in distinguishing between strings in code and those within comments (e.g., `// console.log("todo")`).
+2. **Nesting Challenges**: Difficulty in handling complex nested template literals.
+3. **Missing Context**: RegEx cannot understand if a string is within a JSX attribute, a text node, or a regular logic variable.
 
-## AST 引擎工作原理
+## How the AST Engine Works
 
-1. **多语言解析**: 支持 `typescript`, `tsx`, `vue`, `javascript` 等多种语言的语法树解析。
-2. **深度遍历**: 通过深度优先搜索 (DFS) 遍历语法树。
-3. **节点筛选**: 
-   - 提取 `string` 对象。
-   - 提取 `template_string`（包括嵌套的 `${}` 表达式）。
-   - 提取 JSX 中的 `jsx_text`。
-   - 提取 Vue 模板中的文本节点。
-4. **属性感知**: 能够识别并过滤特定的属性（如 `className`, `id`, `style` 等），避免将非文本属性误提为翻译单元。
+1. **Multi-language Parsing**: Supports parsing syntax trees for `typescript`, `tsx`, `vue`, `javascript`, and more.
+2. **Depth-First Traversal**: Traverses the syntax tree using Depth-First Search (DFS).
+3. **Node Filtering**: 
+   - Extracts `string` objects.
+   - Extracts `template_string` (including nested `${}` expressions).
+   - Extracts `jsx_text` in JSX.
+   - Extracts text nodes in Vue templates.
+4. **Attribute Awareness**: Identifies and filters specific attributes (e.g., `className`, `id`, `style`), preventing non-text attributes from being extracted as translation units.
 
-## 技术指标
-- **解析速度**: 毫秒级。
-- **准确率**: 100% 语法级准确，不漏提，不错提。
-- **注释隔离**: 天然免疫任何形式的正斜杠 (`//`)、块注释 (`/* */`) 或 HTML 注释。
+## Technical Metrics
+- **Parsing Speed**: Millisecond-level.
+- **Accuracy**: 100% syntax-level accuracy; no missing or incorrect extractions.
+- **Comment Isolation**: Naturally immune to any form of slashes (`//`), block comments (`/* */`), or HTML comments.

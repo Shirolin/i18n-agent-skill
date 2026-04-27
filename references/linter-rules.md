@@ -1,28 +1,28 @@
-# 多语言排版规范与 Linter 规则
+# Multi-language Typography & Linter Rules
 
-为了提升翻译质量和 UI 阅读体验，`i18n-agent-skill` 内置了基于语系的翻译质量审计规则 (Quality Linting)。
+To improve translation quality and UI reading experience, `i18n-agent-skill` includes built-in Quality Linting rules based on language families.
 
-## 1. CJK 语系规则 (中日韩)
+## 1. CJK Language Rules (Chinese, Japanese, Korean)
 
-### 中西混排空格 (Mixed Spacing)
-- **规则**: 在东亚字符（汉字、假名、韩文音节）与西文字母或数字之间建议添加一个空格。
-- **目的**: 缓解视觉压迫感，符合现代中文排版标准（如《中文排版需求》）。
-- **示例**: `扫描到10个文件` -> `扫描到 10 个文件`。
+### Mixed Spacing
+- **Rule**: A space is recommended between East Asian characters (Hanzi, Kana, Hangul) and Latin letters or digits.
+- **Purpose**: Reduces visual density and conforms to modern CJK typography standards (e.g., "Requirements for Chinese Text Layout").
+- **Example**: `Found 10 files` -> `Found 10 files` (Note: for CJK this would be `扫描到 10 个文件`).
 
-### 全角标点校验 (Full-width Punctuation)
-- **规则**: 在中文语境下，建议将半角逗号 `,` 替换为全角逗号 `，`。
-- **目的**: 保持 UI 视觉的一致性，避免断句处出现不协调的留白。
+### Full-width Punctuation
+- **Rule**: In Chinese context, replacing half-width commas `,` with full-width commas `，` is recommended.
+- **Purpose**: Maintains visual consistency and avoids awkward gaps in sentences.
 
-## 2. Latin 语系规则 (英法德意等)
+## 2. Latin Language Rules (English, French, German, Italian, etc.)
 
-### 异常连续空格 (Consecutive Spaces)
-- **规则**: 查找两个及以上的连续空格并建议合并为一个。
-- **目的**: 修正因机器翻译或拼凑生成的字符串中多出的空格。
+### Consecutive Spaces
+- **Rule**: Detects two or more consecutive spaces and suggests merging them into one.
+- **Purpose**: Corrects extra spaces often introduced by machine translation or string concatenation.
 
-### 标点后空格校验 (Punctuation Spacing)
-- **规则**: 在句号 `.`、逗号 `,`、冒号 `:`、问号 `?` 之后若紧跟字母，建议插入一个空格。
-- **目的**: 符合西文排版书写习惯。
-- **注意**: 该规则会自动忽略数字之间的小数点（如 `3.14`）。
+### Punctuation Spacing
+- **Rule**: A space should follow punctuation marks like periods `.`, commas `,`, colons `:`, and question marks `?` if they are followed by a letter.
+- **Purpose**: Conforms to standard Western typographic conventions.
+- **Note**: This rule automatically ignores decimals in numbers (e.g., `3.14`).
 
-## 如何应用修复？
-审计发现的问题会通过 `StyleFeedback` 模型返回。在使用 `sync` 或 `fix` 指令时，系统会生成修复提案供用户预览并提交。
+## How to Apply Fixes
+Issues identified during audits are returned via the `StyleFeedback` model. When using `sync` or `fix` commands, the system generates repair proposals for you to preview and commit.

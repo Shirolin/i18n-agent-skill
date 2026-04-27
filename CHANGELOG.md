@@ -1,35 +1,35 @@
 # AI Evolution & Modification Trace 📜
 
-本项目记录了 AI 助手在人类指引下，经历数百轮对话、数千次逻辑修正所达成的工程化成果。
+This project records the engineering achievements achieved by the AI assistant under human guidance through hundreds of rounds of dialogue and thousands of logical corrections.
 
-## 📍 [Phase 8] v2.1 极致工程化与标准化 (The Engineering Leap)
-**当前阶段：实现全自动工程门禁、基础设施据点化及 TS 生态深度兼容。**
+## 📍 [Phase 8] v2.1 Ultimate Engineering & Standardization (The Engineering Leap)
+**Current Stage: Implementing fully automated engineering gates, infrastructure stronghold, and deep TS ecosystem compatibility.**
 
-- **基础设施据点化 (Stronghold Pattern)**: 重构 `install-skill.sh`，实现对 `.agents`/`.claude`/`.gemini` 目录的智能检测与复用，防止根目录散乱。
-- **TS 语言包深度兼容**: 引入启发式预处理器，完美支持带注释、未加引号 Key 及尾逗号的非标 TS/JS 语言包解析。
-- **自动化忽略协议**: 在 `init` 流程中实现 `.gitignore` 自动注入，确保 `.i18n-*` 运行时文件对 Git 保持物理隔离。
-- **工业级质量门禁 (TS-like Workflow)**: 深度集成 Ruff 与 Mypy，提供一键体检脚本 `scripts/check.py`，实现“全绿”代码交付。
-- **CI/CD 全自动流水线**: 上线 GitHub Actions，实现云端自动化的依赖安装、质量审计与单元测试。
-- **隐私屏蔽增强 (Privacy 2.1)**: 更新防御矩阵，原生识别带中划线的现代 API 密钥格式（如 `sk-ant-`）。
+- **Infrastructure Stronghold (Stronghold Pattern)**: Refactored `install-skill.sh` for intelligent detection and reuse of `.agents`/`.claude`/`.gemini` directories, preventing root directory clutter.
+- **Deep TS Locale Compatibility**: Introduced a heuristic preprocessor for perfect parsing of non-standard TS/JS locale files with comments, unquoted keys, and trailing commas.
+- **Automated Ignore Protocol**: Implemented automatic `.gitignore` injection during the `init` process, ensuring `.i18n-*` runtime files remain physically isolated from Git.
+- **Industrial Quality Gate (TS-like Workflow)**: Deeply integrated Ruff and Mypy, providing a one-click health check script `scripts/check.py` for "all-green" code delivery.
+- **CI/CD Fully Automated Pipeline**: Launched GitHub Actions for cloud-based automated dependency installation, quality auditing, and unit testing.
+- **Privacy Masking Enhancement (Privacy 2.1)**: Updated the defense matrix to natively recognize modern API key formats with hyphens (e.g., `sk-ant-`).
 
-## 📍 [Phase 7] v2.0 工业级生产就绪 (Final Delivery)
-**当前阶段：实现环境鲁棒性、物理隔离能力与 100% 确定性的正式版交付。**
+## 📍 [Phase 7] v2.0 Industrial Production Ready (Final Delivery)
+**Current Stage: Achieving environmental robustness, physical isolation capabilities, and 100% deterministic official release delivery.**
 
-- **内核革命 (Full AST Engine)**: 彻底移除正则补丁。采用 Tree-sitter 0.20.4 锁定版本，解决 Windows 下字符串节点内容偏移量 Bug。
-- **物理隔离 (Comment Immunity)**: 通过语法树语义过滤，天然免疫 `//` 或 `/* */` 注释干扰，URL 再无误报风险。
-- **隐私护盾重装 (Privacy Shield 2.0)**: 恢复 API_KEY、Email、IP 的本地正则防御矩阵。支持强制提取即使非自然语言特征的敏感信息。
-- **字典拓扑同步**: 找回并重写了 `_flatten_dict` 与 `_deep_update` 算法，支持无限嵌套 JSON 语言包的无损增量同步。
-- **环境鲁棒性修复**: 修复了在不同 CWD 环境下测试路径失效的顽疾，统一使用 `WORKSPACE_ROOT` 协议。
-- **冗余清理**: 物理移除了过时的 `ast_scanner.mjs`，统一 Python 原生驱动。
+- **Kernel Revolution (Full AST Engine)**: Completely removed RegEx patches. Adopted Tree-sitter 0.20.4 locked version, solving the string node content offset bug on Windows.
+- **Physical Isolation (Comment Immunity)**: Naturally immune to `//` or `/* */` comment interference through syntax tree semantic filtering; no more false positives for URLs.
+- **Privacy Shield Reloaded (Privacy Shield 2.0)**: Restored local RegEx defense matrix for API_KEY, Email, and IP. Supports forced extraction of sensitive information even without natural language features.
+- **Dictionary Topology Sync**: Recovered and rewrote `_flatten_dict` and `_deep_update` algorithms, supporting lossless incremental synchronization of infinitely nested JSON locales.
+- **Environmental Robustness Fix**: Fixed a long-standing issue where test paths failed under different CWD environments; unified using the `WORKSPACE_ROOT` protocol.
+- **Redundancy Cleanup**: Physically removed the obsolete `ast_scanner.mjs`, unified under Python native driver.
 
-## 📍 [Phase 6] AST 结构化革命 (Turns 351 - 400+)
-- **Tree-sitter 架构集成**: 引入 `tree-sitter-javascript`, `tree-sitter-typescript` 实现了对源码的像素级解析。
-- **声明式查询 (S-Expressions)**: 引入 Tree-sitter Query 语法。
-- **模板嵌套解析**: AST 原生支持模板字符串解构。
+## 📍 [Phase 6] AST Structural Revolution (Turns 351 - 400+)
+- **Tree-sitter Architecture Integration**: Introduced `tree-sitter-javascript` and `tree-sitter-typescript` for pixel-level parsing of source code.
+- **Declarative Query (S-Expressions)**: Introduced Tree-sitter Query syntax.
+- **Nested Template Parsing**: AST natively supports template literal deconstruction.
 
-## 📍 [Phase 5] 架构降维与 CLI 优先 (Turns 321 - 350)
-- **CLI-First 双模驱动**: 彻底重写了 `__main__.py`。
-- **自愈式帮助系统**: 补全了所有子命令的 `--help` 逻辑。
+## 📍 [Phase 5] Architecture Dimension Reduction & CLI First (Turns 321 - 350)
+- **CLI-First Dual-Mode Driver**: Completely rewrote `__main__.py`.
+- **Self-healing Help System**: Completed `--help` logic for all subcommands.
 
 ---
 *Generated with ❤️ by Gemini CLI - From Regex Hack to AST Mastery.*

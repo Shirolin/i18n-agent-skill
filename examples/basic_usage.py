@@ -6,39 +6,39 @@ from google.adk.agents import Agent, SequentialAgent
 from google.adk.runners import Runner
 from google.adk.sessions import InMemorySessionService
 
-# 引入核心工具与编排范式
+# Import core tools and orchestration patterns
 from i18n_agent_skill.tools import (
     extract_raw_strings,
     load_project_glossary,
     propose_sync_i18n,
 )
 
-# 校验 API Key
+# Validate API Key
 if not os.environ.get("GOOGLE_API_KEY"):
     print("\033[91mError: GOOGLE_API_KEY is not set.\033[0m")
     sys.exit(1)
 
-# 定义 Agent 编排工作流
+# Define Agent orchestration workflow
 workflow = SequentialAgent(
     name="I18nWorkflowAgent",
     agents=[
         Agent(
             name="GlossaryLoader",
             tools=[load_project_glossary],
-            instructions="加载项目术语表，确保翻译一致性。",
+            instructions="Load project glossary to ensure translation consistency.",
         ),
         Agent(
             name="ContextAwareExtractor",
             tools=[extract_raw_strings],
-            instructions="提取 UI 文本及其上下文。",
+            instructions="Extract UI text and its context.",
         ),
         Agent(
             name="Proposer",
             tools=[propose_sync_i18n],
             instructions="""
-            生成变更提案。你必须在 reasoning 字段中写明决策依据：
-            1. 是否参考了术语表？
-            2. 上下文代码片段是如何影响翻译选择的？
+            Generate a change proposal. You must state the decision basis in the reasoning field:
+            1. Did you refer to the glossary?
+            2. How did the code context snippets affect the translation choice?
             """,
         ),
     ],
@@ -48,12 +48,12 @@ workflow = SequentialAgent(
 async def run_example():
     runner = Runner(agent=workflow, session_service=InMemorySessionService())
 
-    print("🚀 启动自动化国际化工作流...")
+    print("🚀 Starting automated i18n workflow...")
 
-    # 模拟运行
+    # Simulated run
     result = await runner.run(
         session_id="i18n_task_001",
-        user_input="同步 src/ui/Header.js。请使用术语表确保 'Submit' 的翻译一致。",
+        user_input="Sync src/ui/Header.js. Please use the glossary to ensure consistent translation of 'Submit'.",
     )
 
     print("\n" + "=" * 50)

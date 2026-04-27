@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-i18n-cli.py — i18n-agent-skill 标准命令行入口
-封装了核心模块并增加了系统就绪检查。
+i18n-cli.py — Standard CLI entry point for i18n-agent-skill.
+Wraps the core module and adds system readiness checks.
 """
 
 import importlib.util
@@ -9,16 +9,16 @@ import sys
 
 
 def check_readiness():
-    """检查环境是否就绪"""
+    """Check if the environment is ready."""
     if importlib.util.find_spec("i18n_agent_skill") is None:
-        print("[ERROR] i18n_agent_skill 模块未安装。")
-        print("请运行: pip install -e .")
+        print("[ERROR] i18n_agent_skill module is not installed.")
+        print("Please run: pip install -e .")
         return False
     return True
 
 
 def run_main():
-    """调用核心入口"""
+    """Invoke the core entry point."""
     if not check_readiness():
         sys.exit(1)
 
