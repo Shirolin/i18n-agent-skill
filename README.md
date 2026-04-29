@@ -13,9 +13,10 @@
 
 ## ✨ Core Advantages
 
-- **Tree-sitter AST Engine**: Millisecond-level parsing with 100% comment isolation. Supports deep nesting in JSX, Vue, and TSX.
+- **Tree-sitter AST Engine**: Precise parsing with 100% comment isolation. Covers both source code extraction and locale file parsing (JSON/TS/JS).
+- **Dead Key Detection**: Automatically identifies and reports unused translation keys in your locales to reduce technical debt.
 - **Quality Evolution Engine**: Idempotent optimization based on translation lifecycle states. Automatically learns terminology from human corrections.
-- **Expert Quality Audit**: Generates in-depth reports identifying terminology inconsistencies, missing context, and non-native phrasing.
+- **Expert Quality Audit**: Generates in-depth reports identifying terminology inconsistencies, missing context, and non-native phrasing (Now robust with **Token Masking**).
 - **Cross-Language Semantic Projection**: Anchors translations to your familiar language (e.g., zh-CN) to ensure semantic consistency across all target languages.
 - **Privacy Shield**: Local hashing and masking for sensitive data, ensuring your source code never leaves your sandbox.
 - **Fully Isolated & Zero-Config**: Automatic `.venv` creation and one-click deployment to 10+ AI Agent platforms.
@@ -75,8 +76,9 @@ Automatically detects and deploys to the following rule/skill directories:
 | :--- | :--- |
 | `/i18n-init` | **Initialization**: Scan project and generate `.i18n-skill.json` config. |
 | `/i18n-status` | Status Check: Verify project configuration and environment readiness. |
-| `/i18n-audit` | Coverage Audit: Check for missing keys across locale files. |
-| `/i18n-audit-quality` | **Quality Audit**: Generate expert reports on phrasing and consistency. |
+| `/i18n-audit` | Coverage Audit: Check for missing keys and detect dead (unused) keys. |
+| `/i18n-cleanup` | **Technical Debt Cleanup**: Generate detailed reports of unused i18n keys. |
+| `/i18n-audit-quality` | **Quality Audit**: Expert reports on phrasing and consistency (Robust with Token Masking). |
 | `/i18n-pivot-sync` | **Semantic Projection**: Sync target languages based on a familiar reference language. |
 | `/i18n-sync` | Smart Sync: Generate translation synchronization proposals. |
 | `/i18n-commit` | **Apply Changes**: Formally commit and write proposals to locale files. |
