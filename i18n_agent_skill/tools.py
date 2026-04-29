@@ -7,6 +7,7 @@ import time
 from typing import Any
 
 import aiofiles
+import yaml
 
 # Core dependencies: Tree-sitter lexical analysis suite
 try:
@@ -883,8 +884,8 @@ async def get_dead_keys(lang_code: str = "en") -> list[str]:
 
 
 async def _load_locale_data(target_dir: str, lang: str) -> dict:
-    """Load locale data across formats (json -> ts -> js)"""
-    for ext in (".json", ".ts", ".js"):
+    """Load locale data across formats (json -> yaml -> ts -> js)"""
+    for ext in (".json", ".yaml", ".yml", ".ts", ".js"):
         p = _validate_safe_path(os.path.join(target_dir, f"{lang}{ext}"))
         if not os.path.exists(p):
             continue
@@ -895,6 +896,13 @@ async def _load_locale_data(target_dir: str, lang: str) -> dict:
 
             if ext == ".json":
                 return json.loads(content)
+
+            if ext in (".yaml", ".yml"):
+                return yaml.safe_load(content) or {}
+
+
+            if ext in (".yaml", ".yml"):
+                return yaml.safe_load(content) or {}
 
             # Use Tree-Sitter for robust TS/JS parsing
             try:
@@ -1008,13 +1016,15 @@ async def _load_locale_data(target_dir: str, lang: str) -> dict:
 
 async def _save_locale_data(path: str, data: dict):
     """Write back locale data across formats."""
-    ext = os.path.splitext(path)[1]
-    json_str = json.dumps(data, indent=2, ensure_ascii=False, sort_keys=True)
+    ext = os.path.splitext(path)[1].lower()
 
     if ext in (".ts", ".js"):
+        json_str = json.dumps(data, indent=2, ensure_ascii=False, sort_keys=True)
         content = f"export default {json_str};\n"
+    elif ext in (".yaml", ".yml"):
+        content = yaml.dump(data, allow_unicode=True, sort_keys=True, indent=2)
     else:
-        content = json_str
+        content = json.dumps(data, indent=2, ensure_ascii=False, sort_keys=True)
 
     os.makedirs(os.path.dirname(path), exist_ok=True)
     async with aiofiles.open(path, "w", encoding="utf-8") as f:
@@ -1110,7 +1120,7 @@ def _detect_enabled_langs(locale_dir: str) -> list[str]:
         return []
 
     langs = []
-    pattern = re.compile(r"^([a-zA-Z0-9_-]+)\.(json|ts|js)$")
+    pattern = re.compile(r"^([a-zA-Z0-9_-]+)\.(json|ts|js|yaml|yml)$")
     for f in os.listdir(target):
         match = pattern.match(f)
         if match:

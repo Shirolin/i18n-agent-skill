@@ -3,6 +3,7 @@ import pytest
 import tempfile
 import shutil
 import json
+import yaml
 from i18n_agent_skill import tools
 
 @pytest.fixture
@@ -69,5 +70,36 @@ async def test_load_ts_locale_with_comments(temp_workspace):
     with open(ts_path, "w", encoding="utf-8") as f:
         f.write(ts_content)
         
+@pytest.mark.asyncio
+async def test_load_yaml_locale(temp_workspace):
+    locales_dir = os.path.join(temp_workspace, "locales")
+    os.makedirs(locales_dir)
+    
+    yaml_content = """
+    common:
+      welcome: "Welcome to YAML"
+      nested:
+        key: "value"
+    """
+    yaml_path = os.path.join(locales_dir, "en.yaml")
+    with open(yaml_path, "w", encoding="utf-8") as f:
+        f.write(yaml_content)
+        
     data = await tools._load_locale_data(locales_dir, "en")
-    assert data["key"] == "val"
+    assert data["common"]["welcome"] == "Welcome to YAML"
+    assert data["common"]["nested"]["key"] == "value"
+
+@pytest.mark.asyncio
+async def test_save_yaml_locale(temp_workspace):
+    locales_dir = os.path.join(temp_workspace, "locales")
+    os.makedirs(locales_dir)
+    
+    data = {"ui": {"title": "Hello YAML"}}
+    yaml_path = os.path.join(locales_dir, "en.yml")
+    
+    await tools._save_locale_data(yaml_path, data)
+    
+    assert os.path.exists(yaml_path)
+    with open(yaml_path, "r", encoding="utf-8") as f:
+        loaded = yaml.safe_load(f)
+        assert loaded["ui"]["title"] == "Hello YAML"

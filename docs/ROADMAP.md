@@ -18,14 +18,14 @@ This document tracks planned features and architectural enhancements to keep **i
 ## 3. Universal Format Bridge
 *Focus: Becoming the "Swiss Army Knife" of i18n.*
 - [x] **AST Locale Parsing**: Implement robust TS/JS object parsing using Tree-sitter (Replaces fragile RegEx).
-- [ ] **YAML Support**: Add support for `.yml` / `.yaml` locale files using `PyYAML`.
+- [x] **YAML Support**: Add support for `.yml` / `.yaml` locale files using `PyYAML`.
 - [ ] **Legacy Format**: Support `.properties` for legacy enterprise project migrations.
 - [! ] *DEPRECATED*: Cross-Format Sync (e.g., JSON to YAML) has been removed to maintain architectural simplicity.
 
 ## 4. Deep Semantic Consistency & Cleanup
 *Focus: Catching logical bugs before they reach the user.*
 - [x] **Variable Safety Lock**: Ensure placeholders match between source and target (Now robust with Token Masking).
-- [ ] **Dead Key Detection**: Cross-reference the AST scanner with locale files to identify and safely prune unused translation keys.
+- [x] **Dead Key Detection**: Cross-reference the AST scanner with locale files to identify and safely prune unused translation keys.
 - [ ] **Key-Text Mismatch**: Use AI to detect if a Key name (e.g., `cancel_btn`) contradicts the actual text (e.g., "Confirm").
 
 ## 5. Performance & Scaling
