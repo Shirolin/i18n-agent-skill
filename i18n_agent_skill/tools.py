@@ -200,6 +200,13 @@ QUERY_STRINGS = {
         (jsx_text) @text
         (string) @text
         (template_string) @text
+        (call_expression 
+            function: [
+                (identifier) @func (#any-of? @func "t" "$t")
+                (member_expression property: (property_identifier) @method (#eq? @method "t"))
+            ]
+            arguments: (arguments . (string) @key)
+        )
     """,
     "vue": """
         (text) @text
@@ -212,6 +219,13 @@ QUERY_STRINGS = {
     "js": """
         (string) @text
         (template_string) @text
+        (call_expression 
+            function: [
+                (identifier) @func (#any-of? @func "t" "$t")
+                (member_expression property: (property_identifier) @method (#eq? @method "t"))
+            ]
+            arguments: (arguments . (string) @key)
+        )
     """,
 }
 
@@ -260,8 +274,20 @@ class TreeSitterScanner:
 
             res = []
             for _, captures in matches:
+                # Priority 1: Check for i18n keys (@key)
+                if "key" in captures:
+                    for node in captures["key"]:
+                        try:
+                            key_text = node.text.decode("utf-8").strip("'\"")
+                            line_no = node.start_point[0] + 1 + line_offset
+                            res.append((key_text, line_no, "i18n_key"))
+                        except Exception:
+                            continue
+                    continue
+
+                # Priority 2: Check for natural language text (@text, @script)
                 for c_name, nodes in captures.items():
-                    if c_name == "attr_name":
+                    if c_name in ("attr_name", "func", "method"):
                         continue
 
                     for node in nodes:
@@ -811,6 +837,49 @@ async def get_missing_keys(lang_code: str, base_lang: str = "en") -> dict:
     flat_td = _flatten_dict(td)
 
     return {k: v for k, v in flat_bd.items() if k not in flat_td}
+
+
+async def get_dead_keys(lang_code: str = "en") -> list[str]:
+    """Identify keys in the locale file that are not used in source code."""
+    config = await _load_project_config()
+    target_dir = _detect_locale_dir(config)
+    
+    # 1. Load all keys from locale file
+    locale_data = await _load_locale_data(target_dir, lang_code)
+    all_locale_keys = set(_flatten_dict(locale_data).keys())
+    
+    if not all_locale_keys:
+        return []
+
+    # 2. Scan source code for used keys
+    used_keys = set()
+    valid_exts = {".js", ".jsx", ".ts", ".tsx", ".vue"}
+    
+    source_dirs = config.source_dirs or ["src"]
+    for s_dir in source_dirs:
+        abs_s_dir = os.path.join(WORKSPACE_ROOT, s_dir)
+        if not os.path.exists(abs_s_dir):
+            continue
+            
+        for root, _, files in os.walk(abs_s_dir):
+            for file in files:
+                ext = os.path.splitext(file)[1].lower()
+                if ext in valid_exts:
+                    fpath = os.path.join(root, file)
+                    try:
+                        async with aiofiles.open(fpath, encoding="utf-8") as f:
+                            content = await f.read()
+                        
+                        scanner = TreeSitterScanner(content, ext)
+                        for text, _, origin in scanner.scan():
+                            if origin == "i18n_key":
+                                used_keys.add(text)
+                    except Exception:
+                        continue
+
+    # 3. Calculate difference (Locale Keys - Used Keys)
+    dead_keys = sorted(list(all_locale_keys - used_keys))
+    return dead_keys
 
 
 async def _load_locale_data(target_dir: str, lang: str) -> dict:

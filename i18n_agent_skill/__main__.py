@@ -46,6 +46,7 @@ from i18n_agent_skill.tools import (  # noqa: E402
     distill_project_persona,
     extract_raw_strings,
     generate_quality_report,
+    get_dead_keys,
     get_missing_keys,
     initialize_project_config,
     optimize_translations,
@@ -165,7 +166,15 @@ async def cli_main():
     save_p_parser = subparsers.add_parser("save-persona", help="Save confirmed business persona.")
     save_p_parser.add_argument("data", help="JSON string of persona (domain, audience, tone).")
 
-    # 13. mcp
+    # 13. cleanup
+    cleanup_parser = subparsers.add_parser(
+        "cleanup", help="Identify and report dead (unused) i18n keys."
+    )
+    cleanup_parser.add_argument(
+        "--lang", default="en", help="Language to check for dead keys (defaults to 'en')."
+    )
+
+    # 14. mcp
     subparsers.add_parser("mcp", help="Run as MCP Server.")
 
     args = parser.parse_args()
@@ -208,6 +217,15 @@ async def cli_main():
             _print_json({"message": save_res})
         except json.JSONDecodeError:
             _print_json({"error": "Invalid JSON string for persona data."})
+
+    elif args.command == "cleanup":
+        dead_keys = await get_dead_keys(lang_code=args.lang)
+        _print_json({
+            "language": args.lang,
+            "dead_keys_count": len(dead_keys),
+            "dead_keys": dead_keys,
+            "message": f"Found {len(dead_keys)} unused keys in '{args.lang}'. Suggest pruning these to reduce technical debt."
+        })
 
     elif args.command == "scan":
         if os.path.isdir(args.path):
@@ -259,7 +277,14 @@ async def cli_main():
             _print_json(audit_results)
         else:
             missing_keys = await get_missing_keys(args.lang, base_lang=args.base)
-            _print_json(missing_keys)
+            dead_keys = await get_dead_keys(lang_code=args.lang)
+            _print_json({
+                "language": args.lang,
+                "missing_keys_count": len(missing_keys),
+                "missing_keys": missing_keys,
+                "dead_keys_count": len(dead_keys),
+                "message": f"Audit complete for '{args.lang}'. Found {len(missing_keys)} missing and {len(dead_keys)} unused keys."
+            })
 
     elif args.command == "sync":
         try:
