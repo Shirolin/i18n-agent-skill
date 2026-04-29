@@ -1,7 +1,7 @@
 ---
 name: i18n-agent-skill
 description: >-
-  High-performance frontend internationalization expert. Supports precise string extraction via Tree-sitter AST, 
+  High-performance frontend internationalization expert. Supports precise string extraction and locale parsing via Tree-sitter AST, 
   full coverage auditing, automated synchronization, and expert-level Quality Audits. 
   Features a "file-driven" optimization workflow for large-scale translation polish and pivot-syncing, 
   ensuring professional quality and proper typography for mature projects.

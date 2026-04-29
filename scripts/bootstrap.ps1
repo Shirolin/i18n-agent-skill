@@ -27,8 +27,8 @@ if (!(Test-Path $venv_python)) {
     Write-Error "Failed to create virtual environment."
     exit 1
 }
-& $venv_python -m pip install --upgrade pip --quiet
-& $venv_python -m pip install -e . --quiet
+& $venv_python -m pip install --upgrade pip
+& $venv_python -m pip install -e .
 Write-Host "[OK]    Isolated environment ready." -ForegroundColor Green
 
 # 2. Level 5 Detection Sequence

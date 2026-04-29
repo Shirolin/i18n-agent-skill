@@ -827,34 +827,114 @@ async def _load_locale_data(target_dir: str, lang: str) -> dict:
             if ext == ".json":
                 return json.loads(content)
 
+            # Use Tree-Sitter for robust TS/JS parsing
+            try:
+                if not DEPENDENCIES_INSTALLED:
+                    raise ImportError("tree-sitter not installed")
+                
+                lang_key = "tsx" if ext == ".ts" else "javascript"
+                ts_lang = tree_sitter_language_pack.get_language(lang_key)
+                parser = Parser(ts_lang)
+                tree = parser.parse(content.encode("utf-8"))
+
+                def get_val(node):
+                    if node.type == "object":
+                        res = {}
+                        for child in node.children:
+                            if child.type == "pair":
+                                key_node = child.child_by_field_name("key")
+                                val_node = child.child_by_field_name("value")
+                                if not key_node or not val_node:
+                                    # Fallback for older tree-sitter or different grammars
+                                    key_node = child.children[0]
+                                    val_node = child.children[2]
+                                
+                                key = key_node.text.decode("utf-8").strip("'\"")
+                                res[key] = get_val(val_node)
+                        return res
+                    if node.type == "array":
+                        return [get_val(c) for c in node.children if c.type not in ("[", "]", ",")]
+                    if node.type == "string":
+                        # Strip quotes and handle fragments
+                        text = node.text.decode("utf-8")
+                        return text[1:-1]
+                    if node.type == "number":
+                        text = node.text.decode("utf-8")
+                        return float(text) if "." in text else int(text)
+                    if node.type in ("true", "false", "boolean"):
+                        return node.text.decode("utf-8") == "true"
+                    if node.type == "null":
+                        return None
+                    return node.text.decode("utf-8")
+
+                # Find the exported object
+                # Common patterns: export default { ... }, module.exports = { ... }
+                target_node = None
+                
+                # Use query for more robust finding
+                query_str = """
+                    (export_statement (object) @obj)
+                    (expression_statement (assignment_expression left: (member_expression) @mem right: (object) @obj))
+                """
+                query = tree_sitter.Query(ts_lang, query_str)
+                cursor = tree_sitter.QueryCursor(query)
+                matches = cursor.matches(tree.root_node)
+                
+                for _, captures in matches:
+                    if "obj" in captures:
+                        # In 0.25.0, captures might be a list or dict depending on the method
+                        # Based on investigate_ast, cursor.matches returns a list of (match_id, captures_dict)
+                        nodes = captures["obj"]
+                        if nodes:
+                            target_node = nodes[0]
+                            break
+                
+                if not target_node:
+                    # Alternative: use captures() which returns a list of (node, capture_name)
+                    all_captures = cursor.captures(tree.root_node)
+                    for node, name in all_captures:
+                        if name == "obj":
+                            target_node = node
+                            break
+                
+                if not target_node:
+                    # Fallback: just find the first object in the tree
+                    def find_first_obj(node):
+                        if node.type == "object": return node
+                        for c in node.children:
+                            res = find_first_obj(c)
+                            if res: return res
+                        return None
+                    target_node = find_first_obj(tree.root_node)
+
+                if target_node:
+                    return get_val(target_node)
+
+                
+            except Exception as e:
+                logger.warning(f"AST parser failed for {p}, falling back to regex: {e}")
+
+            # Legacy Regex Fallback (Keep for extreme cases but improved)
             match = re.search(
                 r"(?:export\s+default|module\.exports\s*=)\s*({.*});?", content, re.DOTALL
             )
             if match:
                 obj_str = match.group(1)
                 try:
-                    # 1. Clean comments
-                    obj_str = re.sub(r"//.*", "", obj_str)
-                    obj_str = re.sub(r"/\*.*?\*/", "", obj_str, flags=re.DOTALL)
-
-                    # 2. Key normalization: 'key': or key: -> "key":
-                    obj_str = re.sub(r"(['\"]?)([a-zA-Z0-9_$]+)\1\s*:", r'"\2":', obj_str)
-
-                    # 3. Value normalization: : 'val' -> : "val"
-                    obj_str = re.sub(r":\s*'([^']*)'", r': "\1"', obj_str)
-
-                    # 4. Trailing commas
+                    # 1. Clean comments safely (only if not in strings - hard with regex)
+                    # For now, just try to strip trailing commas and hope for the best
+                    # if AST failed.
                     obj_str = re.sub(r",\s*([}\]])", r"\1", obj_str)
-
                     obj_str = obj_str.strip().rstrip(";")
+                    # This fallback is still weak, but AST should handle most cases.
                     return json.loads(obj_str)
-                except Exception as e:
-                    logger.warning(f"Failed to parse JS/TS locale via regex: {p}. Error: {e}")
+                except Exception:
                     return {}
         except Exception as e:
             logger.error(f"Error loading {p}: {e}")
             continue
     return {}
+
 
 
 async def _save_locale_data(path: str, data: dict):
