@@ -5,7 +5,7 @@
 set -eu
 
 SKILL_NAME="i18n-agent-skill"
-VERSION="0.1.0"
+VERSION="0.2.0"
 SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 
 # UI Helpers

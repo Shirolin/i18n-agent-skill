@@ -1,6 +1,6 @@
 {
   "name": "i18n-agent-skill",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Enterprise-grade frontend i18n automation tool. Features: AST-based extraction, Privacy Shielding, and Quality Evolution Engine. Optimized for AI agents (Cursor, Claude Code, Windsurf).",
   "keywords": [
     "i18n",
