@@ -2,36 +2,38 @@
 
 This document tracks planned features and architectural enhancements to keep **i18n-agent-skill** at the forefront of AI-native internationalization.
 
-## 1. BiDi & RTL Support (Arabic/Hebrew)
-*Focus: Mastering the most complex part of global UI.*
-- [ ] **RTL Recognition**: Implement `RTL_LANGS` detection in `linter.py`.
-- [ ] **BiDi Safety Audit**: Add placeholder validation to ensure variables (e.g., `{name}`) and punctuation (e.g., `؟`, `،`) maintain correct flow in bidirectional text.
-- [ ] **RTL Preview**: Optimize Terminal/Markdown report rendering for RTL languages to prevent character inversion.
+## 1. Deep Semantic Consistency & Cleanup
+*Focus: Catching logical bugs before they reach the user.*
+- [x] **Variable Safety Lock**: Ensure placeholders match between source and target (Now robust with Token Masking).
+- [x] **Dead Key Detection**: Cross-reference the AST scanner with locale files to identify and safely prune unused translation keys.
+- [ ] **Key-Text Mismatch (Priority 🌟)**: Use AI to detect if a Key name (e.g., `cancel_btn`) contradicts the actual text (e.g., "Confirm").
+- [ ] **Context-Aware Hallucination Check**: Detect when the LLM generates plausible but factually incorrect UI text based on project-specific business logic.
 
-## 2. Domain-Specific Persona & Tone
+## 2. Universal Format Bridge
+*Focus: Becoming the "Swiss Army Knife" of i18n.*
+- [x] **AST Locale Parsing**: Implement robust TS/JS object parsing using Tree-sitter (Replaces fragile RegEx).
+- [x] **YAML Support**: Full support for `.yml` / `.yaml` locale files using `PyYAML`.
+- [ ] **Legacy Format**: Support `.properties` for legacy enterprise project migrations.
+- [! ] *DEPRECATED*: Cross-Format Sync (e.g., JSON to YAML) has been removed to maintain architectural simplicity.
+
+## 3. Domain-Specific Persona & Tone
 *Focus: Moving from "accurate" to "idiomatic and branded".*
 - [x] **Project Persona**: Add `domain` and `tone` to `.i18n-skill.json`.
 - [x] **Autonomous Distillation**: Automatically infer project persona from README, package.json, and UI samples.
 - [x] **Context Injection**: Automatically inject these personas into LLM prompts for `audit-quality` and `optimize` workflows.
 - [ ] **Glossary Integration**: Deeply bind domain-specific terminology (e.g., Fintech vs Gaming) to the optimization loop.
 
-## 3. Universal Format Bridge
-*Focus: Becoming the "Swiss Army Knife" of i18n.*
-- [x] **AST Locale Parsing**: Implement robust TS/JS object parsing using Tree-sitter (Replaces fragile RegEx).
-- [x] **YAML Support**: Add support for `.yml` / `.yaml` locale files using `PyYAML`.
-- [ ] **Legacy Format**: Support `.properties` for legacy enterprise project migrations.
-- [! ] *DEPRECATED*: Cross-Format Sync (e.g., JSON to YAML) has been removed to maintain architectural simplicity.
+## 4. BiDi & RTL Support (Arabic/Hebrew)
+*Focus: Mastering the most complex part of global UI.*
+- [ ] **RTL Recognition**: Implement `RTL_LANGS` detection in `linter.py`.
+- [ ] **BiDi Safety Audit**: Add placeholder validation to ensure variables (e.g., `{name}`) and punctuation (e.g., `؟`, `،`) maintain correct flow in bidirectional text.
+- [ ] **RTL Preview**: Optimize Terminal/Markdown report rendering for RTL languages to prevent character inversion.
 
-## 4. Deep Semantic Consistency & Cleanup
-*Focus: Catching logical bugs before they reach the user.*
-- [x] **Variable Safety Lock**: Ensure placeholders match between source and target (Now robust with Token Masking).
-- [x] **Dead Key Detection**: Cross-reference the AST scanner with locale files to identify and safely prune unused translation keys.
-- [ ] **Key-Text Mismatch**: Use AI to detect if a Key name (e.g., `cancel_btn`) contradicts the actual text (e.g., "Confirm").
-
-## 5. Performance & Scaling
-*Focus: Scaling for enterprise-grade monorepos.*
-- [x] **Hash Caching**: Efficiently skip unchanged files using MD5-based cache (`.i18n-cache.json`).
+## 5. Industrial-Grade Reliability (New 🛠️)
+*Focus: Ensuring the tool works everywhere, every time.*
 - [x] **Token Masking**: Protect special sequences (URL, Variables) during typography linting to reduce false positives.
+- [x] **Robust Installer**: Redesigned `bootstrap.ps1` with progress feedback to prevent AI agent timeouts.
+- [x] **CI/CD Integrity**: Automated quality gates using `ruff` and `mypy` with customized Tree-sitter type safety overrides.
 - [ ] **Parallel Processing**: Implement concurrent LLM requests for massive translation tasks.
 
 ---
