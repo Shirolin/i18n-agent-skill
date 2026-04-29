@@ -1,8 +1,8 @@
 import re
 from dataclasses import dataclass
-from typing import Any
 
 from i18n_agent_skill.models import StyleFeedback
+
 
 # ==========================================
 # Text Masking Engine
@@ -12,17 +12,21 @@ class MaskedText:
     text: str
     masks: dict[str, str]
 
+
 class TextMasker:
     """
     Protects variables, URLs, and HTML tags from being destroyed by typography linters.
     """
+
     # Patterns to protect, ordered by priority
     PATTERNS = [
-        r"https?://[^\s<>\"']+|-?[a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)", # URLs
-        r"[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+", # Emails
-        r"<[^>]+>", # HTML tags
-        r"\{\{[^}]+\}\}|\{[^}]+\}", # Placeholders like {var} or {{var}}
-        r"%[sdofxX]", # C-style format specifiers like %s, %d
+        # URLs
+        r"https?://[^\s<>\"']+|"
+        r"-?[a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)",
+        r"[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+",  # Emails
+        r"<[^>]+>",  # HTML tags
+        r"\{\{[^}]+\}\}|\{[^}]+\}",  # Placeholders like {var} or {{var}}
+        r"%[sdofxX]",  # C-style format specifiers like %s, %d
     ]
 
     @classmethod
@@ -33,7 +37,7 @@ class TextMasker:
 
         # Combine all patterns into one to avoid overlapping matches
         combined_pattern = "|".join(f"({p})" for p in cls.PATTERNS)
-        
+
         def replace_fn(match):
             nonlocal counter
             token = f"__TOKEN_{counter}__"
@@ -221,7 +225,7 @@ class TranslationStyleLinter:
         # 1. Apply Masking to protect variables, URLs etc.
         masked_obj = TextMasker.mask(text)
         working_text = masked_obj.text
-        
+
         feedbacks = []
         base_lang = lang_code.split("-")[0].lower()
 
@@ -236,7 +240,9 @@ class TranslationStyleLinter:
             feedbacks.extend(rule_latin_punctuation_spacing(key, working_text))
 
         # --- General Rules ---
-        feedbacks.extend(rule_protect_language_endonyms(key, working_text, lang_code, custom_lang_patterns))
+        feedbacks.extend(
+            rule_protect_language_endonyms(key, working_text, lang_code, custom_lang_patterns)
+        )
 
         # 2. Unmask suggestions to restore original variables
         for fb in feedbacks:

@@ -28,9 +28,18 @@ async def scan_strings(path: str, use_cache: bool = True, vcs_mode: bool = False
 async def audit_missing(lang_code: str, base_lang: str = "en"):
     """
     Perform differential audit: compare the base language with the target language
-    to find missing translation keys.
+    to find missing translation keys. Uses robust AST locale parsing.
     """
     return await tools.get_missing_keys(lang_code, base_lang)
+
+
+@mcp.tool()
+async def cleanup_unused(lang_code: str = "en"):
+    """
+    [Technical Debt Cleanup] Identify and report dead (unused) i18n keys
+    by cross-referencing locale files with source code via AST scanning.
+    """
+    return await tools.get_dead_keys(lang_code)
 
 
 @mcp.tool()
@@ -72,6 +81,7 @@ async def save_glossary(term: str, translation: str):
 async def audit_quality(lang_code: str):
     """
     [Expert Audit] Generate a full quality review report.
+    Includes typography audit (protected by Token Masking) and variable safety checks.
     Results are exported to a Markdown audit report file.
     """
     return await tools.generate_quality_report(lang_code)

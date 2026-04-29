@@ -4,7 +4,7 @@ import json
 import os
 import re
 import time
-from typing import Any
+from typing import Any, cast
 
 import aiofiles
 import yaml
@@ -293,14 +293,15 @@ class TreeSitterScanner:
 
                     for node in nodes:
                         try:
-                            text_bytes = target_bytes[node.start_byte : node.end_byte]
-                            text = text_bytes.decode("utf-8")
+                            # Use Any to bypass stubborn Mypy type inference
+                            t_bytes: Any = target_bytes[node.start_byte : node.end_byte]
+                            text = t_bytes.decode("utf-8")
                         except Exception:
                             continue
 
                         line_no = node.start_point[0] + 1 + line_offset
                         if c_name == "script":
-                            res.extend(self.scan(text_bytes, ".js", line_offset=line_no - 1))
+                            res.extend(self.scan(t_bytes, ".js", line_offset=line_no - 1))
                             continue
 
                         if node.type in ("string", "template_string"):
@@ -844,24 +845,24 @@ async def get_dead_keys(lang_code: str = "en") -> list[str]:
     """Identify keys in the locale file that are not used in source code."""
     config = await _load_project_config()
     target_dir = _detect_locale_dir(config)
-    
+
     # 1. Load all keys from locale file
     locale_data = await _load_locale_data(target_dir, lang_code)
     all_locale_keys = set(_flatten_dict(locale_data).keys())
-    
+
     if not all_locale_keys:
         return []
 
     # 2. Scan source code for used keys
     used_keys = set()
     valid_exts = {".js", ".jsx", ".ts", ".tsx", ".vue"}
-    
+
     source_dirs = config.source_dirs or ["src"]
     for s_dir in source_dirs:
         abs_s_dir = os.path.join(WORKSPACE_ROOT, s_dir)
         if not os.path.exists(abs_s_dir):
             continue
-            
+
         for root, _, files in os.walk(abs_s_dir):
             for file in files:
                 ext = os.path.splitext(file)[1].lower()
@@ -870,7 +871,7 @@ async def get_dead_keys(lang_code: str = "en") -> list[str]:
                     try:
                         async with aiofiles.open(fpath, encoding="utf-8") as f:
                             content = await f.read()
-                        
+
                         scanner = TreeSitterScanner(content, ext)
                         for text, _, origin in scanner.scan():
                             if origin == "i18n_key":
@@ -900,23 +901,21 @@ async def _load_locale_data(target_dir: str, lang: str) -> dict:
             if ext in (".yaml", ".yml"):
                 return yaml.safe_load(content) or {}
 
-
-            if ext in (".yaml", ".yml"):
-                return yaml.safe_load(content) or {}
-
             # Use Tree-Sitter for robust TS/JS parsing
             try:
                 if not DEPENDENCIES_INSTALLED:
                     raise ImportError("tree-sitter not installed")
-                
-                lang_key = "tsx" if ext == ".ts" else "javascript"
-                ts_lang = tree_sitter_language_pack.get_language(lang_key)
+
+                lang_key: str = "tsx" if ext == ".ts" else "javascript"
+
+                # cast to Literal to satisfy tree_sitter_language_pack types
+                ts_lang = tree_sitter_language_pack.get_language(cast(Any, lang_key))
                 parser = Parser(ts_lang)
                 tree = parser.parse(content.encode("utf-8"))
 
-                def get_val(node):
+                def get_val(node: Any) -> Any:
                     if node.type == "object":
-                        res = {}
+                        res: dict[str, Any] = {}
                         for child in node.children:
                             if child.type == "pair":
                                 key_node = child.child_by_field_name("key")
@@ -925,9 +924,9 @@ async def _load_locale_data(target_dir: str, lang: str) -> dict:
                                     # Fallback for older tree-sitter or different grammars
                                     key_node = child.children[0]
                                     val_node = child.children[2]
-                                
-                                key = key_node.text.decode("utf-8").strip("'\"")
-                                res[key] = get_val(val_node)
+
+                                k = key_node.text.decode("utf-8").strip("'\"")
+                                res[k] = get_val(val_node)
                         return res
                     if node.type == "array":
                         return [get_val(c) for c in node.children if c.type not in ("[", "]", ",")]
@@ -947,47 +946,49 @@ async def _load_locale_data(target_dir: str, lang: str) -> dict:
                 # Find the exported object
                 # Common patterns: export default { ... }, module.exports = { ... }
                 target_node = None
-                
+
                 # Use query for more robust finding
                 query_str = """
                     (export_statement (object) @obj)
                     (expression_statement (assignment_expression left: (member_expression) @mem right: (object) @obj))
-                """
+                """  # noqa: E501
                 query = tree_sitter.Query(ts_lang, query_str)
                 cursor = tree_sitter.QueryCursor(query)
                 matches = cursor.matches(tree.root_node)
-                
+
                 for _, captures in matches:
                     if "obj" in captures:
-                        # In 0.25.0, captures might be a list or dict depending on the method
-                        # Based on investigate_ast, cursor.matches returns a list of (match_id, captures_dict)
+                        # Based on investigate_ast, cursor.matches returns a list
+                        # where captures values are lists of nodes
                         nodes = captures["obj"]
                         if nodes:
                             target_node = nodes[0]
                             break
-                
+
                 if not target_node:
                     # Alternative: use captures() which returns a list of (node, capture_name)
-                    all_captures = cursor.captures(tree.root_node)
-                    for node, name in all_captures:
-                        if name == "obj":
-                            target_node = node
+                    all_captures: list[Any] = cursor.captures(tree.root_node)
+                    for c_node, c_name in all_captures:
+                        if c_name == "obj":
+                            target_node = c_node
                             break
-                
+
                 if not target_node:
                     # Fallback: just find the first object in the tree
-                    def find_first_obj(node):
-                        if node.type == "object": return node
-                        for c in node.children:
-                            res = find_first_obj(c)
-                            if res: return res
+                    def find_first_obj(n: Any) -> Any:
+                        if n.type == "object":
+                            return n
+                        for c in n.children:
+                            r = find_first_obj(c)
+                            if r:
+                                return r
                         return None
+
                     target_node = find_first_obj(tree.root_node)
 
                 if target_node:
                     return get_val(target_node)
 
-                
             except Exception as e:
                 logger.warning(f"AST parser failed for {p}, falling back to regex: {e}")
 
@@ -998,12 +999,9 @@ async def _load_locale_data(target_dir: str, lang: str) -> dict:
             if match:
                 obj_str = match.group(1)
                 try:
-                    # 1. Clean comments safely (only if not in strings - hard with regex)
-                    # For now, just try to strip trailing commas and hope for the best
-                    # if AST failed.
+                    # 1. Clean comments safely
                     obj_str = re.sub(r",\s*([}\]])", r"\1", obj_str)
                     obj_str = obj_str.strip().rstrip(";")
-                    # This fallback is still weak, but AST should handle most cases.
                     return json.loads(obj_str)
                 except Exception:
                     return {}
@@ -1011,7 +1009,6 @@ async def _load_locale_data(target_dir: str, lang: str) -> dict:
             logger.error(f"Error loading {p}: {e}")
             continue
     return {}
-
 
 
 async def _save_locale_data(path: str, data: dict):

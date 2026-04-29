@@ -1,5 +1,5 @@
-import pytest
-from i18n_agent_skill.linter import TranslationStyleLinter, TextMasker
+from i18n_agent_skill.linter import TextMasker, TranslationStyleLinter
+
 
 def test_text_masker_basic():
     text = "Check https://example.com and {{username}}."
@@ -7,9 +7,10 @@ def test_text_masker_basic():
     assert "__TOKEN_0__" in masked.text
     assert "__TOKEN_1__" in masked.text
     assert "https://example.com" not in masked.text
-    
+
     unmasked = TextMasker.unmask(masked.text, masked.masks)
     assert unmasked == text
+
 
 def test_linter_protects_urls():
     # Latin linter would normally add space: "https: //"
@@ -21,6 +22,7 @@ def test_linter_protects_urls():
             assert "https: //" not in fb.suggestion
     assert len(feedbacks) == 0
 
+
 def test_linter_protects_variables_cjk():
     # CJK linter would normally add space: "你好 {{name}}"
     # If the user wants to NOT have space around variables, masking helps.
@@ -31,11 +33,12 @@ def test_linter_protects_variables_cjk():
         assert "{{name}}" in fb.suggestion
         assert "__TOKEN" not in fb.suggestion
 
+
 def test_linter_handles_mixed_content():
     # Mixed content with real issues
     text = "Hello,world! See https://api.com/v1?id=123 for {{user_id}}"
     feedbacks = TranslationStyleLinter.lint("test.key", text, "en")
-    
+
     # It should find the space issue after "Hello,"
     # but NOT break the URL
     space_issue_fixed = False
@@ -46,8 +49,9 @@ def test_linter_handles_mixed_content():
             # Check URL in suggestion
             assert "https://api.com/v1?id=123" in fb.suggestion
             assert "https: //" not in fb.suggestion
-            
+
     assert space_issue_fixed is True
+
 
 def test_linter_chinese_punctuation_masking():
     # 1,000 should NOT be changed to 1，000

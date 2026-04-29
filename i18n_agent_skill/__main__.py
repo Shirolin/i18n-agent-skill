@@ -220,12 +220,17 @@ async def cli_main():
 
     elif args.command == "cleanup":
         dead_keys = await get_dead_keys(lang_code=args.lang)
-        _print_json({
-            "language": args.lang,
-            "dead_keys_count": len(dead_keys),
-            "dead_keys": dead_keys,
-            "message": f"Found {len(dead_keys)} unused keys in '{args.lang}'. Suggest pruning these to reduce technical debt."
-        })
+        _print_json(
+            {
+                "language": args.lang,
+                "dead_keys_count": len(dead_keys),
+                "dead_keys": dead_keys,
+                "message": (
+                    f"Found {len(dead_keys)} unused keys in '{args.lang}'. "
+                    "Suggest pruning these to reduce technical debt."
+                ),
+            }
+        )
 
     elif args.command == "scan":
         if os.path.isdir(args.path):
@@ -278,13 +283,19 @@ async def cli_main():
         else:
             missing_keys = await get_missing_keys(args.lang, base_lang=args.base)
             dead_keys = await get_dead_keys(lang_code=args.lang)
-            _print_json({
-                "language": args.lang,
-                "missing_keys_count": len(missing_keys),
-                "missing_keys": missing_keys,
-                "dead_keys_count": len(dead_keys),
-                "message": f"Audit complete for '{args.lang}'. Found {len(missing_keys)} missing and {len(dead_keys)} unused keys."
-            })
+            _print_json(
+                {
+                    "language": args.lang,
+                    "missing_keys_count": len(missing_keys),
+                    "missing_keys": missing_keys,
+                    "dead_keys_count": len(dead_keys),
+                    "message": (
+                        f"Audit complete for '{args.lang}'. "
+                        f"Found {len(missing_keys)} missing and "
+                        f"{len(dead_keys)} unused keys."
+                    ),
+                }
+            )
 
     elif args.command == "sync":
         try:
