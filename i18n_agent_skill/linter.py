@@ -1,6 +1,61 @@
 import re
+from dataclasses import dataclass
+from typing import Any
 
 from i18n_agent_skill.models import StyleFeedback
+
+# ==========================================
+# Text Masking Engine
+# ==========================================
+@dataclass
+class MaskedText:
+    text: str
+    masks: dict[str, str]
+
+class TextMasker:
+    """
+    Protects variables, URLs, and HTML tags from being destroyed by typography linters.
+    """
+    # Patterns to protect, ordered by priority
+    PATTERNS = [
+        r"https?://[^\s<>\"']+|-?[a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)", # URLs
+        r"[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+", # Emails
+        r"<[^>]+>", # HTML tags
+        r"\{\{[^}]+\}\}|\{[^}]+\}", # Placeholders like {var} or {{var}}
+        r"%[sdofxX]", # C-style format specifiers like %s, %d
+    ]
+
+    @classmethod
+    def mask(cls, text: str) -> MaskedText:
+        masks = {}
+        masked_text = text
+        counter = 0
+
+        # Combine all patterns into one to avoid overlapping matches
+        combined_pattern = "|".join(f"({p})" for p in cls.PATTERNS)
+        
+        def replace_fn(match):
+            nonlocal counter
+            token = f"__TOKEN_{counter}__"
+            masks[token] = match.group(0)
+            counter += 1
+            return token
+
+        # Only mask if there are potential matches to save time
+        if re.search(combined_pattern, text):
+            # Using sub with callable to handle each match uniquely
+            masked_text = re.sub(combined_pattern, replace_fn, text)
+
+        return MaskedText(text=masked_text, masks=masks)
+
+    @classmethod
+    def unmask(cls, masked_text: str, masks: dict[str, str]) -> str:
+        unmasked = masked_text
+        # Iterate in reverse to prevent nested token issues
+        for token, original_value in reversed(masks.items()):
+            unmasked = unmasked.replace(token, original_value)
+        return unmasked
+
 
 # ==========================================
 # Language Families Definition
@@ -163,20 +218,29 @@ class TranslationStyleLinter:
     def lint(
         key: str, text: str, lang_code: str, custom_lang_patterns: list[str] | None = None
     ) -> list[StyleFeedback]:
+        # 1. Apply Masking to protect variables, URLs etc.
+        masked_obj = TextMasker.mask(text)
+        working_text = masked_obj.text
+        
         feedbacks = []
         base_lang = lang_code.split("-")[0].lower()
 
         # --- CJK Rule Routing ---
         if base_lang in CJK_LANGS or "zh" in base_lang:
-            feedbacks.extend(rule_cjk_mixed_spacing(key, text))
-            feedbacks.extend(rule_cjk_fullwidth_punctuation(key, text, lang_code))
+            feedbacks.extend(rule_cjk_mixed_spacing(key, working_text))
+            feedbacks.extend(rule_cjk_fullwidth_punctuation(key, working_text, lang_code))
 
         # --- Latin Rule Routing ---
         elif base_lang in LATIN_LANGS:
-            feedbacks.extend(rule_latin_consecutive_spaces(key, text))
-            feedbacks.extend(rule_latin_punctuation_spacing(key, text))
+            feedbacks.extend(rule_latin_consecutive_spaces(key, working_text))
+            feedbacks.extend(rule_latin_punctuation_spacing(key, working_text))
 
         # --- General Rules ---
-        feedbacks.extend(rule_protect_language_endonyms(key, text, lang_code, custom_lang_patterns))
+        feedbacks.extend(rule_protect_language_endonyms(key, working_text, lang_code, custom_lang_patterns))
+
+        # 2. Unmask suggestions to restore original variables
+        for fb in feedbacks:
+            if fb.suggestion:
+                fb.suggestion = TextMasker.unmask(fb.suggestion, masked_obj.masks)
 
         return feedbacks
