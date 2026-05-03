@@ -94,7 +94,11 @@ async def cli_main():
     scan_parser = subparsers.add_parser(
         "scan", help="Scan source code for hardcoded strings and mask sensitive data."
     )
-    scan_parser.add_argument("path", help="Path to file or directory to scan.")
+    scan_parser.add_argument(
+        "path",
+        nargs="?",
+        help="Path to file or directory to scan (defaults to config source_dirs).",
+    )
     scan_parser.add_argument(
         "--vcs", action="store_true", help="Enable VCS-aware mode (scan Git changes only)."
     )
@@ -255,38 +259,59 @@ async def cli_main():
         )
 
     elif args.command == "scan":
-        if os.path.isdir(args.path):
-            all_results = []
-            total_tel: dict[str, float | int] = {
-                "duration_ms": 0.0,
-                "files_processed": 0,
-                "keys_extracted": 0,
-                "privacy_shield_hits": 0,
-            }
-            valid_exts = {".js", ".jsx", ".ts", ".tsx", ".vue"}
-            for root, _, files in os.walk(args.path):
-                for file in files:
-                    if os.path.splitext(file)[1].lower() in valid_exts:
-                        fpath = os.path.join(root, file)
-                        scan_res = await extract_raw_strings(
-                            fpath, use_cache=args.use_cache, vcs_mode=args.vcs
-                        )
-                        if scan_res.results:
-                            all_results.extend([r.model_dump() for r in scan_res.results])
-                        if scan_res.telemetry:
-                            total_tel["duration_ms"] += scan_res.telemetry.duration_ms
-                            total_tel["files_processed"] += scan_res.telemetry.files_processed
-                            total_tel["keys_extracted"] += scan_res.telemetry.keys_extracted
-                            if getattr(scan_res.telemetry, "privacy_shield_hits", None):
-                                total_tel["privacy_shield_hits"] += int(
-                                    scan_res.telemetry.privacy_shield_hits
-                                )
-            _print_json({"results": all_results, "telemetry": total_tel})
+        status_report = await check_project_status()
+        scan_paths = []
+        if args.path:
+            scan_paths = [args.path]
         else:
-            single_res = await extract_raw_strings(
-                args.path, use_cache=args.use_cache, vcs_mode=args.vcs
-            )
-            _print_json(single_res.model_dump())
+            scan_paths = status_report.config.source_dirs or ["src"]
+
+        all_results = []
+        total_tel: dict[str, float | int] = {
+            "duration_ms": 0.0,
+            "files_processed": 0,
+            "keys_extracted": 0,
+            "privacy_shield_hits": 0,
+        }
+        valid_exts = {".js", ".jsx", ".ts", ".tsx", ".vue"}
+
+        for p in scan_paths:
+            if os.path.isdir(p):
+                for root, _, files in os.walk(p):
+                    # Skip ignore_dirs
+                    if any(ignored in root.replace("\\", "/").split("/") for ignored in status_report.config.ignore_dirs):
+                        continue
+                    for file in files:
+                        if os.path.splitext(file)[1].lower() in valid_exts:
+                            fpath = os.path.join(root, file)
+                            scan_res = await extract_raw_strings(
+                                fpath, use_cache=args.use_cache, vcs_mode=args.vcs
+                            )
+                            if scan_res.results:
+                                all_results.extend([r.model_dump() for r in scan_res.results])
+                            if scan_res.telemetry:
+                                total_tel["duration_ms"] += scan_res.telemetry.duration_ms
+                                total_tel["files_processed"] += scan_res.telemetry.files_processed
+                                total_tel["keys_extracted"] += scan_res.telemetry.keys_extracted
+                                if getattr(scan_res.telemetry, "privacy_shield_hits", None):
+                                    total_tel["privacy_shield_hits"] += int(
+                                        scan_res.telemetry.privacy_shield_hits
+                                    )
+            elif os.path.isfile(p):
+                single_res = await extract_raw_strings(
+                    p, use_cache=args.use_cache, vcs_mode=args.vcs
+                )
+                if single_res.results:
+                    all_results.extend([r.model_dump() for r in single_res.results])
+                if single_res.telemetry:
+                    total_tel["duration_ms"] += single_res.telemetry.duration_ms
+                    total_tel["files_processed"] += single_res.telemetry.files_processed
+                    total_tel["keys_extracted"] += single_res.telemetry.keys_extracted
+                    if getattr(single_res.telemetry, "privacy_shield_hits", None):
+                        total_tel["privacy_shield_hits"] += int(
+                            single_res.telemetry.privacy_shield_hits
+                        )
+        _print_json({"results": all_results, "telemetry": total_tel})
 
     elif args.command == "audit":
         status_report = await check_project_status()
