@@ -28,15 +28,17 @@ graph LR
 
 ---
 
-## 🚀 AI-Native Installation (Quick Start)
+## 🚀 AI-Native Setup (Zero Manual Steps)
 
-The recommended way to install is to let your **AI Assistant** handle the heavy lifting.
+You don't need to manually clone or install. Simply provide this repository URL to your **AI Coding Assistant** (Cursor, Claude Code, Gemini CLI, etc.) and say:
 
-1. **Clone the repository** to your project.
-2. **Tell your AI Assistant**:
-   > "Install this skill locally and check project status."
+> "Please set up this i18n skill for me in this project."
 
-The assistant will automatically execute `./install.sh --local` and run `/i18n-status` to prepare your environment.
+**What your AI Assistant will do autonomously:**
+1.  **Clone** the repository to a local hidden directory.
+2.  **Bootstrap** the environment via `./install.sh --local` (Non-blocking).
+3.  **Initialize** the project configuration using `/i18n-init`.
+4.  **Confirm** readiness via `/i18n-status`.
 
 ---
 
@@ -121,19 +123,19 @@ i18n-agent-skill/
 
 ---
 
-## 🛠 Development & Validation
+## 🛠 Engineering Quality
 
-This project integrates standard industrial validation tools:
+This project maintains industrial-grade standards through automated verification tools:
 
 ```bash
-# Verify protocol compliance
-python .agents/skills/agent-skill-creator/scripts/validate.py .
+# 1. Full Quality Audit (Ruff Format/Lint + Mypy Type Check)
+python scripts/check.py
 
-# Run security scan
-python .agents/skills/agent-skill-creator/scripts/security_scan.py .
-
-# Run all tests
+# 2. Automated Test Suite (58+ Unit & Integration Tests)
 pytest
+
+# 3. Protocol Compliance (Optional)
+python .agents/skills/agent-skill-creator/scripts/validate.py .
 ```
 
 ---

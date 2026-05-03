@@ -86,6 +86,13 @@ function Deploy-Global ($Mode) {
 
 # 3. Interactive Menu
 function Show-Menu {
+    # Check if host is interactive (Agent-friendly)
+    if (![Environment]::UserInteractive -or $args.Count -gt 0 -or (Get-Variable -Name MyInvocation -ErrorAction SilentlyContinue).Value.ExpectingInput -eq $false) {
+        Write-Host "[INFO]  Non-interactive session detected. Defaulting to: Local Project Only" -ForegroundColor Cyan
+        Deploy-Local
+        return
+    }
+
     Write-Host "`nPlease select installation mode:"
     Write-Host "  [1] Local Project Only  (Safe: Installs to ./.agents/skills) [DEFAULT]" -ForegroundColor White
     Write-Host "  [2] Global Auto-Deploy  (Copy to detected AI assistants)"

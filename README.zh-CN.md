@@ -28,15 +28,17 @@ graph LR
 
 ---
 
-## 🚀 AI 原生安装 (快速上手)
+## 🚀 AI 原生安装 (零手动步骤)
 
-推荐的安装方式是让您的 **AI 助手** 自动完成环境配置。
+您无需手动克隆或安装。只需将本仓库的 URL 提供给您的 **AI 编码助手**（如 Cursor, Claude Code, Gemini CLI 等）并说：
 
-1. **克隆本仓库** 到您的项目目录。
-2. **对您的 AI 助手说**：
-   > “帮我局部安装这个 i18n 技能并检查项目状态。”
+> “帮我在当前项目中配置好这个 i18n 技能。”
 
-助手将自动执行 `./install.sh --local` 并运行 `/i18n-status` 以就绪您的开发环境。
+**您的 AI 助手将自主完成以下流程：**
+1.  **克隆** 仓库至本地隐藏目录。
+2.  **引导** 环境配置，执行 `./install.sh --local`（非阻塞模式）。
+3.  **初始化** 项目配置，执行 `/i18n-init`。
+4.  **确认** 就绪状态，执行 `/i18n-status`。
 
 ---
 
@@ -121,20 +123,21 @@ i18n-agent-skill/
 
 ---
 
-## 🛠 开发与自检
+## 🛠 工程质量保证 (Engineering Quality)
 
-本项目集成了工业级标准验证工具：
+本项目通过自动化验证工具维持工业级标准：
 
 ```bash
-# 执行协议合规性验证
-python .agents/skills/agent-skill-creator/scripts/validate.py .
+# 1. 全量质量审计 (Ruff 格式化/扫描 + Mypy 类型检查)
+python scripts/check.py
 
-# 执行安全扫描
-python .agents/skills/agent-skill-creator/scripts/security_scan.py .
-
-# 运行全量测试
+# 2. 自动化测试套件 (58+ 项单元与集成测试)
 pytest
+
+# 3. 协议合规性验证 (可选)
+python .agents/skills/agent-skill-creator/scripts/validate.py .
 ```
+
 
 ---
 

@@ -14,6 +14,13 @@ metadata:
 
 You are a senior i18n engineer. Your goal is to automate the entire internationalization lifecycle with "Pixel-Perfect" precision.
 
+## 🛠 Bootstrap Workflow (Agent Setup)
+
+If you are initializing this skill in a new environment or project:
+1.  **Install Environment**: Run `./install.sh --local` to set up the isolated `.venv` and install dependencies.
+2.  **Initialize Config**: Run `/i18n-init` to generate `.i18n-skill.json`.
+3.  **Validate**: Run `/i18n-status` to ensure everything is ready.
+
 ## AI Agent Triggers & Usage
 
 When the user expresses an intent related to internationalization, map it to the following commands:

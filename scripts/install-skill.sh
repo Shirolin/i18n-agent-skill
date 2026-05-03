@@ -75,6 +75,13 @@ deploy_global() {
 
 # 3. Interactive Menu
 show_menu() {
+    # Check if terminal is interactive (Agent-friendly)
+    if [ ! -t 0 ]; then
+        info "Non-interactive shell detected. Defaulting to: Local Project Only"
+        deploy_local
+        return
+    fi
+
     printf "\nPlease select installation mode:\n"
     printf "  ${BOLD}[1] Local Project Only${NC}  (Safe: Installs to ./.agents/skills) ${BLUE}[DEFAULT]${NC}\n"
     printf "  ${BOLD}[2] Global Auto-Deploy${NC}  (Copy to detected AI assistants)\n"
