@@ -9,5 +9,5 @@ elif [ "$(expr substr $(uname -s) 1 5)" = "Linux" ]; then
     ./scripts/install-skill.sh "$@"
 else
     # Fallback to PowerShell for Windows CMD/Git Bash
-    powershell.exe -ExecutionPolicy Bypass -File scripts/bootstrap.ps1
+    powershell.exe -ExecutionPolicy Bypass -File scripts/bootstrap.ps1 "$@"
 fi

@@ -25,17 +25,28 @@
 
 ## 🚀 One-Click Installation
 
-The installer automatically handles virtual environments, dependencies, and platform detection.
+The installer is interactive by default and allows you to choose between local project installation or global deployment.
 
 ### Linux / macOS / Git Bash
 ```bash
-curl -fsSL https://raw.githubusercontent.com/Shirolin/i18n-agent-skill/main/install.sh | sh
-# OR local: chmod +x install.sh && ./install.sh
+# Interactive installation (Recommended)
+./install.sh
+
+# Silent installation via flags
+./install.sh --local   # Install to current project only (Safe)
+./install.sh --global  # Copy to all detected AI assistants
+./install.sh --dev     # Create symlinks (Live-reload for developers)
 ```
 
 ### Windows (PowerShell)
 ```powershell
-iwr -useb https://raw.githubusercontent.com/Shirolin/i18n-agent-skill/main/install.sh | iex
+# Interactive installation (Recommended)
+.\install.sh
+
+# Silent installation via flags
+.\install.sh --local
+.\install.sh --global
+.\install.sh --dev
 ```
 
 ---
