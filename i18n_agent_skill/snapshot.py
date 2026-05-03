@@ -24,9 +24,11 @@ class TranslationSnapshotManager:
         try:
             async with aiofiles.open(self.path, encoding="utf-8") as f:
                 content = await f.read()
-                data: dict[str, Any] = json.loads(content)
-                return data
-        except Exception:
+                if not content.strip():
+                    return {}
+                return json.loads(content)
+        except (json.JSONDecodeError, OSError):
+            # If snapshot is corrupted, treat as empty but don't crash
             return {}
 
     async def _write_snapshots(self, snapshots: dict[str, Any]):
