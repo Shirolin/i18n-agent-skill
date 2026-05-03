@@ -87,12 +87,13 @@ Automatically detects and deploys to the following rule/skill directories:
 | :--- | :--- |
 | `/i18n-init` | **Initialization**: Scan project and generate `.i18n-skill.json` config. |
 | `/i18n-status` | Status Check: Verify project configuration and environment readiness. |
-| `/i18n-audit` | Coverage Audit: Check for missing keys and detect dead (unused) keys. |
-| `/i18n-cleanup` | **Technical Debt Cleanup**: Generate detailed reports of unused i18n keys. |
-| `/i18n-audit-quality` | **Quality Audit**: Expert reports on phrasing and consistency (Robust with Token Masking). |
-| `/i18n-pivot-sync` | **Semantic Projection**: Sync target languages based on a familiar reference language. |
-| `/i18n-sync` | Smart Sync: Generate translation synchronization proposals. |
-| `/i18n-commit` | **Apply Changes**: Formally commit and write proposals to locale files. |
+| `/i18n-scan [--path <path>]` | **Extraction Phase**: Precise extraction of hardcoded strings. |
+| `/i18n-audit [--lang <lang>]` | **Validation Phase**: Compare locale files against source code. |
+| `/i18n-cleanup [--lang <lang>]` | **Technical Debt Cleanup**: Identify unused i18n keys. |
+| `/i18n-sync --lang <lang> --data <data>` | **Smart Sync**: Generate translation synchronization proposals. |
+| `/i18n-commit --proposal <id>` | **Apply Changes**: Formally commit and write proposals to locale files. |
+| `/i18n-audit-quality --lang <lang>` | **Quality Audit**: Expert reports on phrasing and consistency. |
+| `/i18n-pivot-sync --pivot <lang> --target <lang>` | **Semantic Projection**: Sync target languages based on a familiar reference language. |
 | `/i18n-fix` | Quick Fix: Auto-detect environment issues and generate recovery proposals. |
 
 ---

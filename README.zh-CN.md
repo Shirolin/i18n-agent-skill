@@ -25,17 +25,28 @@
 
 ## 🚀 一键安装
 
-安装程序会自动处理虚拟环境、依赖安装及平台规则路径探测。
+安装程序默认开启交互模式，允许您选择局部项目安装或全局部署。
 
 ### Linux / macOS / Git Bash
 ```bash
-curl -fsSL https://raw.githubusercontent.com/Shirolin/i18n-agent-skill/main/install.sh | sh
-# 或本地运行: chmod +x install.sh && ./install.sh
+# 交互式安装 (推荐)
+./install.sh
+
+# 静默安装 (使用参数)
+./install.sh --local   # 仅安装到当前项目 (最安全)
+./install.sh --global  # 复制到所有探测到的 AI 助手
+./install.sh --dev     # 创建软链接 (开发者模式，支持热重载)
 ```
 
 ### Windows (PowerShell)
 ```powershell
-iwr -useb https://raw.githubusercontent.com/Shirolin/i18n-agent-skill/main/install.sh | iex
+# 交互式安装 (推荐)
+.\install.sh
+
+# 静默安装 (使用参数)
+.\install.sh --local
+.\install.sh --global
+.\install.sh --dev
 ```
 
 ---
@@ -74,15 +85,17 @@ iwr -useb https://raw.githubusercontent.com/Shirolin/i18n-agent-skill/main/insta
 
 | 指令 | 说明 |
 | :--- | :--- |
-| `/i18n-init` | **项目初始化**：扫描项目并生成 `.i18n-skill.json` 配置文件。 |
-| `/i18n-status` | 状态验证：检查项目配置与环境就绪状态。 |
-| `/i18n-audit` | 覆盖率审计：检查 Key 缺失情况，并自动探测死键 (Dead Keys)。 |
-| `/i18n-cleanup` | **技术债清理**：生成语言包中冗余 (未引用) Key 的详细报告。 |
-| `/i18n-audit-quality` | **质量巡检**：生成专家报告，识别争议项（支持 Token Masking 保护变量）。 |
-| `/i18n-pivot-sync` | **跨语言对齐**：根据已优化的母语版本，同步修正其他语种。 |
-| `/i18n-sync` | 智能同步：生成翻译同步提案。 |
-| `/i18n-commit` | **应用变更**：正式提交提案并写入物理文件。 |
-| `/i18n-fix` | 快捷修复：自动扫描环境异常，生成全量修复提案。 |
+| `/i18n-init` | **初始化**：扫描项目并生成显式的 `.i18n-skill.json` 配置文件。 |
+| `/i18n-status` | 状态检查：验证项目配置及环境就绪度。 |
+| `/i18n-scan [--path <路径>]` | **提取阶段**：精准提取硬编码文案。默认为配置的 `source_dirs`。 |
+| `/i18n-audit [--lang <语言>]` | **校验阶段**：对比语言包与源码。默认为 `all` 已启用语言。 |
+| `/i18n-cleanup [--lang <语言>]` | **技术债清理**：识别并报告语言包中未使用的冗余 Key。 |
+| `/i18n-sync --lang <语言> --data <数据>` | **智能同步**：生成翻译同步建议书。 |
+| `/i18n-commit --proposal <ID>` | **应用变更**：正式提交并将建议书内容写入语言文件。 |
+| `/i18n-audit-quality --lang <语言>` | **质量审计**：生成专家报告，识别术语不一致等问题。 |
+| `/i18n-pivot-sync --pivot <语言> --target <语言>` | **语义投影**：基于熟悉的母语同步并优化目标语言。 |
+| `/i18n-fix` | 快速修复：自动检测环境问题并生成修复建议。 |
+
 
 ---
 

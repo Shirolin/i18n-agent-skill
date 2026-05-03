@@ -95,8 +95,7 @@ async def cli_main():
         "scan", help="Scan source code for hardcoded strings and mask sensitive data."
     )
     scan_parser.add_argument(
-        "path",
-        nargs="?",
+        "--path",
         help="Path to file or directory to scan (defaults to config source_dirs).",
     )
     scan_parser.add_argument(
@@ -111,8 +110,7 @@ async def cli_main():
         "audit", help="Compare locale files and find missing keys."
     )
     audit_parser.add_argument(
-        "lang",
-        nargs="?",
+        "--lang",
         default="all",
         help="Target language code (e.g., en, ja) or 'all' for full audit (default: 'all').",
     )
@@ -122,13 +120,13 @@ async def cli_main():
     sync_parser = subparsers.add_parser(
         "sync", help="Generate a translation synchronization proposal."
     )
-    sync_parser.add_argument("lang", help="Target language.")
-    sync_parser.add_argument("data", help="JSON string of key-value pairs or a file path.")
+    sync_parser.add_argument("--lang", required=True, help="Target language.")
+    sync_parser.add_argument("--data", required=True, help="JSON string of key-value pairs or a file path.")
     sync_parser.add_argument("--reason", default="Manual sync", help="Reason for changes.")
 
     # 5. commit
     commit_parser = subparsers.add_parser("commit", help="Commit and apply specified proposals.")
-    commit_parser.add_argument("proposal_id", help="Proposal ID (language code or 'all').")
+    commit_parser.add_argument("--proposal", required=True, help="Proposal ID (language code or 'all').")
 
     # 6. init
     subparsers.add_parser(
@@ -139,7 +137,7 @@ async def cli_main():
     opt_parser = subparsers.add_parser(
         "optimize", help="[Idempotent] Export targets for optimization."
     )
-    opt_parser.add_argument("lang", help="Target language code.")
+    opt_parser.add_argument("--lang", required=True, help="Target language code.")
     opt_parser.add_argument(
         "--all", action="store_true", help="Include approved keys for full polish."
     )
@@ -148,21 +146,21 @@ async def cli_main():
     learn_parser = subparsers.add_parser(
         "learn", help="[Feedback Loop] Detect manual edits and promote entry status."
     )
-    learn_parser.add_argument("lang", help="Target language code.")
+    learn_parser.add_argument("--lang", required=True, help="Target language code.")
 
     # 9. audit-quality
     audit_q_parser = subparsers.add_parser(
         "audit-quality", help="[Expert Audit] Generate a full quality review report."
     )
-    audit_q_parser.add_argument("lang", help="Target language code.")
+    audit_q_parser.add_argument("--lang", required=True, help="Target language code.")
 
     # 10. pivot-sync
     pivot_parser = subparsers.add_parser(
         "pivot-sync",
         help="[Reference Sync] Optimize target language based on familiar language mappings.",
     )
-    pivot_parser.add_argument("pivot", help="Reference language (e.g., zh-CN).")
-    pivot_parser.add_argument("target", help="Target language (e.g., ja).")
+    pivot_parser.add_argument("--pivot", required=True, help="Reference language (e.g., zh-CN).")
+    pivot_parser.add_argument("--target", required=True, help="Target language (e.g., ja).")
 
     # 11. distill-persona
     subparsers.add_parser(
@@ -171,7 +169,7 @@ async def cli_main():
 
     # 12. save-persona
     save_p_parser = subparsers.add_parser("save-persona", help="Save confirmed business persona.")
-    save_p_parser.add_argument("data", help="JSON string of persona (domain, audience, tone).")
+    save_p_parser.add_argument("--data", required=True, help="JSON string of persona (domain, audience, tone).")
 
     # 13. cleanup
     cleanup_parser = subparsers.add_parser(
@@ -368,7 +366,7 @@ async def cli_main():
         _print_json(sync_res.model_dump())
 
     elif args.command == "commit":
-        commit_msg = await commit_i18n_changes(args.proposal_id)
+        commit_msg = await commit_i18n_changes(args.proposal)
         print(commit_msg)
 
     elif args.command == "mcp":
