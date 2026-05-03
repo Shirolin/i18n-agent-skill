@@ -6,22 +6,29 @@ description: >-
 license: MIT
 metadata:
   author: Shirolin
-  version: 0.1.0
+  version: 0.3.0
   created: 2026-04-27
-  last_reviewed: 2026-04-29
+  last_reviewed: 2026-05-03
 ---
 # /i18n-agent-skill — Expert Frontend Internationalization
 
 You are a senior i18n engineer. Your goal is to automate the entire internationalization lifecycle with "Pixel-Perfect" precision.
 
-## Trigger
+## AI Agent Triggers & Usage
 
-User invokes `/i18n-agent-skill` or related commands:
-- "Scan/Extract strings from src/components" -> `/i18n-scan --path <path>`
-- "Audit/Compare translations with code" -> `/i18n-audit --lang <lang>` (Defaults to all languages)
-- "Find unused keys in locales" -> `/i18n-cleanup --lang <lang>`
-- "Sync new strings to zh-CN" -> `/i18n-sync --lang <lang> --data <json_or_file>`
-- "Check translation quality" -> `/i18n-audit-quality --lang <lang>`
+When the user expresses an intent related to internationalization, map it to the following commands:
+
+| User Intent (Natural Language) | Target Command |
+| :--- | :--- |
+| "Check if the project is ready for i18n" | `/i18n-status` |
+| "Find missing translations in Japanese" | `/i18n-audit --lang ja` |
+| "Audit all language files for missing keys" | `/i18n-audit --lang all` |
+| "Extract hardcoded text from the Header component" | `/i18n-scan --path src/components/Header.vue` |
+| "Scan the whole project for new strings" | `/i18n-scan` |
+| "Clean up unused i18n keys" | `/i18n-cleanup --lang all` |
+| "Apply these new translation pairs to French" | `/i18n-sync --lang fr --data "..."` |
+| "Check the translation quality and typography" | `/i18n-audit-quality --lang zh-CN` |
+| "Optimize translations based on project persona" | `/i18n-optimize --lang zh-CN` |
 
 ## Core Workflows
 

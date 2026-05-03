@@ -1,6 +1,6 @@
 {
   "name": "i18n-agent-skill",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Enterprise-grade frontend i18n automation tool. Features: AST-based extraction, Privacy Shielding, and Quality Evolution Engine. Optimized for AI agents (Cursor, Claude Code, Windsurf).",
   "keywords": [
     "i18n",
@@ -21,18 +21,18 @@
   "homepage": "https://github.com/Shirolin/i18n-agent-skill",
   "discovery": {
     "intent_prompts": [
-      "audit my i18n files",
-      "extract hardcoded strings for i18n",
-      "sync translations for my project",
-      "improve translation quality with quality audit",
-      "pivot-sync based on familiar language",
-      "perform privacy-masked extraction",
-      "i18n health check",
+      "audit my i18n files for missing keys",
+      "extract hardcoded strings from this component",
+      "sync new translations for zh-CN",
+      "check translation quality and typography",
+      "clean up unused i18n keys",
+      "pivot-sync based on a reference language",
+      "i18n project health check",
       "帮我把项目里的中文提出来做国际化",
-      "检查项目里的 i18n 质量",
+      "检查项目里的 i18n 质量和排版",
       "同步多语言翻译包",
-      "执行质量巡检",
-      "跨语言参照同步"
+      "执行翻译缺失审计",
+      "跨语言参照同步优化"
     ],
     "triggers": {
       "file_patterns": [
@@ -58,16 +58,22 @@
   },
   "examples": [
     {
-      "intent": "Quality health check for i18n",
+      "intent": "Full project i18n health check",
       "actions": [
         "python -m i18n_agent_skill status",
-        "python -m i18n_agent_skill audit-quality en"
+        "python -m i18n_agent_skill audit --lang all"
       ]
     },
     {
-      "intent": "Extract hardcoded Chinese and mask sensitive data",
+      "intent": "Extract text and mask privacy",
       "actions": [
-        "python -m i18n_agent_skill scan src/App.vue"
+        "python -m i18n_agent_skill scan --path src/components/Login.vue"
+      ]
+    },
+    {
+      "intent": "Clean up redundant keys",
+      "actions": [
+        "python -m i18n_agent_skill cleanup --lang all"
       ]
     }
   ],
