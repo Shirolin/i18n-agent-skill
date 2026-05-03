@@ -358,7 +358,8 @@ async def extract_raw_strings(
             error=ErrorInfo(
                 error_code="DEP_ERR",
                 message="Tree-sitter not installed. AST engine required.",
-                suggested_action="Use Python 3.10-3.12 and run 'pip install -e .'",
+                suggested_action="Run the bootstrap installer to fix environment.",
+                executable_hint="./install.sh",
             )
         )
 
@@ -564,28 +565,28 @@ async def _load_project_preferences():
     return await _load_project_config()
 
 
-async def commit_i18n_changes(proposal_id: str) -> str:
+async def commit_i18n_changes(target_scope: str) -> str:
     """Commit changes and update snapshots. Supports language code or 'all'."""
     proposals_path = os.path.join(WORKSPACE_ROOT, PROPOSALS_DIR)
     to_commit = []
 
-    if proposal_id.lower() == "all":
+    if target_scope.lower() == "all":
         to_commit = glob.glob(os.path.join(proposals_path, "proposal_*.json"))
     else:
-        exact_p = os.path.join(proposals_path, f"proposal_{proposal_id}.json")
+        exact_p = os.path.join(proposals_path, f"proposal_{target_scope}.json")
         if os.path.exists(exact_p):
             to_commit = [exact_p]
         else:
-            old_p = os.path.join(proposals_path, f"{proposal_id}.json")
+            old_p = os.path.join(proposals_path, f"{target_scope}.json")
             if os.path.exists(old_p):
                 to_commit = [old_p]
             else:
-                pattern = os.path.join(proposals_path, f"proposal_*_{proposal_id}.json")
+                pattern = os.path.join(proposals_path, f"proposal_*_{target_scope}.json")
                 matches = glob.glob(pattern)
                 if matches:
                     to_commit = [matches[0]]
                 else:
-                    return f"Error: No pending proposals found for '{proposal_id}'."
+                    return f"Error: No pending proposals found for scope '{target_scope}'."
 
     if not to_commit:
         return "No proposals to commit."
@@ -1127,8 +1128,8 @@ def _detect_enabled_langs(locale_dir: str) -> list[str]:
     return sorted(list(set(langs)))
 
 
-async def initialize_project_config() -> str:
-    """Scan project and persist configuration."""
+async def initialize_project_config() -> dict[str, Any]:
+    """Scan project and return configuration recommendations."""
     config = ProjectConfig()
     config.locales_dir = _detect_locale_dir(config)
     config.enabled_langs = _detect_enabled_langs(config.locales_dir) or ["en", "zh-CN"]
@@ -1138,31 +1139,24 @@ async def initialize_project_config() -> str:
             config.source_dirs = [d]
             break
 
-    gitignore_p = os.path.join(WORKSPACE_ROOT, ".gitignore")
     ignore_lines = [
-        "\n# i18n-agent-skill runtime files",
         ".i18n-cache.json",
         ".i18n-proposals/",
         ".i18n-snapshots.json",
         ".i18n-prefs.json",
         "!.i18n-skill.json",
     ]
-    if os.path.exists(gitignore_p):
-        async with aiofiles.open(gitignore_p, encoding="utf-8") as f:
-            current_gitignore = await f.read()
-
-        needed = [
-            line for line in ignore_lines if line.strip() and line.strip() not in current_gitignore
-        ]
-        if needed:
-            async with aiofiles.open(gitignore_p, "a", encoding="utf-8") as f:
-                await f.write("\n" + "\n".join(needed) + "\n")
 
     p = os.path.join(WORKSPACE_ROOT, CONFIG_FILE)
     async with aiofiles.open(p, "w", encoding="utf-8") as f:
         await f.write(json.dumps(config.model_dump(), indent=2, ensure_ascii=False))
 
-    return f"Initialized config at {p}. Processed {len(config.enabled_langs)} languages."
+    return {
+        "message": f"Initialized config at {p}. Processed {len(config.enabled_langs)} languages.",
+        "config": config.model_dump(),
+        "recommended_gitignore": ignore_lines,
+        "action_required": "Please add the 'recommended_gitignore' patterns to your .gitignore file.",
+    }
 
 
 async def load_project_glossary():

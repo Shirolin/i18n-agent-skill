@@ -81,19 +81,23 @@ async def test_path_security_enforcement(temp_workspace):
 
 
 @pytest.mark.asyncio
-async def test_gitignore_auto_update(temp_workspace):
-    """Test that initialize_project_config adds necessary entries to .gitignore."""
+async def test_gitignore_recommendations(temp_workspace):
+    """Test that initialize_project_config returns gitignore recommendations instead of modifying it."""
     gitignore_p = os.path.join(temp_workspace, ".gitignore")
     async with aiofiles.open(gitignore_p, "w", encoding="utf-8") as f:
         await f.write("node_modules\n")
 
-    await initialize_project_config()
+    res = await initialize_project_config()
 
     async with aiofiles.open(gitignore_p, encoding="utf-8") as f:
         content = await f.read()
-        assert ".i18n-cache.json" in content
-        assert "!.i18n-skill.json" in content
+        # Assert file was NOT modified
+        assert ".i18n-cache.json" not in content
         assert "node_modules" in content
+
+    # Assert recommendations are in return value
+    assert ".i18n-cache.json" in res["recommended_gitignore"]
+    assert "!.i18n-skill.json" in res["recommended_gitignore"]
 
 
 @pytest.mark.asyncio

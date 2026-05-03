@@ -26,7 +26,7 @@ User invokes `/i18n-agent-skill` or related commands:
 ## Core Workflows
 
 - `/i18n-status`: Check project configuration and environment health.
-- `/i18n-init`: Initialize project configuration (.i18n-skill.json).
+- `/i18n-init`: Initialize project configuration (.i18n-skill.json). **Returns .gitignore recommendations** to keep your workspace clean.
 - `/i18n-scan [--path path]`: **Extraction Phase**. Precise extraction of hardcoded strings. Defaults to `source_dirs` from config if `--path` is omitted.
 - `/i18n-audit [--lang lang]`: **Validation Phase**. Compare locale files against source code. Defaults to `all` enabled languages if `--lang` is omitted.
 - `/i18n-cleanup [--lang lang]`: Generate a detailed report of unused keys to reduce technical debt.

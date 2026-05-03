@@ -192,8 +192,8 @@ async def cli_main():
         _print_json(status_res.model_dump())
 
     elif args.command == "init":
-        init_msg = await initialize_project_config()
-        _print_json({"message": init_msg})
+        init_res = await initialize_project_config()
+        _print_json(init_res)
 
     elif args.command == "optimize":
         status_report = await check_project_status()

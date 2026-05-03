@@ -14,6 +14,12 @@
     "zh-CN"
   ],
   "privacy_level": "basic",
+  "persona": {
+    "domain": "",
+    "audience": "",
+    "tone": "",
+    "custom_guidelines": []
+  },
   "protected_lang_key_patterns": [],
   "ignored_keys": []
 }
