@@ -23,7 +23,7 @@ async def scan_strings(path: str | None = None, use_cache: bool = True, vcs_mode
         use_cache: Whether to use hash caching for performance.
         vcs_mode: If True, only scans files modified in Git (VCS-aware).
     """
-    # Note: tools.extract_raw_strings handles None path by resolution in __main__, 
+    # Note: tools.extract_raw_strings handles None path by resolution in __main__,
     # but here we should ideally resolve it before calling tools or update tools.
     # For simplicity, we ensure tools handles defaults or __main__ logic is mirrored.
     # Implementation detail: extract_raw_strings expects a string.
@@ -32,7 +32,7 @@ async def scan_strings(path: str | None = None, use_cache: bool = True, vcs_mode
     if not target_path:
         status = await tools.check_project_status()
         target_path = status.config.source_dirs[0] if status.config.source_dirs else "src"
-        
+
     return await tools.extract_raw_strings(target_path, use_cache, vcs_mode)
 
 

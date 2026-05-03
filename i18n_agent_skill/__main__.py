@@ -121,12 +121,16 @@ async def cli_main():
         "sync", help="Generate a translation synchronization proposal."
     )
     sync_parser.add_argument("--lang", required=True, help="Target language.")
-    sync_parser.add_argument("--data", required=True, help="JSON string of key-value pairs or a file path.")
+    sync_parser.add_argument(
+        "--data", required=True, help="JSON string of key-value pairs or a file path."
+    )
     sync_parser.add_argument("--reason", default="Manual sync", help="Reason for changes.")
 
     # 5. commit
     commit_parser = subparsers.add_parser("commit", help="Commit and apply specified proposals.")
-    commit_parser.add_argument("--proposal", required=True, help="Proposal ID (language code or 'all').")
+    commit_parser.add_argument(
+        "--proposal", required=True, help="Proposal ID (language code or 'all')."
+    )
 
     # 6. init
     subparsers.add_parser(
@@ -169,7 +173,9 @@ async def cli_main():
 
     # 12. save-persona
     save_p_parser = subparsers.add_parser("save-persona", help="Save confirmed business persona.")
-    save_p_parser.add_argument("--data", required=True, help="JSON string of persona (domain, audience, tone).")
+    save_p_parser.add_argument(
+        "--data", required=True, help="JSON string of persona (domain, audience, tone)."
+    )
 
     # 13. cleanup
     cleanup_parser = subparsers.add_parser(
@@ -198,8 +204,16 @@ async def cli_main():
     elif args.command == "optimize":
         status_report = await check_project_status()
         if args.lang not in status_report.config.enabled_langs:
-            _print_json({"error": f"Language '{args.lang}' is not enabled in this project. Use 'init' or update .i18n-skill.json."})
+            _print_json(
+                {
+                    "error": (
+                        f"Language '{args.lang}' is not enabled in this project. "
+                        "Use 'init' or update .i18n-skill.json."
+                    )
+                }
+            )
             return
+
         opt_res = await optimize_translations(args.lang, include_approved=args.all)
         _print_json(opt_res)
 
@@ -277,7 +291,10 @@ async def cli_main():
             if os.path.isdir(p):
                 for root, _, files in os.walk(p):
                     # Skip ignore_dirs
-                    if any(ignored in root.replace("\\", "/").split("/") for ignored in status_report.config.ignore_dirs):
+                    if any(
+                        ignored in root.replace("\\", "/").split("/")
+                        for ignored in status_report.config.ignore_dirs
+                    ):
                         continue
                     for file in files:
                         if os.path.splitext(file)[1].lower() in valid_exts:
@@ -314,7 +331,14 @@ async def cli_main():
     elif args.command == "audit":
         status_report = await check_project_status()
         if args.lang != "all" and args.lang not in status_report.config.enabled_langs:
-            _print_json({"error": f"Language '{args.lang}' is not enabled in this project. Use 'init' or update .i18n-skill.json."})
+            _print_json(
+                {
+                    "error": (
+                        f"Language '{args.lang}' is not enabled in this project. "
+                        "Use 'init' or update .i18n-skill.json."
+                    )
+                }
+            )
             return
 
         if args.lang == "all":

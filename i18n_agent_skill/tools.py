@@ -1155,7 +1155,9 @@ async def initialize_project_config() -> dict[str, Any]:
         "message": f"Initialized config at {p}. Processed {len(config.enabled_langs)} languages.",
         "config": config.model_dump(),
         "recommended_gitignore": ignore_lines,
-        "action_required": "Please add the 'recommended_gitignore' patterns to your .gitignore file.",
+        "action_required": (
+            "Please add the 'recommended_gitignore' patterns to your .gitignore file."
+        ),
     }
 
 

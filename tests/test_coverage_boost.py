@@ -82,7 +82,10 @@ async def test_path_security_enforcement(temp_workspace):
 
 @pytest.mark.asyncio
 async def test_gitignore_recommendations(temp_workspace):
-    """Test that initialize_project_config returns gitignore recommendations instead of modifying it."""
+    """
+    Test that initialize_project_config returns gitignore recommendations
+    instead of modifying it.
+    """
     gitignore_p = os.path.join(temp_workspace, ".gitignore")
     async with aiofiles.open(gitignore_p, "w", encoding="utf-8") as f:
         await f.write("node_modules\n")
