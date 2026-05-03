@@ -107,7 +107,10 @@ async def cli_main():
         "audit", help="Compare locale files and find missing keys."
     )
     audit_parser.add_argument(
-        "lang", help="Target language code (e.g., en, ja) or 'all' for full audit."
+        "lang",
+        nargs="?",
+        default="all",
+        help="Target language code (e.g., en, ja) or 'all' for full audit (default: 'all').",
     )
     audit_parser.add_argument("--base", default="en", help="Base language code (defaults to 'en').")
 
@@ -191,18 +194,37 @@ async def cli_main():
         _print_json({"message": init_msg})
 
     elif args.command == "optimize":
+        status_report = await check_project_status()
+        if args.lang not in status_report.config.enabled_langs:
+            _print_json({"error": f"Language '{args.lang}' is not enabled in this project. Use 'init' or update .i18n-skill.json."})
+            return
         opt_res = await optimize_translations(args.lang, include_approved=args.all)
         _print_json(opt_res)
 
     elif args.command == "learn":
+        status_report = await check_project_status()
+        if args.lang not in status_report.config.enabled_langs:
+            _print_json({"error": f"Language '{args.lang}' is not enabled in this project."})
+            return
         learn_msg = await sync_manual_modifications(args.lang)
         _print_json({"message": learn_msg})
 
     elif args.command == "audit-quality":
+        status_report = await check_project_status()
+        if args.lang not in status_report.config.enabled_langs:
+            _print_json({"error": f"Language '{args.lang}' is not enabled in this project."})
+            return
         quality_res = await generate_quality_report(args.lang)
         _print_json(quality_res.model_dump())
 
     elif args.command == "pivot-sync":
+        status_report = await check_project_status()
+        if args.pivot not in status_report.config.enabled_langs:
+            _print_json({"error": f"Pivot language '{args.pivot}' is not enabled."})
+            return
+        if args.target not in status_report.config.enabled_langs:
+            _print_json({"error": f"Target language '{args.target}' is not enabled."})
+            return
         pivot_res = await reference_optimize_translations(args.pivot, args.target)
         _print_json(pivot_res)
 
@@ -267,6 +289,11 @@ async def cli_main():
             _print_json(single_res.model_dump())
 
     elif args.command == "audit":
+        status_report = await check_project_status()
+        if args.lang != "all" and args.lang not in status_report.config.enabled_langs:
+            _print_json({"error": f"Language '{args.lang}' is not enabled in this project. Use 'init' or update .i18n-skill.json."})
+            return
+
         if args.lang == "all":
             status_report = await check_project_status()
             target_langs = status_report.config.enabled_langs

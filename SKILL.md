@@ -17,18 +17,18 @@ You are a senior i18n engineer. Your goal is to automate the entire internationa
 ## Trigger
 
 User invokes `/i18n-agent-skill` or related commands:
-- "Audit my translations" -> `/i18n-audit`
+- "Scan/Extract strings from src/components" -> `/i18n-scan <path>`
+- "Audit/Compare translations with code" -> `/i18n-audit` (Defaults to all languages)
 - "Find unused keys in locales" -> `/i18n-cleanup`
 - "Sync new strings to zh-CN" -> `/i18n-sync`
-- "Extract strings from src/components" -> `/i18n-scan`
 - "Check translation quality" -> `/i18n-audit-quality`
 
 ## Core Workflows
 
 - `/i18n-status`: Check project configuration and environment health.
 - `/i18n-init`: Initialize project configuration (.i18n-skill.json).
-- `/i18n-scan`: Extract hardcoded strings via Tree-sitter AST.
-- `/i18n-audit`: Compare locale files, find missing keys, and detect dead (unused) keys.
+- `/i18n-scan <path>`: **Extraction Phase**. Precise extraction of hardcoded strings from a specific path via Tree-sitter AST.
+- `/i18n-audit [lang]`: **Validation Phase**. Compare locale files against source code, find missing keys, and detect dead keys. Defaults to `all` enabled languages if `lang` is omitted.
 - `/i18n-cleanup`: Generate a detailed report of unused keys to reduce technical debt.
 - `/i18n-sync`: Generate translation proposals. **Must inform user of the Preview path after execution.**
 - `/i18n-commit`: Apply proposals. Supports `UUID`, `language code`, or `all`.
