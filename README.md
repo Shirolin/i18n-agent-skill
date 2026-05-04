@@ -29,9 +29,11 @@
 
 ## 🚀 AI-Native Setup (Zero Manual Steps)
 
-You don't need to manually clone or install. Simply provide this repository URL to your **AI Coding Assistant** (Cursor, Claude Code, Gemini CLI, etc.) and say:
+Simply copy and paste the following instruction to your **AI Coding Assistant** (Cursor, Claude Code, Gemini CLI, etc.):
 
-> "Please set up this i18n skill for me in this project."
+```text
+Setup this i18n skill for me: https://github.com/Shirolin/i18n-agent-skill
+```
 
 **What your AI Assistant will do autonomously:**
 1.  **Clone** the repository to a local hidden directory.

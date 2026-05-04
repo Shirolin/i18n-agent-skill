@@ -29,9 +29,11 @@
 
 ## 🚀 AI 原生安装 (零手动步骤)
 
-您无需手动克隆或安装。只需将本仓库的 URL 提供给您的 **AI 编码助手**（如 Cursor, Claude Code, Gemini CLI 等）并说：
+只需将以下指令复制并发送给您的 **AI 编码助手**（如 Cursor, Claude Code, Gemini CLI 等）：
 
-> “帮我在当前项目中配置好这个 i18n 技能。”
+```text
+帮我在当前项目中配置好这个 i18n 技能：https://github.com/Shirolin/i18n-agent-skill
+```
 
 **您的 AI 助手将自主完成以下流程：**
 1.  **克隆** 仓库至本地隐藏目录。
