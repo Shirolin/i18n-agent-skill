@@ -1151,12 +1151,17 @@ async def initialize_project_config() -> dict[str, Any]:
     async with aiofiles.open(p, "w", encoding="utf-8") as f:
         await f.write(json.dumps(config.model_dump(), indent=2, ensure_ascii=False))
 
+    # AI-Native: Automatically distill project samples to help AI suggest a persona
+    project_samples = await distill_project_persona()
+
     return {
         "message": f"Initialized config at {p}. Processed {len(config.enabled_langs)} languages.",
         "config": config.model_dump(),
         "recommended_gitignore": ignore_lines,
+        "project_samples": project_samples,
         "action_required": (
-            "Please add the 'recommended_gitignore' patterns to your .gitignore file."
+            "Please analyze the 'project_samples', propose a project persona "
+            "(domain, audience, tone), and run '/i18n-save-persona' to finalize setup."
         ),
     }
 

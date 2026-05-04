@@ -9,22 +9,15 @@
 [![Engine: Tree-sitter AST](https://img.shields.io/badge/Engine-Tree--sitter%20AST-orange)](https://tree-sitter.github.io/)
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 
-**i18n-agent-skill** 旨在解决 AI 原生开发流中国际化处理的复杂性。通过确定性的 AST 解析和上下文感知的状态管理，它在源代码与全球化翻译文件之间建立了一座安全、可预测且全自动的桥梁。
+**i18n-agent-skill** 实现了国际化流程的全链路自动化调度。通过确定性的 AST 精准扫描**显著降低**文案遗漏风险，并配合“人在回路”的暂存校验机制确保翻译质量的可预测与可验证。
 
 ---
 
 ## 🔄 自动化国际化闭环 (i18n Loop)
 
-本技能实现了国际化流程的全闭环自动化，确保硬编码文案零遗漏，并由人工最终校验翻译质量。
+本技能实现了国际化流程的全链路自动化调度，旨在**最大程度降低**硬编码文案遗漏风险，并配合“人在回路”的校验机制确保最终翻译质量。
 
-```mermaid
-graph LR
-    A[扫描: AST 提取] --> B[审计: 差异分析]
-    B --> C[同步: 上下文感知建议]
-    C --> D[提交: 物理磁盘写入]
-    D --> E[质量: 反馈学习循环]
-    E --> C
-```
+![国际化生命周期图](./assets/lifecycle-diagram.svg)
 
 ---
 

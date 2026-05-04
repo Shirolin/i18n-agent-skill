@@ -17,9 +17,11 @@ You are a senior i18n engineer. Your goal is to automate the entire internationa
 ## 🛠 Bootstrap Workflow (Agent Setup)
 
 If you are initializing this skill in a new environment or project:
-1.  **Install Environment**: Run `./install.sh --local` to set up the isolated `.venv` and install dependencies.
-2.  **Initialize Config**: Run `/i18n-init` to generate `.i18n-skill.json`.
-3.  **Validate**: Run `/i18n-status` to ensure everything is ready.
+1.  **Initialize**: Run `/i18n-init`.
+2.  **Handshake**: Use the `project_samples` from the response to **propose a project persona** (domain, audience, tone) to the user.
+    *   *Template*: "I've analyzed your project. I suggest a persona of **{domain}** for **{audience}** with a **{tone}** tone. Shall I save this as the i18n standard?"
+3.  **Setup**: After user confirmation, run `/i18n-save-persona --data "{...}"` and then `./install.sh --local`.
+4.  **Validate**: Run `/i18n-status`.
 
 ## AI Agent Triggers & Usage
 

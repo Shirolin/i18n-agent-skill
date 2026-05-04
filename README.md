@@ -9,7 +9,7 @@
 [![Engine: Tree-sitter AST](https://img.shields.io/badge/Engine-Tree--sitter%20AST-orange)](https://tree-sitter.github.io/)
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 
-**i18n-agent-skill** solves the complexity of internationalization within AI-native development workflows. By leveraging deterministic AST parsing and context-aware state management, it provides a safe, predictable, and fully automated bridge between source code and global translation files.
+**i18n-agent-skill** provides full-lifecycle orchestration for internationalization within AI-native development workflows. By leveraging deterministic AST parsing and a "human-in-the-loop" staging mechanism, it minimizes hardcoded string leakage while ensuring predictable and verified translation quality.
 
 ---
 
@@ -17,14 +17,7 @@
 
 The skill automates the full lifecycle, ensuring zero hardcoded string leakage and human-verified translation quality.
 
-```mermaid
-graph LR
-    A[Scan: AST Extraction] --> B[Audit: Diff Analysis]
-    B --> C[Sync: Contextual Proposals]
-    C --> D[Commit: Physical Write]
-    D --> E[Quality: Feedback Loop]
-    E --> C
-```
+![i18n Lifecycle Diagram](./assets/lifecycle-diagram.svg)
 
 ---
 
