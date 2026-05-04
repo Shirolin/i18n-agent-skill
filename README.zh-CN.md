@@ -19,7 +19,7 @@
 
 本技能遵循结构化的进化路径：从 AI 建议的初稿 (L1) 到人工确认的准则 (L2)，再到极致的手动真理 (L3)。
 
-![国际化生命周期图](./assets/lifecycle-diagram.svg)
+![国际化生命周期图](./assets/lifecycle-diagram.zh-CN.svg)
 
 ---
 
