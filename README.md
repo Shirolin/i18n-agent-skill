@@ -11,6 +11,8 @@
 
 **i18n-agent-skill** provides full-lifecycle orchestration for internationalization within AI-native development workflows. By leveraging deterministic AST parsing and a "human-in-the-loop" staging mechanism, it minimizes hardcoded string leakage while ensuring predictable and verified translation quality.
 
+> **Design Philosophy**: For a deep dive into our 5-phase lifecycle and authority hierarchy, see [Product Scenarios](./references/product-scenarios.md).
+
 ---
 
 ## 🔄 Automated i18n Loop
