@@ -28,11 +28,13 @@
       "clean up unused i18n keys",
       "pivot-sync based on a reference language",
       "i18n project health check",
+      "determine project persona and tone",
+      "establish project identity and translation standards",
+      "promote draft translations to approved standards",
       "帮我把项目里的中文提出来做国际化",
       "检查项目里的 i18n 质量和排版",
-      "同步多语言翻译包",
-      "执行翻译缺失审计",
-      "跨语言参照同步优化"
+      "分析并确立项目画像与调性",
+      "将暂存的翻译内容晋升为核准标准"
     ],
     "triggers": {
       "file_patterns": [
@@ -51,12 +53,20 @@
         "privacy",
         "masking",
         "audit",
-        "linter",
-        "pivot-sync"
+        "persona",
+        "tone",
+        "promotion"
       ]
     }
   },
   "examples": [
+    {
+      "intent": "Initial project setup and persona handshake",
+      "actions": [
+        "python -m i18n_agent_skill init",
+        "python -m i18n_agent_skill save-persona --data \"{\\\"domain\\\":\\\"FinTech\\\",\\\"audience\\\":\\\"Professional\\\",\\\"tone\\\":\\\"Precise\\\"}\""
+      ]
+    },
     {
       "intent": "Full project i18n health check",
       "actions": [
@@ -65,15 +75,11 @@
       ]
     },
     {
-      "intent": "Extract text and mask privacy",
+      "intent": "Extract text and promote to verified policy",
       "actions": [
-        "python -m i18n_agent_skill scan --path src/components/Login.vue"
-      ]
-    },
-    {
-      "intent": "Clean up redundant keys",
-      "actions": [
-        "python -m i18n_agent_skill cleanup --lang all"
+        "python -m i18n_agent_skill scan --path src/components/Login.vue",
+        "python -m i18n_agent_skill optimize --lang en",
+        "python -m i18n_agent_skill commit --proposal en"
       ]
     }
   ],

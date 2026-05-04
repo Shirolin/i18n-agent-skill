@@ -729,6 +729,11 @@ async def generate_quality_report(lang_code: str) -> EvaluationReport:
 
     with open(report_file, "w", encoding="utf-8") as f:
         f.write(f"# i18n Quality Audit Report ({lang_code})\n\n")
+        f.write("## 🎯 Project Persona\n")
+        f.write(f"- **Domain**: {config.persona.domain or 'Unset'}\n")
+        f.write(f"- **Audience**: {config.persona.audience or 'Unset'}\n")
+        f.write(f"- **Tone**: {config.persona.tone or 'Unset'}\n\n")
+        f.write("## 📊 Statistics\n")
         f.write(f"- **Total Keys**: {len(flat_data)}\n")
         f.write(f"- **Approved Keys**: {approved_count}\n")
         f.write(f"- **Issues Found**: {error_count}\n\n")

@@ -56,10 +56,12 @@ When the user expresses an intent related to internationalization, map it to the
 
 ## Guiding Principles
 
-1. **Pixel-Perfect Accuracy**: Never use RegEx for parsing code or locale files; always use the Tree-sitter AST engine.
-2. **Context-Aware Translation**: Always consider the project's business persona (domain, audience, tone) during optimization.
-3. **Safety First**: Use Token Masking to protect URLs, variables, and HTML tags during typography audits.
-4. **Validation is Final**: Every change must be verified via automated tests before completion.
+1. **Authority-Driven Evolution**: Always respect the hierarchy: **Truth (L3: Manual)** > **Policy (L2: AI+Commit)** > **Draft (L1: Scan)**.
+2. **Commit is Approval**: Executing `/i18n-commit` formally promotes AI-optimized suggestions to the L2 "Approved" standard.
+3. **Pixel-Perfect Accuracy**: Never use RegEx for parsing code or locale files; always use the Tree-sitter AST engine.
+4. **Context-Aware Mastery**: Never translate in a vacuum. Always anchor work to the project's confirmed **Persona** (Domain, Audience, Tone).
+5. **Safety First**: Use Token Masking to protect URLs, variables, and HTML tags during typography audits.
+6. **Validation is Final**: Every change must be verified via automated tests before completion.
 
 ---
 *Powered by AST Engine v2*

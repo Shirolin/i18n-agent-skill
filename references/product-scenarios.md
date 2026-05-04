@@ -1,51 +1,47 @@
-# Product Scenarios & Authority Hierarchy 🗺️
+# 🎯 i18n-agent-skill: 核心业务蓝图与权责等级
 
-This document defines the core business logic and the "Hierarchy of Authority" that drives the **i18n-agent-skill** ecosystem. It serves as the ultimate reference for maintaining architectural integrity during future iterations.
+本文件作为本项目的“架构记忆层”，定义了 AI 驱动下的国际化全生命周期逻辑。后续所有迭代必须遵循此蓝图，以保持系统进化的严谨性。
 
 ---
 
-## ⚖️ The Hierarchy of Authority (Weight System)
+## ⚖️ 权责等级制度 (Authority Hierarchy)
 
-To ensure high-quality evolution, the system treats different translation sources with varying levels of trust and persistence.
+系统根据动力源区分三个信任等级，实现质量的“滚雪球”式进化：
 
-| Level | Name | Source | Status | System Logic |
+| 等级 | 名称 | 驱动源 | 状态 | 系统认知逻辑 |
 | :--- | :--- | :--- | :--- | :--- |
-| **L1** | **Draft** | Raw `/i18n-scan` (AI) | `DRAFT` | Temporary first-draft. High flexibility, subject to overwrite during optimization. |
-| **L2** | **Policy** | `/i18n-optimize` + **Human Commit** | `APPROVED` | **Core Production Engine**. Represents a human-verified AI suggestion aligned with the project persona. |
-| **L3** | **Truth** | **Manual File Edits** + `/i18n-learn` | `APPROVED` | **Absolute Truth**. Hard-coded human intent (e.g., UI layout fixes). Locked against future AI overrides. |
+| **L1** | **Draft** | `/i18n-scan` (AI) | `DRAFT` | **临时初稿**。高灵活性，主要用于快速覆盖，随时可被优化或洗牌。 |
+| **L2** | **Policy** | `/i18n-optimize` + **人工 Commit** | `APPROVED` | **项目法典**。经人审阅的 AI 建议，作为全球同步 (`pivot-sync`) 的唯一锚点。 |
+| **L3** | **Truth** | **人工物理修改** + `/i18n-learn` | `APPROVED` | **绝对真理**。处理 UI 换行等极端物理限制，具有最高优先级，严禁被 AI 覆盖。 |
 
 ---
 
-## 🔄 The 5-Phase Business Lifecycle
+## 🔄 核心业务五阶段 (The 5-Phase Loop)
 
-### Phase 1: Zero-Friction Handshake (The Persona)
-- **Goal**: Align the AI's "brain" with the project's "soul."
-- **Scenario**: Upon cloning, the AI assistant runs `/i18n-init`. The system returns project metadata (README, package.json).
-- **The Handshake**: AI proposes a project persona (e.g., "Medical, Professional"). User confirms. This establishes the global tone for all future work.
+### 阶段 1：画像握手 [Persona Handshake]
+- **机制**：初始化即定调。`/i18n-init` 必须返回项目样本。
+- **AI 必做**：主动分析样本并向用户寻求确认。
+- **话术规范**：*“我分析了你的代码，建议本项目画像定调为：[领域：XX，受众：XX，语气：XX]。可以吗？”*
 
-### Phase 2: Inventory & Discovery (L1 Baseline)
-- **Goal**: Map the unknown and establish a starting point.
-- **Scenario**: On a new feature or a chaotic legacy project, AI runs `/i18n-scan` and `/i18n-audit`.
-- **Result**: Identifies leaked hardcoded strings and "Dead Keys" (unreferenced translations), creating an L1 `DRAFT` inventory.
+### 阶段 2：资产盘点 [Baseline Discovery]
+- **机制**：新功能捕获 + 旧项目技术债清理。
+- **动作**：`/i18n-scan` (提取) + `/i18n-audit` (查漏补缺) 建立 L1 `DRAFT` 基准。
 
-### Phase 3: Quality Wash & Promotion (L2 Policy)
-- **Goal**: Transform "machine-speak" into "brand-speak."
-- **Scenario**: User triggers `/i18n-optimize`. AI uses the Persona defined in Phase 1 to rewrite the inventory.
-- **The Promotion**: User reviews the Markdown preview and runs `/i18n-commit`. The system automatically promotes these entries to `APPROVED` (L2).
+### 阶段 3：质量晋升 [Promotion & Staging]
+- **机制**：人在回路的暂存校验。`/i18n-optimize` 基于画像深度润色。
+- **核心逻辑**：执行 `/i18n-commit` 的瞬间，系统**必须**自动将相应项晋升为 `APPROVED` (L2)。
 
-### Phase 4: Semantic Projection (Pivot-Sync)
-- **Goal**: Achieve global consistency with zero redundant effort.
-- **Scenario**: Once the primary language (e.g., Japanese) is at L2 quality, user triggers `/i18n-pivot-sync`.
-- **Logic**: The system only uses `APPROVED` keys as anchors to project the verified semantics onto other languages (e.g., French, German).
+### 阶段 4：全球同步 [Semantic Projection]
+- **机制**：一处过审，全球同步。
+- **逻辑**：`/i18n-pivot-sync` 仅以已晋升的 `APPROVED` 项为语义锚点，投影至其他所有语种。
 
-### Phase 5: Absolute Truth Recovery (L3 Mastery)
-- **Goal**: Honor human edge-case requirements.
-- **Scenario**: A user manually shortens a word in `fr.json` to prevent a button overflow.
-- **The Evolution**: User runs `/i18n-learn`. The system detects the physical change, grants it L3 `APPROVED` status, and learns this terminology for the project's permanent glossary.
+### 阶段 5：真理吸收 [Mastery Evolution]
+- **机制**：吸收人类最后的 1% 智慧。
+- **场景**：用户物理修改翻译文件，通过 `/i18n-learn` 将该修改锁定为 L3 级 `APPROVED` 真理。
 
 ---
 
-## 🧩 Architectural Intent
-1. **Persona First**: No translation happens in a vacuum. Tone is a configuration, not a guess.
-2. **Commit is Approval**: A human `commit` is a semantic act, not just a file write.
-3. **Data is Fluid, Truth is Static**: Automated L1/L2 flows handle 99% of the volume; L3 handles the 1% human nuance.
+## 🧩 架构设计原则
+1. **画像先于翻译**：翻译不是盲目的转换，而是调性的对齐。
+2. **Commit 即批准**：人工 Commit 动作具有语义升权作用，是进化的触发器。
+3. **机器劳动力，人类所有权**：AI 负责繁重的流水线，人类行使最终的定调权与准入权。
