@@ -11,15 +11,19 @@
 
 **i18n-agent-skill** provides full-lifecycle orchestration for internationalization within AI-native development workflows. By leveraging deterministic AST parsing and a "human-in-the-loop" staging mechanism, it minimizes hardcoded string leakage while ensuring predictable and verified translation quality.
 
-> **Design Philosophy**: For a deep dive into our 5-phase lifecycle and authority hierarchy, see [Product Scenarios](./references/product-scenarios.md).
-
 ---
 
-## 🔄 The 5-Phase Authority Lifecycle
+## 🔄 How It Works (Continuous Iteration)
 
-The skill follows a structured evolution path, moving from AI-proposed drafts (L1) to human-verified standards (L2) and absolute manual truths (L3).
+**i18n-agent-skill** is designed to be a continuous companion during your development lifecycle. As you build new features or refactor old ones, the cycle repeats—getting smarter with every iteration.
 
 ![i18n Lifecycle Diagram](./assets/lifecycle-diagram.svg)
+
+1.  **Identify**: The AI performs a "handshake" with your project to understand its unique tone (e.g., *Financial Professional*). Done once at setup.
+2.  **Extract & Audit**: Whenever you add new pages or logic, the AI precision-scans the AST to capture new strings and find missing translations.
+3.  **Refine & Commit**: AI experts polish your draft in a staging area. Once you **Commit**, the system learns these choices and locks them as "Policy."
+4.  **Sync**: Verified high-quality translations are projected globally to all other languages instantly.
+5.  **Iterate**: Developing a new feature? Jump back to **Step 2**. Your i18n assets now evolve in lock-step with your code.
 
 ---
 
@@ -149,6 +153,14 @@ If you find **i18n-agent-skill** helpful, please consider:
 - **Ko-fi**: [https://ko-fi.com/shirolin](https://ko-fi.com/shirolin)
 
 ---
+
+---
+
+## 🔍 Deep Dive
+
+- **[Product Scenarios](./references/product-scenarios.md)**: Detailed 5-phase lifecycle and authority hierarchy (L1-L3).
+- **[AST Engine](./references/ast-engine.md)**: How our Tree-sitter integration ensures pixel-perfect extraction.
+- **[Privacy Guard](./references/privacy-guard.md)**: Specification for local data masking and security.
 
 ## 📄 License
 
