@@ -15,9 +15,9 @@
 
 ---
 
-## 🔄 Automated i18n Loop
+## 🔄 The 5-Phase Authority Lifecycle
 
-The skill automates the full lifecycle, ensuring zero hardcoded string leakage and human-verified translation quality.
+The skill follows a structured evolution path, moving from AI-proposed drafts (L1) to human-verified standards (L2) and absolute manual truths (L3).
 
 ![i18n Lifecycle Diagram](./assets/lifecycle-diagram.svg)
 
