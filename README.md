@@ -33,23 +33,15 @@
 
 Copy one of the following prompts and send it to your AI coding assistant:
 
-**Install to current project (workspace)**
+**One-Step Setup (Recommended)**
 ```text
-Setup this i18n skill for my current project: https://github.com/Shirolin/i18n-agent-skill
+Setup this i18n skill for my current project and initialize it: https://github.com/Shirolin/i18n-agent-skill
 ```
 ```text
-帮我在当前项目中配置好这个 i18n 技能：https://github.com/Shirolin/i18n-agent-skill
-```
-
-**Install globally**
-```text
-Globally install this i18n skill: https://github.com/Shirolin/i18n-agent-skill
-```
-```text
-全局安装这个 i18n 技能：https://github.com/Shirolin/i18n-agent-skill
+帮我在当前项目中配置好这个 i18n 技能并完成初始化：https://github.com/Shirolin/i18n-agent-skill
 ```
 
-AI will clone the repo, run the installer (`./install.sh` or `.\install.ps1`), and perform `/i18n-init`.
+AI will clone the repo, run the installer, and automatically perform `./i18n init --auto`.
 
 ### Option 2: Manual Installation
 

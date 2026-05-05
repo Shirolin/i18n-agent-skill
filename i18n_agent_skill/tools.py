@@ -1292,7 +1292,7 @@ def _detect_enabled_langs(locale_dir: str) -> list[str]:
     return sorted(list(set(langs)))
 
 
-async def initialize_project_config() -> dict[str, Any]:
+async def initialize_project_config(auto: bool = False) -> dict[str, Any]:
     """Scan project and return configuration recommendations."""
     config = ProjectConfig()
     config.locales_dir = _detect_locale_dir(config)
@@ -1302,6 +1302,12 @@ async def initialize_project_config() -> dict[str, Any]:
         if os.path.isdir(os.path.join(WORKSPACE_ROOT, d)):
             config.source_dirs = [d]
             break
+
+    # If auto-mode, finalize persona immediately with safe defaults
+    if auto:
+        config.persona.domain = "General"
+        config.persona.audience = "Global Users"
+        config.persona.tone = "Professional"
 
     ignore_lines = [
         ".i18n-cache.json",
@@ -1314,6 +1320,16 @@ async def initialize_project_config() -> dict[str, Any]:
     p = os.path.join(WORKSPACE_ROOT, CONFIG_FILE)
     async with aiofiles.open(p, "w", encoding="utf-8") as f:
         await f.write(json.dumps(config.model_dump(), indent=2, ensure_ascii=False))
+
+    if auto:
+        return {
+            "message": f"Initialized config with AUTO-PERSONA at {p}.",
+            "config": config.model_dump(),
+            "status": "ready",
+            "next_step": (
+                "Configuration is finalized. You can now run 'scan' or 'status' immediately."
+            ),
+        }
 
     # AI-Native: Automatically distill project samples to help AI suggest a persona
     project_samples = await distill_project_persona()

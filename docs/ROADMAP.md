@@ -29,11 +29,16 @@ This document tracks planned features and architectural enhancements to keep **i
 - [ ] **BiDi Safety Audit**: Add placeholder validation to ensure variables (e.g., `{name}`) and punctuation (e.g., `؟`, `،`) maintain correct flow in bidirectional text.
 - [ ] **RTL Preview**: Optimize Terminal/Markdown report rendering for RTL languages to prevent character inversion.
 
-## 5. Industrial-Grade Reliability (New 🛠️)
+## 5. Industrial-Grade Reliability
 *Focus: Ensuring the tool works everywhere, every time.*
 - [x] **Token Masking**: Protect special sequences (URL, Variables) during typography linting to reduce false positives.
-- [x] **Robust Installer**: Redesigned `bootstrap.ps1` with progress feedback to prevent AI agent timeouts.
-- [x] **CI/CD Integrity**: Automated quality gates using `ruff` and `mypy` with customized Tree-sitter type safety overrides.
+- [x] **Robust Installer**: Cross-platform installer (`install.sh`/`install.ps1`) with `.venv` automation.
+- [x] **CI/CD Integrity**: Automated quality gates using `ruff` and `mypy`.
+- [ ] **Command Proxy (2026-05-05, Priority 🌟)**: Automatically generate a root-level `i18n` proxy script (sh/ps1) during installation to shorten the command path.
+- [ ] **Proactive .gitignore Patching (2026-05-05)**: Extend the installer to automatically add all i18n runtime files (`.i18n-*`) to `.gitignore` by default.
+- [ ] **Pre-flight venv Check (2026-05-05)**: Add robust diagnostics to the installer to detect missing Python modules or broken environments before attempting setup.
+- [ ] **One-Step Init (2026-05-05)**: Add `--auto` flag to `init` to allow AI to analyze samples and finalize the persona handshake in a single turn.
+- [ ] **Bilingual AI Install Prompts (2026-05-05)**: Optimize README prompts to guide AI assistants to perform `init` immediately after installation.
 - [ ] **Parallel Processing**: Implement concurrent LLM requests for massive translation tasks.
 
 ---

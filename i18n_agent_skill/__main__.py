@@ -133,8 +133,13 @@ async def cli_main():
     )
 
     # 6. init
-    subparsers.add_parser(
+    init_parser = subparsers.add_parser(
         "init", help="Scan project and generate explicit .i18n-skill.json configuration."
+    )
+    init_parser.add_argument(
+        "--auto",
+        action="store_true",
+        help="One-step setup: automatically infer persona and finalize configuration.",
     )
 
     # 7. optimize
@@ -198,7 +203,7 @@ async def cli_main():
         _print_json(status_res.model_dump())
 
     elif args.command == "init":
-        init_res = await initialize_project_config()
+        init_res = await initialize_project_config(auto=args.auto)
         _print_json(init_res)
 
     elif args.command == "optimize":

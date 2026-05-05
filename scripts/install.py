@@ -76,8 +76,35 @@ def find_python() -> str:
     sys.exit(1)
 
 
+def pre_flight_check() -> None:
+    """Verify that essential Python modules like 'venv' are available."""
+    info("Performing pre-flight environment check…")
+    python = find_python()
+    try:
+        # Check for venv module
+        subprocess.run(
+            [python, "-c", "import venv"],
+            capture_output=True,
+            check=True,
+        )
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        error("Python 'venv' module is missing or broken.")
+        if sys.platform == "win32":
+            error(
+                "Please re-install Python from https://python.org and "
+                "ensure 'pip' and 'venv' are checked."
+            )
+        else:
+            error(
+                "Please install the venv package (e.g., 'sudo apt install python3-venv' on Ubuntu)."
+            )
+        sys.exit(1)
+    ok("Environment pre-check passed.")
+
+
 def setup_venv() -> None:
     """Create .venv and install package in editable mode."""
+    pre_flight_check()
     info("Setting up Python environment…")
     venv_dir = SKILL_ROOT / ".venv"
     python = find_python()
@@ -125,27 +152,67 @@ def detect_project_root() -> Path | None:
 
 
 def patch_gitignore() -> None:
-    """Append `.agents/` to the project's .gitignore if not already present."""
+    """Append `.agents/` and runtime files to the project's .gitignore if not already present."""
     project_root = detect_project_root()
     if project_root is None:
         return  # Global install or dev mode — nothing to patch
 
     gitignore = project_root / ".gitignore"
-    marker = ".agents/"
+    # Define rules to ensure clean project state
+    rules = [
+        "# Agent skills (not tracked with this project)",
+        ".agents/",
+        "# i18n-agent-skill runtime files",
+        ".i18n-cache.json",
+        ".i18n-proposals/",
+        ".i18n-snapshots.json",
+        ".i18n-prefs.json",
+        "!.i18n-skill.json",
+    ]
 
+    existing_content = ""
     if gitignore.exists():
-        content = gitignore.read_text(encoding="utf-8")
-        if marker in content:
-            return  # Already handled
-        with gitignore.open("a", encoding="utf-8") as f:
-            f.write("\n# Agent skills (not tracked with this project)\n.agents/\n")
-    else:
-        gitignore.write_text(
-            "# Agent skills (not tracked with this project)\n.agents/\n",
-            encoding="utf-8",
-        )
+        existing_content = gitignore.read_text(encoding="utf-8")
 
-    ok(f"Added '{marker}' to {gitignore}")
+    to_add = []
+    for rule in rules:
+        if rule not in existing_content:
+            to_add.append(rule)
+
+    if to_add:
+        with gitignore.open("a", encoding="utf-8") as f:
+            if existing_content and not existing_content.endswith("\n"):
+                f.write("\n")
+            f.write("\n" + "\n".join(to_add) + "\n")
+        ok(f"Patched {gitignore}")
+
+
+def generate_command_proxy() -> None:
+    """Generate root-level i18n proxy scripts for easier CLI access."""
+    project_root = detect_project_root()
+    if project_root is None:
+        return
+
+    # Path to the venv python relative to project root
+    try:
+        rel_skill_path = SKILL_ROOT.relative_to(project_root)
+    except ValueError:
+        return  # Not installed in expected project structure
+
+    if sys.platform == "win32":
+        proxy_path = project_root / "i18n.ps1"
+        venv_python = rel_skill_path / ".venv" / "Scripts" / "python.exe"
+        content = f'& "$PSScriptRoot\\{venv_python}" -m i18n_agent_skill $args\n'
+    else:
+        proxy_path = project_root / "i18n"
+        venv_python = rel_skill_path / ".venv" / "bin" / "python"
+        content = f'#!/bin/sh\nexec "$(dirname "$0")/{venv_python}" -m i18n_agent_skill "$@"\n'
+
+    proxy_path.write_text(content, encoding="utf-8")
+    if sys.platform != "win32":
+        os.chmod(proxy_path, 0o755)
+
+    ok(f"Generated command proxy: {proxy_path.name}")
 
 
 # ---------------------------------------------------------------------------
@@ -373,6 +440,7 @@ def main() -> None:
         check_git_repo()
         setup_venv()
         patch_gitignore()
+        generate_command_proxy()
 
     print(f"\n{GREEN}{BOLD}Done!{NC}")
     print(f"Activate the skill: {BOLD}/i18n-agent-skill{NC} in your AI assistant.\n")

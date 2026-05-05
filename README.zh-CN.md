@@ -33,17 +33,12 @@
 
 将以下任意一句话发送给你的 **AI 编码助手**（Cursor, Claude Code, Gemini CLI 等）：
 
-**安装到当前项目（工作区）**
+**一键配置（推荐）**
 ```text
-帮我在当前项目中配置好这个 i18n 技能：https://github.com/Shirolin/i18n-agent-skill
+帮我在当前项目中配置好这个 i18n 技能并完成初始化：https://github.com/Shirolin/i18n-agent-skill
 ```
 
-**全局安装**
-```text
-全局安装这个 i18n 技能：https://github.com/Shirolin/i18n-agent-skill
-```
-
-AI 将自动完成克隆，运行安装程序（`./install.sh` 或 `.\install.ps1`），并执行 `/i18n-init`。
+AI 将自动完成克隆，运行安装程序，并立即执行 `./i18n init --auto`。
 
 ### 方式二：手动安装
 
