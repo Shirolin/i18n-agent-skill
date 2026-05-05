@@ -27,19 +27,45 @@
 
 ---
 
-## 🚀 AI 原生安装 (零手动步骤)
+## 🚀 安装
 
-只需将以下指令复制并发送给您的 **AI 编码助手**（如 Cursor, Claude Code, Gemini CLI 等）：
+### 方式一：让 AI 帮你安装（推荐）
 
+将以下任意一句话发送给你的 **AI 编码助手**（Cursor, Claude Code, Gemini CLI 等）：
+
+**安装到当前项目（工作区）**
 ```text
 帮我在当前项目中配置好这个 i18n 技能：https://github.com/Shirolin/i18n-agent-skill
 ```
 
-**您的 AI 助手将自主完成以下流程：**
-1.  **克隆** 仓库至本地隐藏目录。
-2.  **引导** 环境配置，执行 `./install.sh --local`（非阻塞模式）。
-3.  **初始化** 项目配置，执行 `/i18n-init`。
-4.  **确认** 就绪状态，执行 `/i18n-status`。
+**全局安装**
+```text
+全局安装这个 i18n 技能：https://github.com/Shirolin/i18n-agent-skill
+```
+
+AI 将自动完成克隆、环境初始化，并执行 `/i18n-init`。
+
+### 方式二：手动安装
+
+```bash
+# 工作区安装（推荐，适用于单个项目）
+git clone --depth 1 https://github.com/Shirolin/i18n-agent-skill .agents/skills/i18n-agent-skill
+cd .agents/skills/i18n-agent-skill && ./install.sh
+
+# 全局安装（适用于所有项目）
+git clone --depth 1 https://github.com/Shirolin/i18n-agent-skill ~/.agents/skills/i18n-agent-skill
+cd ~/.agents/skills/i18n-agent-skill && ./install.sh
+```
+
+安装完成后在项目中执行 `/i18n-init`。
+
+### 升级
+
+```bash
+cd <安装路径>/i18n-agent-skill && git pull && ./install.sh
+```
+
+技能会自动检测是否有新版本可用并通知你。
 
 ---
 
@@ -95,17 +121,16 @@
 
 ---
 
-## 🤖 助手集成蓝图
+## 🤖 集成方式
 
-安装程序会自动将技能部署至您偏好的 Agent 环境：
+本技能遵循 **Agent Skills Open Standard (ADK)** 规范，安装到通用标准路径：
 
-| 助手 / 编辑器 | 集成方式 | 部署目标路径 |
+| 安装范围 | 路径 | 生效范围 |
 | :--- | :--- | :--- |
-| **Cursor** | 原生规则 | `.cursor/rules/` (自动生成 .mdc) |
-| **Claude Code** | 全局技能 | `~/.claude/skills/` |
-| **Gemini CLI** | 用户技能 | `~/.gemini/skills/` |
-| **Windsurf / Trae** | 全局规则 | `.codeium/windsurf/rules/` / `.trae/rules/` |
-| **通用 ADK 路径** | 行业标准 | `~/.agents/skills/` |
+| **工作区** | `.agents/skills/i18n-agent-skill/` | 仅当前项目中的 ADK 兼容 Agent |
+| **全局** | `~/.agents/skills/i18n-agent-skill/` | 系统全局的 ADK 兼容 Agent |
+
+对于尚未支持 ADK 路径的平台，可运行 `./install.sh --link-platforms` 创建可选软链接（如 `~/.gemini/skills/`、`~/.claude/skills/`）。
 
 ---
 

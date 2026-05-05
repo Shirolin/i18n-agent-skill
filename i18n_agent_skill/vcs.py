@@ -2,6 +2,43 @@ import re
 import subprocess
 
 
+def get_vcs_status(workspace_root: str) -> dict | None:
+    """
+    Get detailed Git repository status.
+    Returns: {branch, commit_hash, uncommitted_changes_count}
+    """
+    try:
+        # 1. Get branch name
+        branch_res = subprocess.run(
+            ["git", "rev-parse", "--abbrev-ref", "HEAD"],
+            cwd=workspace_root, capture_output=True, text=True, check=False
+        )
+        if branch_res.returncode != 0:
+            return None
+        
+        # 2. Get short commit hash
+        hash_res = subprocess.run(
+            ["git", "rev-parse", "--short", "HEAD"],
+            cwd=workspace_root, capture_output=True, text=True, check=False
+        )
+
+        # 3. Get count of uncommitted changes
+        diff_res = subprocess.run(
+            ["git", "diff", "--name-only"],
+            cwd=workspace_root, capture_output=True, text=True, check=False
+        )
+        changes = diff_res.stdout.strip().split("\n") if diff_res.stdout.strip() else []
+
+        return {
+            "branch": branch_res.stdout.strip(),
+            "commit_hash": hash_res.stdout.strip() if hash_res.returncode == 0 else "unknown",
+            "uncommitted_changes_count": len(changes),
+            "is_dirty": len(changes) > 0
+        }
+    except Exception:
+        return None
+
+
 def get_git_hunks(workspace_root: str) -> dict[str, set[int]]:
     """
     Parse the output of 'git diff -U0' and extract the set of changed line numbers for each file.

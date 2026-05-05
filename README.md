@@ -27,23 +27,50 @@
 
 ---
 
-## 🚀 AI-Native Setup (Zero Manual Steps)
+## 🚀 Installation
 
-Simply copy and paste the following instruction to your **AI Coding Assistant** (Cursor, Claude Code, Gemini CLI, etc.):
+### Option 1: Ask Your AI (Recommended)
 
+Copy one of the following prompts and send it to your AI coding assistant:
+
+**Install to current project (workspace)**
 ```text
-Setup this i18n skill for me: https://github.com/Shirolin/i18n-agent-skill
+帮我在当前项目中配置好这个 i18n 技能：https://github.com/Shirolin/i18n-agent-skill
+```
+```text
+Setup this i18n skill for my current project: https://github.com/Shirolin/i18n-agent-skill
 ```
 
-**What your AI Assistant will do autonomously:**
-1.  **Clone** the repository to a local hidden directory.
-2.  **Bootstrap** the environment via `./install.sh --local` (Non-blocking).
-3.  **Initialize** the project configuration using `/i18n-init`.
-4.  **Confirm** readiness via `/i18n-status`.
+**Install globally**
+```text
+全局安装这个 i18n 技能：https://github.com/Shirolin/i18n-agent-skill
+```
 
----
+Your AI will clone the repository, initialize the environment, and run `/i18n-init` for you.
 
-## 🛡️ Technical Pillars
+### Option 2: Manual Installation
+
+```bash
+# Workspace install (recommended for per-project use)
+git clone --depth 1 https://github.com/Shirolin/i18n-agent-skill .agents/skills/i18n-agent-skill
+cd .agents/skills/i18n-agent-skill && ./install.sh
+
+# Global install (available in all projects)
+git clone --depth 1 https://github.com/Shirolin/i18n-agent-skill ~/.agents/skills/i18n-agent-skill
+cd ~/.agents/skills/i18n-agent-skill && ./install.sh
+```
+
+Then run `/i18n-init` in your project.
+
+### Updating
+
+```bash
+cd <install_path>/i18n-agent-skill && git pull && ./install.sh
+```
+
+The skill automatically detects when a newer version is available and notifies you.
+
+
 
 ### 1. Deterministic AST Parsing
 Unlike fragile RegEx-based extractors, our engine uses **Tree-sitter AST** to navigate code structure.
@@ -97,15 +124,15 @@ Manages the translation lifecycle to prevent regressions and improve phrasing ov
 
 ## 🤖 Integration Blueprint
 
-The installer automatically detects and deploys to your preferred Agent environment:
+This skill follows the **Agent Skills Open Standard (ADK)** and installs to the universal path:
 
-| Agent / Editor | Integration Method | Target Path |
+| Scope | Install Path | Who reads it |
 | :--- | :--- | :--- |
-| **Cursor** | Native Rules | `.cursor/rules/` (Auto-generated .mdc) |
-| **Claude Code** | Global Skills | `~/.claude/skills/` |
-| **Gemini CLI** | User Skills | `~/.gemini/skills/` |
-| **Windsurf / Trae** | Global Rules | `.codeium/windsurf/rules/` / `.trae/rules/` |
-| **Generic ADK** | Universal Path | `~/.agents/skills/` |
+| **Workspace** | `.agents/skills/i18n-agent-skill/` | Any ADK-compatible agent in this project |
+| **Global** | `~/.agents/skills/i18n-agent-skill/` | Any ADK-compatible agent system-wide |
+
+For platforms that don't read the ADK path natively, run `./install.sh --link-platforms` to create optional symlinks (e.g., `~/.gemini/skills/`, `~/.claude/skills/`).
+
 
 ---
 

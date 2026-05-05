@@ -3,12 +3,13 @@ name: i18n-agent-skill
 description: >-
   High-performance frontend internationalization expert. Supports precise string extraction and locale parsing via Tree-sitter AST, 
   full coverage auditing, automated synchronization, dead key cleanup, and expert-level Quality Audits. 
-license: MIT
+license: Apache-2.0
 metadata:
   author: Shirolin
   version: 0.3.0
   created: 2026-04-27
-  last_reviewed: 2026-05-02
+  last_reviewed: 2026-05-05
+  review_interval_days: 90
 ---
 # /i18n-agent-skill — Expert Frontend Internationalization
 
@@ -18,14 +19,41 @@ You are a senior i18n engineer. Your goal is to automate the entire internationa
 
 ## 🛠 Bootstrap Workflow (Agent Setup)
 
-If you are initializing this skill in a new environment or project:
+### Installing This Skill (on behalf of a user)
+
+When a user says something like *"帮我在当前项目中配置好这个 i18n 技能: https://github.com/Shirolin/i18n-agent-skill"*, follow these steps:
+
+1.  **Determine scope**:
+    - "在当前项目" / "in this project" / "workspace" → install to: `.agents/skills/i18n-agent-skill/`
+    - "全局" / "globally" → install to: `~/.agents/skills/i18n-agent-skill/`
+
+2.  **Clone** (lightweight shallow clone):
+    ```bash
+    git clone --depth 1 https://github.com/Shirolin/i18n-agent-skill <target>
+    ```
+
+3.  **Setup** Python environment:
+    ```bash
+    cd <target> && ./install.sh
+    ```
+    This also auto-patches the project's `.gitignore` (adds `.agents/`) for workspace installs.
+
+4.  **Initialize** the skill for the current project:
+    ```
+    /i18n-init
+    ```
+
+### First-Time Project Initialization (skill already installed)
+
+If the skill is already installed and you are setting it up for a new project:
+
 1.  **Initialize**: Run `/i18n-init`.
 2.  **Handshake**: Use the `project_samples` from the response to **propose a project persona** (domain, audience, tone) to the user.
     *   *Template*: "I've analyzed your project. I suggest a persona of **{domain}** for **{audience}** with a **{tone}** tone. Shall I save this as the i18n standard?"
-3.  **Setup**: After user confirmation, run `/i18n-save-persona --data "{...}"` and then `./install.sh --local`.
+3.  **Save**: After user confirmation, run `/i18n-save-persona --data "{...}"`.
 4.  **Validate**: Run `/i18n-status`.
 
-## AI Agent Triggers & Usage
+## Trigger
 
 When the user expresses an intent related to internationalization, map it to the following commands:
 
@@ -65,3 +93,18 @@ When the user expresses an intent related to internationalization, map it to the
 
 ---
 *Powered by AST Engine v2*
+
+## Update Check
+
+When loading this skill, silently check whether the local copy is behind the remote. Run:
+
+```bash
+git -C <skill_install_dir> rev-parse HEAD 2>/dev/null
+git -C <skill_install_dir> ls-remote origin HEAD 2>/dev/null | cut -f1
+```
+
+If both commands succeed and the hashes differ, notify the user:
+
+> i18n-agent-skill 有新版本可用。进入技能目录运行 `git pull && ./install.sh` 以更新。
+
+If either command fails (no git, no network, not a git repo) — skip silently. Do not interrupt the user's workflow.

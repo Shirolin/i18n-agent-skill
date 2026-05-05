@@ -1,3 +1,4 @@
+import asyncio
 import glob
 import hashlib
 import json
@@ -9,6 +10,7 @@ from typing import Any, cast
 import aiofiles
 import yaml
 
+from i18n_agent_skill import vcs
 # Core dependencies: Tree-sitter lexical analysis suite
 try:
     # Enforce version check
@@ -342,6 +344,7 @@ async def extract_raw_strings(
     use_cache: bool = True,
     vcs_mode: bool = False,
     privacy_level: PrivacyLevel | None = None,
+    shared_cache: dict[str, Any] | None = None,
 ) -> ExtractOutput:
     """Strict AST scanning, no RegEx fallback."""
     try:
@@ -377,21 +380,19 @@ async def extract_raw_strings(
         content = await f.read()
     ext = os.path.splitext(file_path)[1].lower()
 
-    cache_path = os.path.join(WORKSPACE_ROOT, CACHE_FILE)
     content_hash = hashlib.md5(content.encode("utf-8")).hexdigest()
-    if use_cache and os.path.exists(cache_path):
-        async with aiofiles.open(cache_path, encoding="utf-8") as f:
-            cache = json.loads(await f.read())
-            if safe_p in cache and cache[safe_p]["hash"] == content_hash:
-                return ExtractOutput(
-                    results=[ExtractedString(**r) for r in cache[safe_p]["results"]],
-                    is_cached=True,
-                    telemetry=TelemetryData(
-                        duration_ms=0,
-                        files_processed=1,
-                        keys_extracted=len(cache[safe_p]["results"]),
-                    ),
-                )
+    if use_cache and shared_cache is not None:
+        if safe_p in shared_cache and shared_cache[safe_p]["hash"] == content_hash:
+            return ExtractOutput(
+                results=[ExtractedString(**r) for r in shared_cache[safe_p]["results"]],
+                is_cached=True,
+                telemetry=TelemetryData(
+                    duration_ms=0,
+                    files_processed=1,
+                    cache_hits=1,
+                    keys_extracted=len(shared_cache[safe_p]["results"]),
+                ),
+            )
 
     scanner = TreeSitterScanner(content, ext)
     results, extracted_set, privacy_hits = [], set(), 0
@@ -410,14 +411,8 @@ async def extract_raw_strings(
             results.append(ExtractedString(text=masked, line=line, context=ctx, is_masked=is_m))
             extracted_set.add((text, line))
 
-    if use_cache:
-        cache = {}
-        if os.path.exists(cache_path):
-            async with aiofiles.open(cache_path, encoding="utf-8") as f:
-                cache = json.loads(await f.read())
-        cache[safe_p] = {"hash": content_hash, "results": [r.model_dump() for r in results]}
-        async with aiofiles.open(cache_path, "w", encoding="utf-8") as f:
-            await f.write(json.dumps(cache))
+    if use_cache and shared_cache is not None:
+        shared_cache[safe_p] = {"hash": content_hash, "results": [r.model_dump() for r in results]}
 
     duration = (time.perf_counter() - start_ts) * 1000
     telemetry = TelemetryData(
@@ -445,8 +440,38 @@ async def orchestrate_scan(
     }
     valid_exts = {".js", ".jsx", ".ts", ".tsx", ".vue"}
 
+    # Optimization: Pre-load cache once to avoid O(N^2) I/O
+    cache_path = os.path.join(WORKSPACE_ROOT, CACHE_FILE)
+    shared_cache = {}
+    if use_cache and os.path.exists(cache_path):
+        try:
+            async with aiofiles.open(cache_path, encoding="utf-8") as f:
+                shared_cache = json.loads(await f.read())
+        except Exception:
+            pass
+
+    # VCS Mode optimization: only scan changed files
+    changed_files = set()
+    if vcs_mode:
+        v_status = vcs.get_vcs_status(WORKSPACE_ROOT)
+        if v_status and v_status.get("is_dirty"):
+            # We use git diff --name-only internally in get_vcs_status if I added it, 
+            # let's double check vcs.py or just run it here.
+            # Actually, I should probably expose a get_changed_files in vcs.py.
+            # For now, let's just get it here for simplicity or update vcs.py.
+            try:
+                res = subprocess.run(
+                    ["git", "diff", "--name-only"],
+                    cwd=WORKSPACE_ROOT, capture_output=True, text=True, check=False
+                )
+                if res.returncode == 0:
+                    changed_files = {os.path.normpath(os.path.join(WORKSPACE_ROOT, f)).lower() for f in res.stdout.strip().split("\n") if f.strip()}
+            except Exception:
+                pass
+
+    tasks = []
     for p in scan_paths:
-        abs_p = os.path.join(WORKSPACE_ROOT, p) if not os.path.isabs(p) else p
+        abs_p = os.path.normpath(os.path.join(WORKSPACE_ROOT, p)) if not os.path.isabs(p) else os.path.normpath(p)
         if os.path.isdir(abs_p):
             for root, _, files in os.walk(abs_p):
                 # Skip ignore_dirs
@@ -456,28 +481,43 @@ async def orchestrate_scan(
                     continue
                 for file in files:
                     if os.path.splitext(file)[1].lower() in valid_exts:
-                        fpath = os.path.join(root, file)
-                        res = await extract_raw_strings(
-                            fpath, use_cache=use_cache, vcs_mode=vcs_mode
-                        )
-                        if res.results:
-                            all_results.extend([r.model_dump() for r in res.results])
-                        if res.telemetry:
-                            total_tel["duration_ms"] += res.telemetry.duration_ms
-                            total_tel["files_processed"] += res.telemetry.files_processed
-                            total_tel["keys_extracted"] += res.telemetry.keys_extracted
-                            total_tel["privacy_shield_hits"] += getattr(
-                                res.telemetry, "privacy_shield_hits", 0
+                        fpath = os.path.normpath(os.path.join(root, file))
+                        if vcs_mode and fpath.lower() not in changed_files:
+                            continue
+                        tasks.append(
+                            extract_raw_strings(
+                                fpath, use_cache=use_cache, vcs_mode=vcs_mode, shared_cache=shared_cache
                             )
+                        )
         elif os.path.exists(abs_p):
-            res = await extract_raw_strings(abs_p, use_cache=use_cache, vcs_mode=vcs_mode)
-            if res.results:
-                all_results.extend([r.model_dump() for r in res.results])
-            if res.telemetry:
-                total_tel["duration_ms"] += res.telemetry.duration_ms
-                total_tel["files_processed"] += res.telemetry.files_processed
-                total_tel["keys_extracted"] += res.telemetry.keys_extracted
-                total_tel["privacy_shield_hits"] += getattr(res.telemetry, "privacy_shield_hits", 0)
+            fpath = os.path.normpath(abs_p)
+            if vcs_mode and fpath.lower() not in changed_files:
+                continue
+            tasks.append(
+                extract_raw_strings(
+                    fpath, use_cache=use_cache, vcs_mode=vcs_mode, shared_cache=shared_cache
+                )
+            )
+
+    # Execution Phase: Concurrent scanning
+    scan_results = await asyncio.gather(*tasks)
+
+    for res in scan_results:
+        if res.results:
+            all_results.extend([r.model_dump() for r in res.results])
+        if res.telemetry:
+            total_tel["duration_ms"] += res.telemetry.duration_ms
+            total_tel["files_processed"] += res.telemetry.files_processed
+            total_tel["keys_extracted"] += res.telemetry.keys_extracted
+            total_tel["privacy_shield_hits"] += getattr(res.telemetry, "privacy_shield_hits", 0)
+
+    # Optimization: Write back cache once
+    if use_cache and tasks:
+        try:
+            async with aiofiles.open(cache_path, "w", encoding="utf-8") as f:
+                await f.write(json.dumps(shared_cache))
+        except Exception:
+            pass
 
     return {"results": all_results, "telemetry": total_tel}
 
@@ -1185,6 +1225,17 @@ async def check_project_status() -> ProjectStatus:
     config = await _load_project_config()
     has_config_file = os.path.exists(os.path.join(WORKSPACE_ROOT, CONFIG_FILE))
 
+    # Calculate actual cache size
+    cache_count = 0
+    cache_path = os.path.join(WORKSPACE_ROOT, CACHE_FILE)
+    if os.path.exists(cache_path):
+        try:
+            async with aiofiles.open(cache_path, encoding="utf-8") as f:
+                cache_data = json.loads(await f.read())
+                cache_count = len(cache_data)
+        except Exception:
+            pass
+
     status_msg = "Ready."
     if not DEPENDENCIES_INSTALLED:
         status_msg = f"Environment Issues: {DEP_ERROR_MSG}"
@@ -1194,9 +1245,10 @@ async def check_project_status() -> ProjectStatus:
     return ProjectStatus(
         config=config,
         has_glossary=os.path.exists(os.path.join(WORKSPACE_ROOT, GLOSSARY_FILE)),
-        cache_size=0,
+        cache_size=cache_count,
         workspace_root=WORKSPACE_ROOT,
         status_message=status_msg,
+        vcs_info=vcs.get_vcs_status(WORKSPACE_ROOT),
     )
 
 
@@ -1277,8 +1329,9 @@ async def _get_file_hash(p):
 async def distill_project_persona() -> dict[str, Any]:
     """
     [Agentic Distillation] Sample project files to help AI infer the business persona.
-    Returns a dict containing README snippets, package.json info, and sample UI keys.
+    Returns a dict containing README snippets, package.json info, and representative UI keys.
     """
+    import random
     config = await _load_project_config()
     samples: dict[str, Any] = {"package_info": {}, "readme_snippet": "", "ui_samples": []}
 
@@ -1291,29 +1344,37 @@ async def distill_project_persona() -> dict[str, Any]:
                 samples["package_info"] = {
                     "name": pkg.get("name"),
                     "description": pkg.get("description"),
-                    "dependencies": list(pkg.get("dependencies", {}).keys())[:10],
+                    "dependencies": list(pkg.get("dependencies", {}).keys())[:15],
                 }
         except Exception:
             pass
 
-    # 2. Sample README.md
+    # 2. Sample README.md (Increased context)
     readme_p = os.path.join(WORKSPACE_ROOT, "README.md")
     if os.path.exists(readme_p):
         try:
             async with aiofiles.open(readme_p, encoding="utf-8") as f:
                 content = await f.read()
-                samples["readme_snippet"] = content[:1000]  # First 1k chars
+                samples["readme_snippet"] = content[:2000]
         except Exception:
             pass
 
-    # 3. Sample UI Keys from locales
+    # 3. Representative UI Keys from locales
     target_dir = _detect_locale_dir(config)
     en_p = os.path.join(WORKSPACE_ROOT, target_dir, "en.json")
     if os.path.exists(en_p):
         try:
             with open(en_p, encoding="utf-8") as f:
-                data = _flatten_dict(json.load(f))
-                samples["ui_samples"] = list(data.items())[:15]
+                data = list(_flatten_dict(json.load(f)).items())
+                if len(data) <= 20:
+                    samples["ui_samples"] = data
+                else:
+                    # Strategy: First 5 + Random 10 + Top 5 Longest
+                    first_5 = data[:5]
+                    longest_5 = sorted(data, key=lambda x: len(str(x[1])), reverse=True)[:5]
+                    middle_pool = [item for item in data if item not in first_5 and item not in longest_5]
+                    random_10 = random.sample(middle_pool, min(10, len(middle_pool)))
+                    samples["ui_samples"] = first_5 + longest_5 + random_10
         except Exception:
             pass
 
