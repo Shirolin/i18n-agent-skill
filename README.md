@@ -35,37 +35,47 @@ Copy one of the following prompts and send it to your AI coding assistant:
 
 **Install to current project (workspace)**
 ```text
-帮我在当前项目中配置好这个 i18n 技能：https://github.com/Shirolin/i18n-agent-skill
+Setup this i18n skill for my current project: https://github.com/Shirolin/i18n-agent-skill
 ```
 ```text
-Setup this i18n skill for my current project: https://github.com/Shirolin/i18n-agent-skill
+帮我在当前项目中配置好这个 i18n 技能：https://github.com/Shirolin/i18n-agent-skill
 ```
 
 **Install globally**
 ```text
+Globally install this i18n skill: https://github.com/Shirolin/i18n-agent-skill
+```
+```text
 全局安装这个 i18n 技能：https://github.com/Shirolin/i18n-agent-skill
 ```
 
-Your AI will clone the repository, initialize the environment, and run `/i18n-init` for you.
+AI will clone the repo, run the installer (`./install.sh` or `.\install.ps1`), and perform `/i18n-init`.
 
 ### Option 2: Manual Installation
 
 ```bash
-# Workspace install (recommended for per-project use)
+# Clone to workspace (Recommended)
 git clone --depth 1 https://github.com/Shirolin/i18n-agent-skill .agents/skills/i18n-agent-skill
-cd .agents/skills/i18n-agent-skill && ./install.sh
+cd .agents/skills/i18n-agent-skill
 
-# Global install (available in all projects)
-git clone --depth 1 https://github.com/Shirolin/i18n-agent-skill ~/.agents/skills/i18n-agent-skill
-cd ~/.agents/skills/i18n-agent-skill && ./install.sh
+# Run Installer
+./install.sh       # Linux / macOS
+.\install.ps1      # Windows (PowerShell)
 ```
 
-Then run `/i18n-init` in your project.
+After installation, run the initialization command in your project root:
+```bash
+# Shortcut if using MCP/Platform support, or run directly:
+python -m i18n_agent_skill init
+```
 
 ### Updating
 
 ```bash
-cd <install_path>/i18n-agent-skill && git pull && ./install.sh
+cd <install_path>/i18n-agent-skill
+git pull
+./install.sh       # Linux / macOS
+.\install.ps1      # Windows (PowerShell)
 ```
 
 The skill automatically detects when a newer version is available and notifies you.

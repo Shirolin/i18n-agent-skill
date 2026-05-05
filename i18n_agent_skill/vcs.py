@@ -11,21 +11,30 @@ def get_vcs_status(workspace_root: str) -> dict | None:
         # 1. Get branch name
         branch_res = subprocess.run(
             ["git", "rev-parse", "--abbrev-ref", "HEAD"],
-            cwd=workspace_root, capture_output=True, text=True, check=False
+            cwd=workspace_root,
+            capture_output=True,
+            text=True,
+            check=False,
         )
         if branch_res.returncode != 0:
             return None
-        
+
         # 2. Get short commit hash
         hash_res = subprocess.run(
             ["git", "rev-parse", "--short", "HEAD"],
-            cwd=workspace_root, capture_output=True, text=True, check=False
+            cwd=workspace_root,
+            capture_output=True,
+            text=True,
+            check=False,
         )
 
         # 3. Get count of uncommitted changes
         diff_res = subprocess.run(
             ["git", "diff", "--name-only"],
-            cwd=workspace_root, capture_output=True, text=True, check=False
+            cwd=workspace_root,
+            capture_output=True,
+            text=True,
+            check=False,
         )
         changes = diff_res.stdout.strip().split("\n") if diff_res.stdout.strip() else []
 
@@ -33,7 +42,7 @@ def get_vcs_status(workspace_root: str) -> dict | None:
             "branch": branch_res.stdout.strip(),
             "commit_hash": hash_res.stdout.strip() if hash_res.returncode == 0 else "unknown",
             "uncommitted_changes_count": len(changes),
-            "is_dirty": len(changes) > 0
+            "is_dirty": len(changes) > 0,
         }
     except Exception:
         return None

@@ -4,6 +4,7 @@ import hashlib
 import json
 import os
 import re
+import subprocess
 import time
 from typing import Any, cast
 
@@ -11,6 +12,7 @@ import aiofiles
 import yaml
 
 from i18n_agent_skill import vcs
+
 # Core dependencies: Tree-sitter lexical analysis suite
 try:
     # Enforce version check
@@ -455,23 +457,34 @@ async def orchestrate_scan(
     if vcs_mode:
         v_status = vcs.get_vcs_status(WORKSPACE_ROOT)
         if v_status and v_status.get("is_dirty"):
-            # We use git diff --name-only internally in get_vcs_status if I added it, 
+            # We use git diff --name-only internally in get_vcs_status if I added it,
             # let's double check vcs.py or just run it here.
             # Actually, I should probably expose a get_changed_files in vcs.py.
             # For now, let's just get it here for simplicity or update vcs.py.
             try:
                 res = subprocess.run(
                     ["git", "diff", "--name-only"],
-                    cwd=WORKSPACE_ROOT, capture_output=True, text=True, check=False
+                    cwd=WORKSPACE_ROOT,
+                    capture_output=True,
+                    text=True,
+                    check=False,
                 )
                 if res.returncode == 0:
-                    changed_files = {os.path.normpath(os.path.join(WORKSPACE_ROOT, f)).lower() for f in res.stdout.strip().split("\n") if f.strip()}
+                    changed_files = {
+                        os.path.normpath(os.path.join(WORKSPACE_ROOT, f)).lower()
+                        for f in res.stdout.strip().split("\n")
+                        if f.strip()
+                    }
             except Exception:
                 pass
 
     tasks = []
     for p in scan_paths:
-        abs_p = os.path.normpath(os.path.join(WORKSPACE_ROOT, p)) if not os.path.isabs(p) else os.path.normpath(p)
+        abs_p = (
+            os.path.normpath(os.path.join(WORKSPACE_ROOT, p))
+            if not os.path.isabs(p)
+            else os.path.normpath(p)
+        )
         if os.path.isdir(abs_p):
             for root, _, files in os.walk(abs_p):
                 # Skip ignore_dirs
@@ -486,7 +499,10 @@ async def orchestrate_scan(
                             continue
                         tasks.append(
                             extract_raw_strings(
-                                fpath, use_cache=use_cache, vcs_mode=vcs_mode, shared_cache=shared_cache
+                                fpath,
+                                use_cache=use_cache,
+                                vcs_mode=vcs_mode,
+                                shared_cache=shared_cache,
                             )
                         )
         elif os.path.exists(abs_p):
@@ -1332,6 +1348,7 @@ async def distill_project_persona() -> dict[str, Any]:
     Returns a dict containing README snippets, package.json info, and representative UI keys.
     """
     import random
+
     config = await _load_project_config()
     samples: dict[str, Any] = {"package_info": {}, "readme_snippet": "", "ui_samples": []}
 
@@ -1372,7 +1389,9 @@ async def distill_project_persona() -> dict[str, Any]:
                     # Strategy: First 5 + Random 10 + Top 5 Longest
                     first_5 = data[:5]
                     longest_5 = sorted(data, key=lambda x: len(str(x[1])), reverse=True)[:5]
-                    middle_pool = [item for item in data if item not in first_5 and item not in longest_5]
+                    middle_pool = [
+                        item for item in data if item not in first_5 and item not in longest_5
+                    ]
                     random_10 = random.sample(middle_pool, min(10, len(middle_pool)))
                     samples["ui_samples"] = first_5 + longest_5 + random_10
         except Exception:

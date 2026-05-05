@@ -43,26 +43,33 @@
 全局安装这个 i18n 技能：https://github.com/Shirolin/i18n-agent-skill
 ```
 
-AI 将自动完成克隆、环境初始化，并执行 `/i18n-init`。
+AI 将自动完成克隆，运行安装程序（`./install.sh` 或 `.\install.ps1`），并执行 `/i18n-init`。
 
 ### 方式二：手动安装
 
 ```bash
 # 工作区安装（推荐，适用于单个项目）
 git clone --depth 1 https://github.com/Shirolin/i18n-agent-skill .agents/skills/i18n-agent-skill
-cd .agents/skills/i18n-agent-skill && ./install.sh
+cd .agents/skills/i18n-agent-skill
 
-# 全局安装（适用于所有项目）
-git clone --depth 1 https://github.com/Shirolin/i18n-agent-skill ~/.agents/skills/i18n-agent-skill
-cd ~/.agents/skills/i18n-agent-skill && ./install.sh
+# 运行安装脚本
+./install.sh       # Linux / macOS
+.\install.ps1      # Windows (PowerShell)
 ```
 
-安装完成后在项目中执行 `/i18n-init`。
+安装完成后，在项目根目录下运行初始化命令：
+```bash
+# 如果使用 MCP/平台支持可直接输入 /i18n-init，或直接运行：
+python -m i18n_agent_skill init
+```
 
 ### 升级
 
 ```bash
-cd <安装路径>/i18n-agent-skill && git pull && ./install.sh
+cd <安装路径>/i18n-agent-skill
+git pull
+./install.sh       # Linux / macOS
+.\install.ps1      # Windows (PowerShell)
 ```
 
 技能会自动检测是否有新版本可用并通知你。
