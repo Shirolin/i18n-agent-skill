@@ -16,12 +16,12 @@ set -e
 
 SKILL_ROOT="$(cd "$(dirname "$0")" && pwd)"
 
-# Locate a Python 3.8+ interpreter
+# Locate a Python 3.10+ interpreter
 find_python() {
     for candidate in python3 python; do
         if command -v "$candidate" >/dev/null 2>&1; then
             if "$candidate" -c \
-               "import sys; sys.exit(0 if sys.version_info >= (3,8) else 1)" \
+               "import sys; sys.exit(0 if sys.version_info >= (3,10) else 1)" \
                2>/dev/null; then
                 echo "$candidate"
                 return 0
@@ -32,7 +32,7 @@ find_python() {
 }
 
 PYTHON=$(find_python) || {
-    echo "[ERROR] Python 3.8+ is required but not found."
+    echo "[ERROR] Python 3.10+ is required but not found."
     echo "        Install from https://python.org and re-run."
     exit 1
 }

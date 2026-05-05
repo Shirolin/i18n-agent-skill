@@ -15,7 +15,7 @@ $SkillRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 function Find-Python {
     foreach ($candidate in "python", "python3") {
         if (Get-Command $candidate -ErrorAction SilentlyContinue) {
-            $versionCheck = & $candidate -c "import sys; sys.exit(0 if sys.version_info >= (3,8) else 1)" 2>$null
+            $versionCheck = & $candidate -c "import sys; sys.exit(0 if sys.version_info >= (3,10) else 1)" 2>$null
             if ($LASTEXITCODE -eq 0) {
                 return $candidate
             }
@@ -26,7 +26,7 @@ function Find-Python {
 
 $Python = Find-Python
 if (-not $Python) {
-    Write-Error "[ERROR] Python 3.8+ is required but not found."
+    Write-Error "[ERROR] Python 3.10+ is required but not found."
     Write-Host "        Install from https://python.org and re-run."
     exit 1
 }

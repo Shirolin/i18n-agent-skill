@@ -60,18 +60,18 @@ SKILL_ROOT = Path(__file__).parent.parent.resolve()
 
 
 def find_python() -> str:
-    """Return the first Python 3.8+ executable found on PATH."""
+    """Return the first Python 3.10+ executable found on PATH."""
     for candidate in ("python3", "python"):
         try:
             result = subprocess.run(
-                [candidate, "-c", "import sys; sys.exit(0 if sys.version_info >= (3, 8) else 1)"],
+                [candidate, "-c", "import sys; sys.exit(0 if sys.version_info >= (3, 10) else 1)"],
                 capture_output=True,
             )
             if result.returncode == 0:
                 return candidate
         except FileNotFoundError:
             continue
-    error("Python 3.8+ is required but not found.")
+    error("Python 3.10+ is required but not found.")
     error("Install Python from https://python.org and re-run.")
     sys.exit(1)
 
