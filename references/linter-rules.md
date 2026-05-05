@@ -25,4 +25,6 @@ To improve translation quality and UI reading experience, `i18n-agent-skill` inc
 - **Note**: This rule automatically ignores decimals in numbers (e.g., `3.14`).
 
 ## How to Apply Fixes
-Issues identified during audits are returned via the `StyleFeedback` model. When using `sync` or `fix` commands, the system generates repair proposals for you to preview and commit.
+## Connection to Lifecycle
+
+Linter rules are enforced during **Phase 3 (Promotion)** and **Phase 5 (Mastery)**. They provide the objective standards used during the `/i18n-audit-quality` phase to justify why a translation needs further refinement.

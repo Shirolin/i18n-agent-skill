@@ -8,7 +8,7 @@ metadata:
   author: Shirolin
   version: 0.3.0
   created: 2026-04-27
-  last_reviewed: 2026-05-03
+  last_reviewed: 2026-05-02
 ---
 # /i18n-agent-skill — Expert Frontend Internationalization
 

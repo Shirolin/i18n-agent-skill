@@ -44,12 +44,12 @@ from i18n_agent_skill.tools import (  # noqa: E402
     check_project_status,
     commit_i18n_changes,
     distill_project_persona,
-    extract_raw_strings,
     generate_quality_report,
     get_dead_keys,
-    get_missing_keys,
     initialize_project_config,
     optimize_translations,
+    orchestrate_audit,
+    orchestrate_scan,
     propose_sync_i18n,
     reference_optimize_translations,
     save_project_persona,
@@ -271,105 +271,14 @@ async def cli_main():
         )
 
     elif args.command == "scan":
-        status_report = await check_project_status()
-        scan_paths = []
-        if args.path:
-            scan_paths = [args.path]
-        else:
-            scan_paths = status_report.config.source_dirs or ["src"]
-
-        all_results = []
-        total_tel: dict[str, float | int] = {
-            "duration_ms": 0.0,
-            "files_processed": 0,
-            "keys_extracted": 0,
-            "privacy_shield_hits": 0,
-        }
-        valid_exts = {".js", ".jsx", ".ts", ".tsx", ".vue"}
-
-        for p in scan_paths:
-            if os.path.isdir(p):
-                for root, _, files in os.walk(p):
-                    # Skip ignore_dirs
-                    if any(
-                        ignored in root.replace("\\", "/").split("/")
-                        for ignored in status_report.config.ignore_dirs
-                    ):
-                        continue
-                    for file in files:
-                        if os.path.splitext(file)[1].lower() in valid_exts:
-                            fpath = os.path.join(root, file)
-                            scan_res = await extract_raw_strings(
-                                fpath, use_cache=args.use_cache, vcs_mode=args.vcs
-                            )
-                            if scan_res.results:
-                                all_results.extend([r.model_dump() for r in scan_res.results])
-                            if scan_res.telemetry:
-                                total_tel["duration_ms"] += scan_res.telemetry.duration_ms
-                                total_tel["files_processed"] += scan_res.telemetry.files_processed
-                                total_tel["keys_extracted"] += scan_res.telemetry.keys_extracted
-                                if getattr(scan_res.telemetry, "privacy_shield_hits", None):
-                                    total_tel["privacy_shield_hits"] += int(
-                                        scan_res.telemetry.privacy_shield_hits
-                                    )
-            elif os.path.isfile(p):
-                single_res = await extract_raw_strings(
-                    p, use_cache=args.use_cache, vcs_mode=args.vcs
-                )
-                if single_res.results:
-                    all_results.extend([r.model_dump() for r in single_res.results])
-                if single_res.telemetry:
-                    total_tel["duration_ms"] += single_res.telemetry.duration_ms
-                    total_tel["files_processed"] += single_res.telemetry.files_processed
-                    total_tel["keys_extracted"] += single_res.telemetry.keys_extracted
-                    if getattr(single_res.telemetry, "privacy_shield_hits", None):
-                        total_tel["privacy_shield_hits"] += int(
-                            single_res.telemetry.privacy_shield_hits
-                        )
-        _print_json({"results": all_results, "telemetry": total_tel})
+        scan_res = await orchestrate_scan(
+            path=args.path, use_cache=args.use_cache, vcs_mode=args.vcs
+        )
+        _print_json(scan_res)
 
     elif args.command == "audit":
-        status_report = await check_project_status()
-        if args.lang != "all" and args.lang not in status_report.config.enabled_langs:
-            _print_json(
-                {
-                    "error": (
-                        f"Language '{args.lang}' is not enabled in this project. "
-                        "Use 'init' or update .i18n-skill.json."
-                    )
-                }
-            )
-            return
-
-        if args.lang == "all":
-            status_report = await check_project_status()
-            target_langs = status_report.config.enabled_langs
-            audit_results = {}
-            for target_l in target_langs:
-                if target_l == args.base:
-                    continue
-                missing_keys = await get_missing_keys(target_l, base_lang=args.base)
-                audit_results[target_l] = {
-                    "missing_count": len(missing_keys),
-                    "missing_keys": missing_keys,
-                }
-            _print_json(audit_results)
-        else:
-            missing_keys = await get_missing_keys(args.lang, base_lang=args.base)
-            dead_keys = await get_dead_keys(lang_code=args.lang)
-            _print_json(
-                {
-                    "language": args.lang,
-                    "missing_keys_count": len(missing_keys),
-                    "missing_keys": missing_keys,
-                    "dead_keys_count": len(dead_keys),
-                    "message": (
-                        f"Audit complete for '{args.lang}'. "
-                        f"Found {len(missing_keys)} missing and "
-                        f"{len(dead_keys)} unused keys."
-                    ),
-                }
-            )
+        audit_res = await orchestrate_audit(lang_code=args.lang, base_lang=args.base)
+        _print_json(audit_res)
 
     elif args.command == "sync":
         try:

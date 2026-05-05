@@ -25,4 +25,6 @@ The privacy_guard performs the following scans before data leaves the local envi
 - **Placeholder Replacement**: Sensitive information is replaced with specific placeholders (e.g., `[MASKED_EMAIL]`, `[MASKED_API_KEY]`).
 
 ## Compliance Tips
-When `telemetry` detects a possible privacy risk, the system will force the process to interrupt and require the user to perform a `Status` confirmation. Bypassing this logic is strictly prohibited.
+## Connection to Lifecycle
+
+Privacy Guard operates silently during **Phase 2 (Discovery)** and **Phase 3 (Promotion)**. It ensures that the "AI Labor" part of the cycle remains within security boundaries, making the "Human-in-the-loop" experience safe for enterprise use.

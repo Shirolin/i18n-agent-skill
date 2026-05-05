@@ -429,6 +429,97 @@ async def extract_raw_strings(
     return ExtractOutput(results=results, telemetry=telemetry)
 
 
+async def orchestrate_scan(
+    path: str | None = None, use_cache: bool = True, vcs_mode: bool = False
+) -> dict[str, Any]:
+    """[Orchestration] Scan multiple paths or directories and aggregate results."""
+    config = await _load_project_config()
+    scan_paths = [path] if path else (config.source_dirs or ["src"])
+
+    all_results = []
+    total_tel = {
+        "duration_ms": 0.0,
+        "files_processed": 0,
+        "keys_extracted": 0,
+        "privacy_shield_hits": 0,
+    }
+    valid_exts = {".js", ".jsx", ".ts", ".tsx", ".vue"}
+
+    for p in scan_paths:
+        abs_p = os.path.join(WORKSPACE_ROOT, p) if not os.path.isabs(p) else p
+        if os.path.isdir(abs_p):
+            for root, _, files in os.walk(abs_p):
+                # Skip ignore_dirs
+                if any(
+                    ignored in root.replace("\\", "/").split("/") for ignored in config.ignore_dirs
+                ):
+                    continue
+                for file in files:
+                    if os.path.splitext(file)[1].lower() in valid_exts:
+                        fpath = os.path.join(root, file)
+                        res = await extract_raw_strings(
+                            fpath, use_cache=use_cache, vcs_mode=vcs_mode
+                        )
+                        if res.results:
+                            all_results.extend([r.model_dump() for r in res.results])
+                        if res.telemetry:
+                            total_tel["duration_ms"] += res.telemetry.duration_ms
+                            total_tel["files_processed"] += res.telemetry.files_processed
+                            total_tel["keys_extracted"] += res.telemetry.keys_extracted
+                            total_tel["privacy_shield_hits"] += getattr(
+                                res.telemetry, "privacy_shield_hits", 0
+                            )
+        elif os.path.exists(abs_p):
+            res = await extract_raw_strings(abs_p, use_cache=use_cache, vcs_mode=vcs_mode)
+            if res.results:
+                all_results.extend([r.model_dump() for r in res.results])
+            if res.telemetry:
+                total_tel["duration_ms"] += res.telemetry.duration_ms
+                total_tel["files_processed"] += res.telemetry.files_processed
+                total_tel["keys_extracted"] += res.telemetry.keys_extracted
+                total_tel["privacy_shield_hits"] += getattr(res.telemetry, "privacy_shield_hits", 0)
+
+    return {"results": all_results, "telemetry": total_tel}
+
+
+async def orchestrate_audit(lang_code: str = "all", base_lang: str = "en") -> dict[str, Any]:
+    """[Orchestration] Perform multi-language or single-language audit with dead-key detection."""
+    config = await _load_project_config()
+
+    if lang_code != "all" and lang_code not in config.enabled_langs:
+        return {
+            "error": (
+                f"Language '{lang_code}' is not enabled. Use 'init' or update .i18n-skill.json."
+            )
+        }
+
+    if lang_code == "all":
+        results = {}
+        for target_l in config.enabled_langs:
+            if target_l == base_lang:
+                continue
+            missing_keys = await get_missing_keys(target_l, base_lang=base_lang)
+            results[target_l] = {
+                "missing_count": len(missing_keys),
+                "missing_keys": missing_keys,
+            }
+        return results
+    else:
+        missing_keys = await get_missing_keys(lang_code, base_lang=base_lang)
+        dead_keys = await get_dead_keys(lang_code=lang_code)
+        return {
+            "language": lang_code,
+            "missing_keys_count": len(missing_keys),
+            "missing_keys": missing_keys,
+            "dead_keys_count": len(dead_keys),
+            "dead_keys": dead_keys,
+            "message": (
+                f"Audit complete for '{lang_code}'. "
+                f"Found {len(missing_keys)} missing and {len(dead_keys)} unused keys."
+            ),
+        }
+
+
 def _extract_placeholders(text: str) -> set[str]:
     """Extract variable placeholders like {name} or {{count}}."""
     return set(re.findall(r"\{\{.*?\}\}|\{.*?\}", text))

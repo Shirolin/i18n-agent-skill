@@ -23,4 +23,6 @@ Regular expressions have fatal flaws when processing frontend code:
 ## Technical Metrics
 - **Parsing Speed**: Millisecond-level.
 - **Accuracy**: 100% syntax-level accuracy; no missing or incorrect extractions.
-- **Comment Isolation**: Naturally immune to any form of slashes (`//`), block comments (`/* */`), or HTML comments.
+## Connection to Lifecycle
+
+The AST Engine is the primary driver for **Phase 2: Discovery**. It provides the deterministic raw material (L1 Drafts) that is later refined by the project persona and human oversight.
