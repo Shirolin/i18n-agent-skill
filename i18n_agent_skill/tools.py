@@ -581,6 +581,39 @@ def _extract_placeholders(text: str) -> set[str]:
     return set(re.findall(r"\{\{.*?\}\}|\{.*?\}", text))
 
 
+def _is_chrome_format(data: dict) -> bool:
+    """Detect if data follows Chrome i18n format (keys mapping to objects with 'message')."""
+    if not data:
+        return False
+    # Sample check
+    sample_keys = list(data.keys())[:10]
+    wrapped_count = 0
+    for k in sample_keys:
+        v = data[k]
+        if isinstance(v, dict) and "message" in v:
+            wrapped_count += 1
+    return wrapped_count > len(sample_keys) / 2
+
+
+def _smart_merge_i18n(base: dict, updates: dict) -> dict:
+    """Merge flat updates into a possibly nested base, respecting Chrome format."""
+    is_chrome = _is_chrome_format(base)
+    flat_base = _flatten_dict(base)
+
+    for k, v in updates.items():
+        # Case 1: Target key already exists in flat base (update mode)
+        if k in flat_base:
+            flat_base[k] = v
+        # Case 2: New key in a Chrome-formatted project
+        elif is_chrome and not k.endswith(".message"):
+            flat_base[f"{k}.message"] = v
+        # Case 3: Regular new key
+        else:
+            flat_base[k] = v
+
+    return _unflatten_dict(flat_base)
+
+
 async def propose_sync_i18n(
     new_pairs: dict, lang_code: str, reasoning: str, **kwargs
 ) -> SyncProposal:
@@ -601,8 +634,10 @@ async def propose_sync_i18n(
         pass
 
     for k, v in new_pairs.items():
-        if k in base_d:
-            exp = _extract_placeholders(base_d[k])
+        # Validate against flattened base
+        check_key = f"{k}.message" if f"{k}.message" in base_d else k
+        if check_key in base_d:
+            exp = _extract_placeholders(base_d[check_key])
             act = _extract_placeholders(v)
             if exp != act:
                 val_errs.append(
@@ -622,18 +657,20 @@ async def propose_sync_i18n(
     temp_file = os.path.join(WORKSPACE_ROOT, PROPOSALS_DIR, f"proposal_{lang_code}.json")
     os.makedirs(os.path.join(WORKSPACE_ROOT, PROPOSALS_DIR), exist_ok=True)
 
-    base_data = disk_data.copy()
+    # Use smart merge to preserve structure
+    final_data = _smart_merge_i18n(disk_data, new_pairs)
+
     existing_reasoning = ""
     if os.path.exists(temp_file):
         try:
             with open(temp_file, encoding="utf-8") as f:
                 p_data = json.load(f)
-                base_data = p_data.get("content", disk_data)
+                # If existing proposal exists, merge new updates into it
+                merged_content = _smart_merge_i18n(p_data.get("content", {}), new_pairs)
+                final_data = merged_content
                 existing_reasoning = p_data.get("reason", "")
         except Exception:
             pass
-
-    final_data = _deep_update(base_data, _unflatten_dict(new_pairs), ConflictStrategy.OVERWRITE)
 
     if existing_reasoning and reasoning not in existing_reasoning:
         combined_reason = f"{existing_reasoning}\n+ {reasoning}"
