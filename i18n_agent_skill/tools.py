@@ -200,17 +200,63 @@ def _validate_safe_path(path: str) -> str:
     return target_path
 
 
+def _is_natural_language(text: str, origin: str) -> bool:
+    """Globalization eligibility determination with high-fidelity noise filtering."""
+    if origin == "fallback_text":
+        return False # Fallback text in {t('key') || 'fallback'} is already 'handled'
+        
+    t = text.strip()
+    # Skip very short strings or technical constants
+    if len(t) < 2 or re.match(r"^[a-z0-9._\-\[\]]+$", t, re.IGNORECASE):
+        if not re.search(r"[^\x00-\x7f]", t): # Unless it contains non-ASCII
+            return False
+
+    # Skip common code patterns that look like text but aren't UI
+    technical_prefixes = ("http", "env:", "calc(", "var(", "--", "@", "./", "../")
+    if t.lower().startswith(technical_prefixes):
+        return False
+
+    # Privacy Shield: Detect sensitive data patterns
+    for pattern in SENSITIVE_PATTERNS.values():
+        if re.search(pattern, t, re.IGNORECASE):
+            return True
+
+    # Non-ASCII is almost always UI text (Chinese, Japanese, etc.)
+    if re.search(r"[^\x00-\x7f]", t):
+        return True
+
+    # Code vs Text-node logic
+    if origin == "text_node":
+        return True
+    
+    # Heuristics for English UI text: contains spaces or ending punctuation
+    return bool(" " in t or re.search(r"[.!?:]$", t))
+
+
 QUERY_STRINGS = {
     "jsx": """
         (jsx_text) @text
-        (string) @text
-        (template_string) @text
+        (string) @str
+        (template_string) @str
+        (import_statement) @skip
         (call_expression 
             function: [
                 (identifier) @func (#any-of? @func "t" "$t")
                 (member_expression property: (property_identifier) @method (#eq? @method "t"))
             ]
             arguments: (arguments . (string) @key)
+        )
+        (binary_expression
+            left: (call_expression 
+                function: [
+                    (identifier) @func (#any-of? @func "t" "$t")
+                    (member_expression property: (property_identifier) @method (#eq? @method "t"))
+                ]
+            )
+            right: [
+                (string) @fallback
+                (template_string) @fallback
+            ]
         )
     """,
     "vue": """
@@ -222,14 +268,27 @@ QUERY_STRINGS = {
         (script_element (raw_text) @script)
     """,
     "js": """
-        (string) @text
-        (template_string) @text
+        (string) @str
+        (template_string) @str
+        (import_statement) @skip
         (call_expression 
             function: [
                 (identifier) @func (#any-of? @func "t" "$t")
                 (member_expression property: (property_identifier) @method (#eq? @method "t"))
             ]
             arguments: (arguments . (string) @key)
+        )
+        (binary_expression
+            left: (call_expression 
+                function: [
+                    (identifier) @func (#any-of? @func "t" "$t")
+                    (member_expression property: (property_identifier) @method (#eq? @method "t"))
+                ]
+            )
+            right: [
+                (string) @fallback
+                (template_string) @fallback
+            ]
         )
     """,
 }
@@ -278,26 +337,61 @@ class TreeSitterScanner:
             matches = cursor.matches(tree.root_node)
 
             res = []
+            skip_nodes = set()
+            fallback_nodes = set()
+
+            # Pre-pass to identify nodes to skip or treat as fallback
             for _, captures in matches:
+                if "skip" in captures:
+                    for node in captures["skip"]:
+                        skip_nodes.add(node.id)
+                if "fallback" in captures:
+                    for node in captures["fallback"]:
+                        fallback_nodes.add(node.id)
+
+            processed_node_ids = set()
+
+            for _, captures in matches:
+                # Priority 0: Skip logic
+                if "skip" in captures:
+                    continue
+
                 # Priority 1: Check for i18n keys (@key)
                 if "key" in captures:
                     for node in captures["key"]:
+                        if node.id in processed_node_ids:
+                            continue
                         try:
                             key_text = node.text.decode("utf-8").strip("'\"")
                             line_no = node.start_point[0] + 1 + line_offset
                             res.append((key_text, line_no, "i18n_key"))
+                            processed_node_ids.add(node.id)
                         except Exception:
                             continue
                     continue
 
-                # Priority 2: Check for natural language text (@text, @script)
+                # Priority 2: Check for natural language text (@text, @script, @fallback, @str)
                 for c_name, nodes in captures.items():
                     if c_name in ("attr_name", "func", "method"):
                         continue
 
                     for node in nodes:
+                        if node.id in processed_node_ids:
+                            continue
+                            
+                        # Improved skipping: check if current node or any ancestor is in skip_nodes
+                        curr_n = node
+                        is_skipped = False
+                        while curr_n:
+                            if curr_n.id in skip_nodes:
+                                is_skipped = True
+                                break
+                            curr_n = curr_n.parent
+                        
+                        if is_skipped:
+                            continue
+                        
                         try:
-                            # Use Any to bypass stubborn Mypy type inference
                             t_bytes: Any = target_bytes[node.start_byte : node.end_byte]
                             text = t_bytes.decode("utf-8")
                         except Exception:
@@ -306,6 +400,7 @@ class TreeSitterScanner:
                         line_no = node.start_point[0] + 1 + line_offset
                         if c_name == "script":
                             res.extend(self.scan(t_bytes, ".js", line_offset=line_no - 1))
+                            processed_node_ids.add(node.id)
                             continue
 
                         if node.type in ("string", "template_string"):
@@ -313,10 +408,14 @@ class TreeSitterScanner:
                             if node.type == "template_string":
                                 text = re.sub(r"\$\{.*?\}", "{var}", text)
 
-                        origin = (
-                            "text_node" if c_name == "text" or node.type == "jsx_text" else "code"
-                        )
+                        origin = "code"
+                        if c_name == "text" or node.type == "jsx_text":
+                            origin = "text_node"
+                        elif c_name == "fallback" or node.id in fallback_nodes:
+                            origin = "fallback_text"
+
                         res.append((text, line_no, origin))
+                        processed_node_ids.add(node.id)
 
             return res
         except Exception as e:
@@ -324,21 +423,7 @@ class TreeSitterScanner:
             return []
 
 
-def _is_natural_language(text: str, origin: str) -> bool:
-    """Globalization eligibility determination."""
-    t = text.strip()
-    if len(t) < 2:
-        return False
-
-    for pattern in SENSITIVE_PATTERNS.values():
-        if re.search(pattern, t, re.IGNORECASE):
-            return True
-
-    if re.search(r"[^\x00-\x7f]", t):
-        return True
-    if origin == "text_node":
-        return True
-    return bool(" " in t or re.search(r"[.!?:]$", t))
+# Duplicate _is_natural_language removed during refactor
 
 
 async def extract_raw_strings(
@@ -541,16 +626,57 @@ async def orchestrate_scan(
 async def orchestrate_audit(lang_code: str = "all", base_lang: str = "en") -> dict[str, Any]:
     """[Orchestration] Perform multi-language or single-language audit with dead-key detection."""
     config = await _load_project_config()
+    target_dir = _detect_locale_dir(config)
+    abs_target_dir = os.path.join(WORKSPACE_ROOT, target_dir)
+
+    # 0. Format Collision Detection
+    warnings = []
+    if os.path.exists(abs_target_dir):
+        files = os.listdir(abs_target_dir)
+        lang_formats: dict[str, list[str]] = {}
+        for f in files:
+            m = re.match(r"^([a-zA-Z0-9_-]+)\.(json|ts|js|yaml|yml)$", f)
+            if m:
+                l, ext = m.group(1), m.group(2)
+                if l not in ("index", "types"):
+                    lang_formats.setdefault(l, []).append(ext)
+        
+        for l, formats in lang_formats.items():
+            if len(formats) > 1:
+                warnings.append(
+                    f"Format Collision: '{l}' has multiple files: {formats}. "
+                    "This may cause inconsistent results."
+                )
 
     if lang_code != "all" and lang_code not in config.enabled_langs:
         return {
             "error": (
                 f"Language '{lang_code}' is not enabled. Use 'init' or update .i18n-skill.json."
-            )
+            ),
+            "warnings": warnings
         }
 
+    # 1. Background Silent Scan (Difference-Driven)
+    # We scan once to find all hardcoded strings in the project
+    scan_data = await orchestrate_scan(use_cache=True)
+    raw_strings = scan_data.get("results", [])
+    
+    # Load base locale to filter out already extracted strings
+    base_data = _flatten_dict(await _load_locale_data(target_dir, base_lang))
+    
+    unextracted = []
+    seen_texts = set()
+    for s in raw_strings:
+        txt = s.get("text", "")
+        if txt not in base_data.values() and txt not in seen_texts:
+            unextracted.append(s)
+            seen_texts.add(txt)
+
     if lang_code == "all":
-        results = {}
+        results: dict[str, Any] = {"unextracted_hardcoded_count": len(unextracted), "warnings": warnings}
+        if unextracted:
+            results["unextracted_samples"] = unextracted[:10]
+
         for target_l in config.enabled_langs:
             if target_l == base_lang:
                 continue
@@ -563,15 +689,20 @@ async def orchestrate_audit(lang_code: str = "all", base_lang: str = "en") -> di
     else:
         missing_keys = await get_missing_keys(lang_code, base_lang=base_lang)
         dead_keys = await get_dead_keys(lang_code=lang_code)
+        
         return {
             "language": lang_code,
             "missing_keys_count": len(missing_keys),
             "missing_keys": missing_keys,
             "dead_keys_count": len(dead_keys),
             "dead_keys": dead_keys,
+            "unextracted_hardcoded_count": len(unextracted),
+            "unextracted_samples": unextracted[:15],
+            "warnings": warnings,
             "message": (
                 f"Audit complete for '{lang_code}'. "
-                f"Found {len(missing_keys)} missing and {len(dead_keys)} unused keys."
+                f"Found {len(missing_keys)} missing keys, {len(dead_keys)} unused keys, "
+                f"and {len(unextracted)} un-extracted hardcoded strings."
             ),
         }
 
@@ -1076,7 +1207,15 @@ async def get_dead_keys(lang_code: str = "en") -> list[str]:
 
 async def _load_locale_data(target_dir: str, lang: str) -> dict:
     """Load locale data across formats (json -> yaml -> ts -> js)"""
-    for ext in (".json", ".yaml", ".yml", ".ts", ".js"):
+    config = await _load_project_config()
+    formats = [".json", ".yaml", ".yml", ".ts", ".js"]
+    if config.preferred_format:
+        pref = config.preferred_format if config.preferred_format.startswith(".") else f".{config.preferred_format}"
+        if pref in formats:
+            formats.remove(pref)
+            formats.insert(0, pref)
+
+    for ext in formats:
         p = _validate_safe_path(os.path.join(target_dir, f"{lang}{ext}"))
         if not os.path.exists(p):
             continue

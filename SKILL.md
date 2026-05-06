@@ -60,11 +60,11 @@ When the user expresses an intent related to internationalization, map it to the
 | User Intent (Natural Language) | Target Command |
 | :--- | :--- |
 | "Check if the project is ready for i18n" | `/i18n-status` |
-| "Find missing translations in Japanese" | `/i18n-audit --lang ja` |
+| "Find missing translations or hardcoded strings" | `/i18n-audit` |
 | "Audit all language files for missing keys" | `/i18n-audit --lang all` |
-| "Extract hardcoded text from the Header component" | `/i18n-scan --path src/components/Header.vue` |
-| "Scan the whole project for new strings" | `/i18n-scan` |
 | "Clean up unused i18n keys" | `/i18n-cleanup --lang all` |
+| "Extract hardcoded text from a specific file" | `/i18n-scan --path src/components/Header.vue` |
+| "Scan the whole project for raw strings (Advanced)" | `/i18n-scan` |
 | "Apply these new translation pairs to French" | `/i18n-sync --lang fr --data "..."` |
 | "Check the translation quality and typography" | `/i18n-audit-quality --lang zh-CN` |
 | "Optimize translations based on project persona" | `/i18n-optimize --lang zh-CN` |
@@ -73,8 +73,8 @@ When the user expresses an intent related to internationalization, map it to the
 
 - `/i18n-status`: Check project configuration and environment health.
 - `/i18n-init`: Initialize project configuration (.i18n-skill.json). **Returns .gitignore recommendations** to keep your workspace clean.
-- `/i18n-scan [--path path]`: **Extraction Phase**. Precise extraction of hardcoded strings. Defaults to `source_dirs` from config if `--path` is omitted.
-- `/i18n-audit [--lang lang]`: **Validation Phase**. Compare locale files against source code. Defaults to `all` enabled languages if `--lang` is omitted.
+- `/i18n-audit [--lang lang]`: **Validation Phase (Entry Point)**. Compare locale files against source code AND detect un-extracted hardcoded strings. Defaults to `all` enabled languages if `--lang` is omitted.
+- `/i18n-scan [--path path]`: **Manual Extraction Phase**. Precise extraction of hardcoded strings. Defaults to `source_dirs` from config if `--path` is omitted. Usually triggered automatically by `/i18n-audit`.
 - `/i18n-cleanup [--lang lang]`: Generate a detailed report of unused keys to reduce technical debt.
 - `/i18n-sync --lang <lang> --data <json_or_file>`: Generate translation proposals. **Must inform user of the Preview path after execution.**
 - `/i18n-commit --proposal <id_or_all>`: Apply proposals. Supports `UUID`, `language code`, or `all`.

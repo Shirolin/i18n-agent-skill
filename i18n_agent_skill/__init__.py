@@ -5,6 +5,8 @@ from .tools import (
     extract_raw_strings,
     get_missing_keys,
     load_project_glossary,
+    orchestrate_audit,
+    orchestrate_scan,
     propose_sync_i18n,
     refine_i18n_proposal,
     sync_i18n_files,
@@ -21,6 +23,8 @@ __all__ = [
     "update_project_glossary",
     "get_missing_keys",
     "sync_i18n_files",
+    "orchestrate_audit",
+    "orchestrate_scan",
     "ConflictStrategy",
     "PrivacyLevel",
 ]

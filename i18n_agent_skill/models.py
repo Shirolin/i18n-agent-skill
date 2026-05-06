@@ -24,6 +24,8 @@ class StorageFormat(str, Enum):
 
     JSON = "json"
     YAML = "yaml"
+    TS = "ts"
+    JS = "js"
 
 
 class PrivacyLevel(str, Enum):
@@ -263,6 +265,14 @@ class ProjectConfig(BaseModel):
         default_factory=list, description="Patterns for endonym protection."
     )
     ignored_keys: list[str] = Field(default_factory=list, description="Keys ignored in audit.")
+
+    # Format control
+    preferred_format: str | None = Field(
+        None, description="Preferred extension for locale files (e.g., .ts, .json)"
+    )
+    locale_file_pattern: str | None = Field(
+        None, description="Custom regex pattern for locale files."
+    )
 
 
 class ProjectStatus(BaseModel):
