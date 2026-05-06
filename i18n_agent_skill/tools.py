@@ -191,6 +191,19 @@ def _mask_sensitive_data(text: str, level: PrivacyLevel) -> tuple[str, bool]:
     return masked_text, is_masked
 
 
+from .linter import ENDONYM_MAP, TranslationStyleLinter
+
+# Pre-calculate common language endonyms for fast filtering
+_ENDONYM_VALUES = set()
+for info in ENDONYM_MAP.values():
+    _ENDONYM_VALUES.add(info["native"])
+    for kw in info["search"]:
+        # Only add keywords that look like UI text (properly capitalized or common)
+        if len(kw) > 2:
+            _ENDONYM_VALUES.add(kw.capitalize())
+            _ENDONYM_VALUES.add(kw)
+
+
 def _validate_safe_path(path: str) -> str:
     """Strict Sandbox Validation."""
     ws_root = os.path.normpath(os.path.abspath(WORKSPACE_ROOT)).lower()
@@ -200,15 +213,24 @@ def _validate_safe_path(path: str) -> str:
     return target_path
 
 
-def _is_natural_language(text: str, origin: str) -> bool:
+def _is_natural_language(text: str, origin: str, ignored_strings: list[str] | None = None) -> bool:
     """Globalization eligibility determination with high-fidelity noise filtering."""
     if origin == "fallback_text":
-        return False # Fallback text in {t('key') || 'fallback'} is already 'handled'
-        
+        return False  # Fallback text in {t('key') || 'fallback'} is already 'handled'
+
     t = text.strip()
+
+    # Global Blacklist: Endonyms (Auto, English, 简体中文, etc.)
+    if t in _ENDONYM_VALUES:
+        return False
+
+    # User-defined Blacklist
+    if ignored_strings and t in ignored_strings:
+        return False
+
     # Skip very short strings or technical constants
     if len(t) < 2 or re.match(r"^[a-z0-9._\-\[\]]+$", t, re.IGNORECASE):
-        if not re.search(r"[^\x00-\x7f]", t): # Unless it contains non-ASCII
+        if not re.search(r"[^\x00-\x7f]", t):  # Unless it contains non-ASCII
             return False
 
     # Skip common code patterns that look like text but aren't UI
@@ -228,7 +250,7 @@ def _is_natural_language(text: str, origin: str) -> bool:
     # Code vs Text-node logic
     if origin == "text_node":
         return True
-    
+
     # Heuristics for English UI text: contains spaces or ending punctuation
     return bool(" " in t or re.search(r"[.!?:]$", t))
 
@@ -467,6 +489,9 @@ async def extract_raw_strings(
         content = await f.read()
     ext = os.path.splitext(file_path)[1].lower()
 
+    config = await _load_project_config()
+    ignored_strings = config.ignored_strings
+
     content_hash = hashlib.md5(content.encode("utf-8")).hexdigest()
     if use_cache and shared_cache is not None:
         if safe_p in shared_cache and shared_cache[safe_p]["hash"] == content_hash:
@@ -487,7 +512,7 @@ async def extract_raw_strings(
     p_level = privacy_level or PrivacyLevel.BASIC
 
     for text, line, origin in scanner.scan():
-        if _is_natural_language(text, origin):
+        if _is_natural_language(text, origin, ignored_strings=ignored_strings):
             if (text, line) in extracted_set:
                 continue
 
@@ -660,15 +685,23 @@ async def orchestrate_audit(lang_code: str = "all", base_lang: str = "en") -> di
     # We scan once to find all hardcoded strings in the project
     scan_data = await orchestrate_scan(use_cache=True)
     raw_strings = scan_data.get("results", [])
-    
-    # Load base locale to filter out already extracted strings
-    base_data = _flatten_dict(await _load_locale_data(target_dir, base_lang))
-    
+
+    # Load ALL locale data to filter out already extracted strings (Global Deduplication)
+    # This prevents reporting endonyms like "简体中文" if they exist in ANY locale file.
+    all_locale_values = set()
+    for l in config.enabled_langs:
+        try:
+            data = await _load_locale_data(target_dir, l)
+            all_locale_values.update(_flatten_dict(data).values())
+        except Exception:
+            continue
+
     unextracted = []
     seen_texts = set()
     for s in raw_strings:
         txt = s.get("text", "")
-        if txt not in base_data.values() and txt not in seen_texts:
+        # Filter if already in any locale file OR already seen in this scan
+        if txt not in all_locale_values and txt not in seen_texts:
             unextracted.append(s)
             seen_texts.add(txt)
 

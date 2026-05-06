@@ -265,6 +265,9 @@ class ProjectConfig(BaseModel):
         default_factory=list, description="Patterns for endonym protection."
     )
     ignored_keys: list[str] = Field(default_factory=list, description="Keys ignored in audit.")
+    ignored_strings: list[str] = Field(
+        default_factory=list, description="Literal strings to ignore during scanning."
+    )
 
     # Format control
     preferred_format: str | None = Field(
