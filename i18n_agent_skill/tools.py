@@ -378,7 +378,11 @@ async def get_missing_keys(lang_code: str, base_lang: str = "en") -> dict:
 
 async def get_dead_keys(lang_code: str = "en") -> list[str]:
     config = await _load_project_config()
-    all_keys = set(_flatten_dict(await _load_locale_data(config.locales_dir, lang_code)).keys())
+    locale_data = await _load_locale_data(config.locales_dir, lang_code)
+    if not locale_data:
+        return [] # Return empty if no keys exist, but we should be careful about 'all'
+
+    all_keys = set(_flatten_dict(locale_data).keys())
     used = set()
     for s_dir in (config.source_dirs or ["src"]):
         abs_s = os.path.join(WORKSPACE_ROOT, s_dir)

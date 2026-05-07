@@ -35,7 +35,6 @@ def bootstrap_venv():
                 sys.exit(subprocess.call(cmd, env=env))
 
 
-bootstrap_venv()
 # =================================================================
 
 
@@ -262,15 +261,28 @@ async def cli_main():
             _print_json({"error": "Invalid JSON string for persona data."})
 
     elif args.command == "cleanup":
-        dead_keys = await get_dead_keys(lang_code=args.lang)
+        status_report = await check_project_status()
+        langs = (
+            [args.lang]
+            if args.lang != "all"
+            else status_report.config.enabled_langs
+        )
+
+        all_results = []
+        for l in langs:
+            dead = await get_dead_keys(lang_code=l)
+            all_results.append(
+                {"language": l, "dead_keys_count": len(dead), "dead_keys": dead}
+            )
+
+        total_dead = sum(r["dead_keys_count"] for r in all_results)
         _print_json(
             {
                 "language": args.lang,
-                "dead_keys_count": len(dead_keys),
-                "dead_keys": dead_keys,
+                "results": all_results,
+                "total_dead_keys": total_dead,
                 "message": (
-                    f"Found {len(dead_keys)} unused keys in '{args.lang}'. "
-                    "Suggest pruning these to reduce technical debt."
+                    f"Found {total_dead} unused keys across {len(langs)} language(s)."
                 ),
             }
         )
@@ -319,6 +331,7 @@ async def cli_main():
 
 
 if __name__ == "__main__":
+    bootstrap_venv()
     if sys.platform == "win32":
         asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
     asyncio.run(cli_main())
