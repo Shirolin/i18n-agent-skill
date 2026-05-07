@@ -70,7 +70,8 @@ def _print_json(data: Any):
 
 async def cli_main():
     # [Windows Special] Force UTF-8 for stdout/stderr to avoid encoding crashes
-    if sys.platform == "win32":
+    # Skip if running in pytest to avoid breaking capsys
+    if sys.platform == "win32" and "PYTEST_CURRENT_TEST" not in os.environ:
         import io
 
         if hasattr(sys.stdout, "buffer"):
