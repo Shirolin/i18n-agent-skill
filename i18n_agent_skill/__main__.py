@@ -4,7 +4,7 @@ import json
 import os
 import subprocess
 import sys
-from typing import Any
+from typing import Any, cast
 
 
 # =================================================================
@@ -263,28 +263,21 @@ async def cli_main():
 
     elif args.command == "cleanup":
         status_report = await check_project_status()
-        langs = (
-            [args.lang]
-            if args.lang != "all"
-            else status_report.config.enabled_langs
-        )
+        langs = [args.lang] if args.lang != "all" else status_report.config.enabled_langs
 
         all_results = []
-        for l in langs:
-            dead = await get_dead_keys(lang_code=l)
-            all_results.append(
-                {"language": l, "dead_keys_count": len(dead), "dead_keys": dead}
-            )
+        for lang in langs:
+            dead = await get_dead_keys(lang_code=lang)
+            all_results.append({"language": lang, "dead_keys_count": len(dead), "dead_keys": dead})
 
-        total_dead = sum(r["dead_keys_count"] for r in all_results)
+        total_dead = sum(int(cast(int, r["dead_keys_count"])) for r in all_results)
+
         _print_json(
             {
                 "language": args.lang,
                 "results": all_results,
                 "total_dead_keys": total_dead,
-                "message": (
-                    f"Found {total_dead} unused keys across {len(langs)} language(s)."
-                ),
+                "message": (f"Found {total_dead} unused keys across {len(langs)} language(s)."),
             }
         )
 
