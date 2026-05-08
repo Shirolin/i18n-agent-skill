@@ -85,9 +85,31 @@ const FinalEvolution = ({ scrollProgress }: Props) => {
         ))}
       </motion.div>
 
+      {/* 安装指引 */}
+      <div style={{ 
+        marginTop: '6rem',
+        zIndex: 10,
+        position: 'relative'
+      }}>
+        <div className="hud-panel" style={{ 
+          padding: '1rem 2rem', 
+          display: 'flex', 
+          alignItems: 'center', 
+          gap: '1.5rem',
+          background: '#0a0d13',
+          border: '1px solid rgba(88, 166, 255, 0.4)',
+          boxShadow: '0 0 20px rgba(0,0,0,0.8), inset 0 0 15px rgba(88, 166, 255, 0.1)'
+        }}>
+          <span style={{ color: 'var(--text-muted)', fontFamily: 'Technical', userSelect: 'none' }}>$</span>
+          <code style={{ color: 'var(--primary)', fontFamily: 'Technical', fontSize: '1rem', letterSpacing: '0.05em' }}>
+            npx skills add Shirolin/i18n-agent-skill
+          </code>
+        </div>
+      </div>
+
       {/* 莫比乌斯环回流逻辑 */}
       <div style={{ 
-        marginTop: '6rem', 
+        marginTop: '5rem', 
         display: 'flex', 
         flexDirection: 'column', 
         alignItems: 'center',
