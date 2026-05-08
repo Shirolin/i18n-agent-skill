@@ -26,7 +26,7 @@ function App() {
       {/* 贯穿全屏的动态导管 (The Spine) */}
       <div style={{
         position: 'fixed',
-        left: 'calc(50vw - 20px)',
+        left: 'calc(50% - 20px)',
         top: 0,
         bottom: 0,
         width: '2px',

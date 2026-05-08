@@ -10,8 +10,7 @@ interface ParticleProps {
 const SingleParticle = ({ p }: { p: any }) => {
   return (
     <motion.div
-      initial={{ y: '-10vh' }}
-      animate={{ y: '110vh' }}
+      animate={{ y: ['-10vh', '110vh'] }}
       transition={{ duration: p.speed, repeat: Infinity, ease: 'linear', delay: p.delay }}
       style={{
         position: 'absolute',
@@ -35,13 +34,16 @@ const DataParticle = ({}: ParticleProps) => {
 
   useEffect(() => {
     // 初始化生成一批粒子，避免开始时的空窗期
-    const initialParticles = Array.from({ length: 25 }).map(() => ({
-      id: Math.random(),
-      char: CHARS[Math.floor(Math.random() * CHARS.length)],
-      xOffset: (Math.random() - 0.5) * 60,
-      speed: 15 + Math.random() * 15, // 降低速度：15s - 30s 下落一次
-      delay: -(Math.random() * 20) // 随机初始延迟，使分布均匀
-    }));
+    const initialParticles = Array.from({ length: 30 }).map(() => {
+      const speed = 10 + Math.random() * 10; // 10s - 20s
+      return {
+        id: Math.random(),
+        char: CHARS[Math.floor(Math.random() * CHARS.length)],
+        xOffset: (Math.random() - 0.5) * 60,
+        speed: speed,
+        delay: -(Math.random() * speed) // 随机负延迟，使粒子在加载时就分布在屏幕各处
+      };
+    });
     setParticles(initialParticles);
   }, []);
 
@@ -51,7 +53,7 @@ const DataParticle = ({}: ParticleProps) => {
       style={{
       position: 'fixed',
       top: 0,
-      left: 'calc(50vw - 20px)',
+      left: 'calc(50% - 20px)',
       width: 0,
       height: '100vh',
       zIndex: 2,
