@@ -1,0 +1,29 @@
+{
+  "hero": {
+    "title_main": "Industrial-Grade",
+    "title_sub": "Lifecycle Engine",
+    "desc": "Built for scale. High-precision AST extraction, built-in Privacy Shield,<br/>driving internationalization from 'Search' to 'Evolution'.",
+    "btn_start": "GET STARTED",
+    "btn_docs": "DOCUMENTATION"
+  },
+  "scanner": {
+    "title": "PRECISION EXTRACTION",
+    "desc": "Deep context parsing via Tree-sitter AST. Accurately identifies UI attributes while automatically filtering library paths and data noise."
+  },
+  "privacy": {
+    "title": "PRIVACY DECONTAMINATION",
+    "desc": "Built-in Privacy Shield automatically intercepts sensitive data. API Keys and PII are 100% masked before text leaves your local environment."
+  },
+  "audit": {
+    "src_code": "SOURCE CODE",
+    "locales": "LOCALE FILES",
+    "report_title": "AUDIT REPORT",
+    "missing": "MISSING",
+    "dead": "DEAD KEYS"
+  },
+  "evolution": {
+    "title": "L3 TRUTH SECURED",
+    "desc": "Manual Commit confirms final translation. All items are locked into <1>L3 Approved State</1>, ensuring immutable consistency and robust evolution.",
+    "footer": "© 2026 i18n-agent-skill | Continuous Globalization, Continuous Evolution."
+  }
+}

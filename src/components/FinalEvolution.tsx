@@ -1,6 +1,7 @@
 import { useRef } from 'react';
 import { motion, MotionValue, useTransform } from 'framer-motion';
 import { CheckCircle2, RotateCcw } from 'lucide-react';
+import { useTranslation, Trans } from 'react-i18next';
 
 interface Props {
   scrollProgress: MotionValue<number>;
@@ -8,6 +9,7 @@ interface Props {
 
 const FinalEvolution = ({ scrollProgress }: Props) => {
   const containerRef = useRef<HTMLDivElement>(null);
+  const { t } = useTranslation();
   
   // 控制最终状态的显现
   const iconScale = useTransform(scrollProgress, [0.8, 0.9], [0.5, 1]);
@@ -32,10 +34,12 @@ const FinalEvolution = ({ scrollProgress }: Props) => {
         </motion.div>
         
         <h2 style={{ fontFamily: 'Technical', color: 'var(--primary)', letterSpacing: '0.25em', fontSize: '1.8rem' }}>
-          L3 TRUTH SECURED
+          {t('evolution.title')}
         </h2>
         <p style={{ color: 'var(--text-muted)', margin: '1.5rem 0 0', lineHeight: '1.8', fontSize: '1rem' }}>
-          Manual Commit confirms final translation. All items are locked into <strong style={{ color: 'var(--text)' }}>L3 Approved State</strong>, ensuring immutable consistency and robust evolution.
+          <Trans i18nKey="evolution.desc">
+            Manual Commit confirms final translation. All items are locked into <strong style={{ color: 'var(--text)' }}>L3 Approved State</strong>, ensuring immutable consistency and robust evolution.
+          </Trans>
         </p>
       </div>
 
@@ -159,7 +163,7 @@ const FinalEvolution = ({ scrollProgress }: Props) => {
         zIndex: 10,
         background: 'var(--bg)' // 防止线穿过底部文字
       }}>
-        © 2026 i18n-agent-skill | Continuous Globalization, Continuous Evolution.
+        {t('evolution.footer')}
       </footer>
     </section>
   );

@@ -1,6 +1,9 @@
 import { motion } from 'framer-motion';
+import { useTranslation } from 'react-i18next';
 
 const Hero = () => {
+  const { t } = useTranslation();
+
   return (
     <section style={{ 
       height: '100vh', 
@@ -41,8 +44,8 @@ const Hero = () => {
           lineHeight: '1.1'
         }}
       >
-        Industrial-Grade<br/>
-        <span style={{ color: 'var(--primary)' }}>I18n Lifecycle</span> Engine
+        {t('hero.title_main')}<br/>
+        <span style={{ color: 'var(--primary)' }}>I18n</span> {t('hero.title_sub')}
       </motion.h1>
 
       <motion.p
@@ -57,9 +60,8 @@ const Hero = () => {
           marginBottom: '3.5rem',
           fontWeight: 300
         }}
-      >
-        Built for scale. High-precision AST extraction, built-in Privacy Shield,<br/>driving internationalization from 'Search' to 'Evolution'.
-      </motion.p>
+        dangerouslySetInnerHTML={{ __html: t('hero.desc') }}
+      />
 
       <motion.div 
         initial={{ opacity: 0, y: 10 }}
@@ -85,7 +87,7 @@ const Hero = () => {
           onMouseOver={e => e.currentTarget.style.boxShadow = '0 6px 25px rgba(88, 166, 255, 0.5)'}
           onMouseOut={e => e.currentTarget.style.boxShadow = '0 4px 15px rgba(88, 166, 255, 0.3)'}
           >
-            GET STARTED
+            {t('hero.btn_start')}
           </button>
         </a>
         <a href="https://github.com/Shirolin/i18n-agent-skill/blob/main/SKILL.md" target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none' }}>
@@ -112,7 +114,7 @@ const Hero = () => {
             e.currentTarget.style.borderColor = 'rgba(88, 166, 255, 0.4)';
           }}
           >
-            DOCUMENTATION
+            {t('hero.btn_docs')}
           </button>
         </a>
       </motion.div>

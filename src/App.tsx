@@ -5,6 +5,7 @@ import ScannerStation from './components/ScannerStation';
 import PrivacyPool from './components/PrivacyPool';
 import AuditEngine from './components/AuditEngine';
 import FinalEvolution from './components/FinalEvolution';
+import LanguageSwitcher from './components/LanguageSwitcher';
 
 function App() {
   // 全局滚动进度
@@ -22,6 +23,7 @@ function App() {
 
   return (
     <div className="pipeline-container" style={{ position: 'relative' }}>
+      <LanguageSwitcher />
       <div className="noise-overlay" />
       {/* 贯穿全屏的动态导管 (The Spine) */}
       <div style={{

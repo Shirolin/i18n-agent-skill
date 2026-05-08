@@ -1,0 +1,29 @@
+{
+  "hero": {
+    "title_main": "工业级",
+    "title_sub": "生命周期引擎",
+    "desc": "为规模化项目而生。高精度 AST 提取，内置隐私护盾，<br/>驱动国际化从“搜索”向“进化”跃迁。",
+    "btn_start": "立即部署",
+    "btn_docs": "技术文档"
+  },
+  "scanner": {
+    "title": "高精语义提取",
+    "desc": "利用 Tree-sitter AST 深度解析代码上下文。精准识别 UI 属性，自动过滤库路径与数据干扰项。"
+  },
+  "privacy": {
+    "title": "隐私洗涤脱敏",
+    "desc": "内置隐私护盾，自动拦截敏感数据。在文本离开本地环境前，API Keys 和个人隐私已完成 100% 脱敏。"
+  },
+  "audit": {
+    "src_code": "源代码",
+    "locales": "语言文件",
+    "report_title": "审计报告",
+    "missing": "缺失翻译",
+    "dead": "冗余死键"
+  },
+  "evolution": {
+    "title": "L3 级真理锁定",
+    "desc": "人工 Commit 确认最终翻译。所有翻译项已锁定为 <1>L3 终审状态</1>，确保内容一致且不可篡改，驱动项目稳健演进。",
+    "footer": "© 2026 i18n-agent-skill | 持续全球化，持续进化。"
+  }
+}
