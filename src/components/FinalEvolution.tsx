@@ -35,7 +35,7 @@ const FinalEvolution = ({ scrollProgress }: Props) => {
           L3 TRUTH SECURED
         </h2>
         <p style={{ color: 'var(--text-muted)', margin: '1.5rem 0 0', lineHeight: '1.8', fontSize: '1rem' }}>
-          人工 Commit 确认最终翻译。所有翻译项已锁定为 <strong style={{ color: 'var(--text)' }}>L3 终审状态</strong>，确保内容一致且不可篡改，驱动项目稳健演进。
+          Manual Commit confirms final translation. All items are locked into <strong style={{ color: 'var(--text)' }}>L3 Approved State</strong>, ensuring immutable consistency and robust evolution.
         </p>
       </div>
 

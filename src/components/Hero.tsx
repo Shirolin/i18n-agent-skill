@@ -58,7 +58,7 @@ const Hero = () => {
           fontWeight: 300
         }}
       >
-        为规模化项目而生。高精度 AST 提取，内置隐私护盾，<br/>驱动国际化从“搜索”向“进化”跃迁。
+        Built for scale. High-precision AST extraction, built-in Privacy Shield,<br/>driving internationalization from 'Search' to 'Evolution'.
       </motion.p>
 
       <motion.div 

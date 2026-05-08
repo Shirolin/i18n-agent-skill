@@ -85,7 +85,7 @@ const ScannerStation = ({ scrollProgress }: Props) => {
           }}>
             <h3 style={{ color: 'var(--primary)', fontFamily: 'Technical', textShadow: '0 0 10px var(--primary-glow)' }}>PRECISION EXTRACTION</h3>
             <p style={{ fontSize: '0.95rem', color: 'var(--text-muted)', marginTop: '1.2rem', lineHeight: '1.7' }}>
-              利用 Tree-sitter AST 深度解析代码上下文。精准识别 UI 属性，自动过滤库路径与数据干扰项。
+              Deep context parsing via Tree-sitter AST. Accurately identifies UI attributes while automatically filtering library paths and data noise.
             </p>
           </div>
         </div>

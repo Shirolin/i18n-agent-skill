@@ -30,7 +30,7 @@ const PrivacyPool = ({ scrollProgress }: Props) => {
             PRIVACY DECONTAMINATION <Shield size={24} />
           </h3>
           <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem', marginTop: '1rem', lineHeight: '1.6' }}>
-            内置隐私护盾，自动拦截敏感数据。在文本离开本地环境前，API Keys 和个人隐私已完成 100% 脱敏。
+            Built-in Privacy Shield automatically intercepts sensitive data. API Keys and PII are 100% masked before text leaves your local environment.
           </p>
         </div>
 
