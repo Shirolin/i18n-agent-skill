@@ -172,6 +172,14 @@ QUERY_STRINGS = {
         (template_string) @str
         (import_statement) @skip
         (jsx_attribute (property_identifier) @attr_name)
+        (jsx_self_closing_element
+            name: (identifier) @comp (#eq? @comp "Trans")
+            attribute: (jsx_attribute (property_identifier) @attr_name (#eq? @attr_name "i18nKey") (string) @key)
+        )
+        (jsx_opening_element
+            name: (identifier) @comp (#eq? @comp "Trans")
+            attribute: (jsx_attribute (property_identifier) @attr_name (#eq? @attr_name "i18nKey") (string) @key)
+        )
         (call_expression
             function: [
                 (identifier) @f (#any-of? @f "t" "$t")
@@ -641,18 +649,60 @@ async def check_project_status() -> ProjectStatus:
 
 
 async def initialize_project_config(auto: bool = False) -> dict:
+    source_dirs = ["src"] if os.path.exists(os.path.join(WORKSPACE_ROOT, "src")) else []
+    locales_dir = "locales"
+    for p in ["src/locales", "locales", "public/locales"]:
+        if os.path.exists(os.path.join(WORKSPACE_ROOT, p)):
+            locales_dir = p
+            break
+    
+    config = {
+        "source_dirs": source_dirs or ["."],
+        "ignore_dirs": ["node_modules", "dist", ".git", ".venv"],
+        "locales_dir": locales_dir,
+        "enabled_langs": ["en", "zh"],
+        "privacy_level": "basic",
+        "persona": {
+            "domain": "Industrial Engineering",
+            "audience": "Developers",
+            "tone": "Technical"
+        },
+        "protected_lang_key_patterns": [],
+        "ignored_keys": [],
+        "ignored_strings": [],
+        "preferred_format": ".json"
+    }
+    
+    config_path = os.path.join(WORKSPACE_ROOT, CONFIG_FILE)
+    async with aiofiles.open(config_path, "w", encoding="utf-8") as f:
+        await f.write(json.dumps(config, indent=2, ensure_ascii=False))
+        
     return {
-        "message": "Init success",
-        "recommended_gitignore": [CACHE_FILE, PROPOSALS_DIR, "!.i18n-skill.json"],
+        "message": f"Config initialized at {config_path}",
+        "config": config,
+        "recommended_gitignore": [CACHE_FILE, PROPOSALS_DIR, f"!{CONFIG_FILE}"]
     }
 
 
 async def distill_project_persona() -> dict:
-    return {}
+    config = await _load_project_config()
+    scan_data = await orchestrate_scan()
+    samples = scan_data.get("results", [])[:20]
+    return {
+        "domain": config.persona.domain,
+        "audience": config.persona.audience,
+        "tone": config.persona.tone,
+        "samples": [s["text"] for s in samples if isinstance(s, dict)]
+    }
 
 
 async def save_project_persona(p: dict) -> str:
-    return "Saved"
+    config = await _load_project_config()
+    config.persona.domain = p.get("domain", config.persona.domain)
+    config.persona.audience = p.get("audience", config.persona.audience)
+    config.persona.tone = p.get("tone", config.persona.tone)
+    await _save_project_config(config)
+    return "Persona updated and saved."
 
 
 async def sync_i18n_files(n: dict, l_code: str) -> str:
