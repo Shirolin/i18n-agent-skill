@@ -1,23 +1,22 @@
 import { useEffect, useState } from 'react';
-import { motion, MotionValue, useTransform } from 'framer-motion';
+import { motion, MotionValue } from 'framer-motion';
 
 const CHARS = ['{', '}', '[', ']', 't(', '"', "'", 'i18n', 'key', ';', '=>'];
 
 interface ParticleProps {
-  scrollProgress: MotionValue<number>;
+  scrollProgress?: MotionValue<number>;
 }
 
-const SingleParticle = ({ p, scrollProgress }: { p: any, scrollProgress: MotionValue<number> }) => {
-  const yPos = useTransform(scrollProgress, [0, 1], ['-10vh', `${100 + p.speed * 50}vh`]);
-  const opacity = useTransform(scrollProgress, [0, 0.1, 0.9, 1], [0, 0.6, 0.6, 0]);
-
+const SingleParticle = ({ p }: { p: any }) => {
   return (
     <motion.div
+      initial={{ y: '-10vh' }}
+      animate={{ y: '110vh' }}
+      transition={{ duration: p.speed, repeat: Infinity, ease: 'linear', delay: p.delay }}
       style={{
         position: 'absolute',
-        top: yPos,
         x: p.xOffset,
-        opacity: opacity,
+        opacity: 0.6,
         color: 'var(--primary)',
         textShadow: '0 0 8px var(--primary-glow)',
         fontFamily: 'Technical',
@@ -31,24 +30,19 @@ const SingleParticle = ({ p, scrollProgress }: { p: any, scrollProgress: MotionV
   );
 };
 
-const DataParticle = ({ scrollProgress }: ParticleProps) => {
+const DataParticle = ({}: ParticleProps) => {
   const [particles, setParticles] = useState<any[]>([]);
 
   useEffect(() => {
-    // 持续生成全局粒子
-    const interval = setInterval(() => {
-      setParticles(prev => {
-        // 控制全局粒子数量
-        const next = [...prev, {
-          id: Math.random(),
-          char: CHARS[Math.floor(Math.random() * CHARS.length)],
-          xOffset: (Math.random() - 0.5) * 60, // 导管附近的随机偏移
-          speed: 1 + Math.random() * 2 // 下落速度因子
-        }];
-        return next.length > 30 ? next.slice(next.length - 30) : next;
-      });
-    }, 300);
-    return () => clearInterval(interval);
+    // 初始化生成一批粒子，避免开始时的空窗期
+    const initialParticles = Array.from({ length: 25 }).map(() => ({
+      id: Math.random(),
+      char: CHARS[Math.floor(Math.random() * CHARS.length)],
+      xOffset: (Math.random() - 0.5) * 60,
+      speed: 15 + Math.random() * 15, // 降低速度：15s - 30s 下落一次
+      delay: -(Math.random() * 20) // 随机初始延迟，使分布均匀
+    }));
+    setParticles(initialParticles);
   }, []);
 
   return (
@@ -57,15 +51,17 @@ const DataParticle = ({ scrollProgress }: ParticleProps) => {
       style={{
       position: 'fixed',
       top: 0,
-      left: '50%',
+      left: 'calc(50vw - 20px)',
       width: 0,
       height: '100vh',
       zIndex: 2,
       pointerEvents: 'none',
-      userSelect: 'none'
+      userSelect: 'none',
+      WebkitMaskImage: 'linear-gradient(to bottom, rgba(0,0,0,1) 85%, rgba(0,0,0,0) 100%)',
+      maskImage: 'linear-gradient(to bottom, rgba(0,0,0,1) 85%, rgba(0,0,0,0) 100%)'
     }}>
       {particles.map(p => (
-        <SingleParticle key={p.id} p={p} scrollProgress={scrollProgress} />
+        <SingleParticle key={p.id} p={p} />
       ))}
     </div>
   );

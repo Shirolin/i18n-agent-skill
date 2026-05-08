@@ -14,7 +14,7 @@ const AuditEngine = ({ scrollProgress }: Props) => {
 
   return (
     <section ref={containerRef} style={{ height: '150vh', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
-      <div style={{ position: 'relative', width: '600px', height: '300px' }}>
+      <div style={{ position: 'relative', width: '600px', height: '300px', margin: '0 auto' }}>
         
         {/* 背景辅助线 */}
         <div style={{
