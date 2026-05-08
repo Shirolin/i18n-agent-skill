@@ -1,6 +1,6 @@
 # i18n-agent-skill 🌐
 
-[English](../README.md) | [简体中文]
+[English](./README.md) | [简体中文]
 
 > **面向 AI 助理的前端国际化 (i18n) 全生命周期自动化工业级方案。**
 
@@ -151,7 +151,7 @@ i18n-agent-skill/
 
 ---
 
-## 🛠 工程质量保证 (Engineering Quality)
+## 🛠 工程质量保证
 
 本项目通过自动化验证工具维持工业级标准：
 
@@ -195,3 +195,4 @@ python .agents/skills/agent-skill-creator/scripts/validate.py .
 ## 📄 开源协议
 
 基于 [Apache-2.0](LICENSE) 协议开源。
+SE) 协议开源。

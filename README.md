@@ -31,14 +31,11 @@
 
 ### Option 1: Ask Your AI (Recommended)
 
-Copy one of the following prompts and send it to your AI coding assistant:
+Copy the following prompt and send it to your AI coding assistant (e.g., Cursor, Claude Code, Gemini CLI):
 
 **One-Step Setup (Recommended)**
 ```text
 Setup this i18n skill for my current project and initialize it: https://github.com/Shirolin/i18n-agent-skill
-```
-```text
-帮我在当前项目中配置好这个 i18n 技能并完成初始化：https://github.com/Shirolin/i18n-agent-skill
 ```
 
 AI will clone the repo, run the installer, and automatically perform `./i18n init --auto`.
@@ -72,7 +69,9 @@ git pull
 
 The skill automatically detects when a newer version is available and notifies you.
 
+---
 
+## 🛡️ Key Features
 
 ### 1. Deterministic AST Parsing
 Unlike fragile RegEx-based extractors, our engine uses **Tree-sitter AST** to navigate code structure.
