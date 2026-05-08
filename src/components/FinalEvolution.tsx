@@ -14,6 +14,9 @@ const FinalEvolution = ({ scrollProgress }: Props) => {
   const crystalsOpacity = useTransform(scrollProgress, [0.85, 0.95], [0, 1]);
   const crystalsY = useTransform(scrollProgress, [0.85, 0.95], [30, 0]);
 
+  // 模拟并发同步的语言标识
+  const syncedLangs = ['EN', 'ZH', 'JA'];
+
   return (
     <section ref={containerRef} style={{ 
       height: '150vh', 
@@ -23,7 +26,7 @@ const FinalEvolution = ({ scrollProgress }: Props) => {
       justifyContent: 'center',
       position: 'relative' 
     }}>
-      <div className="hud-panel" style={{ textAlign: 'center', maxWidth: '600px', zIndex: 10, padding: '3rem 4rem', background: 'var(--bg)' }}>
+      <div className="hud-panel" style={{ textAlign: 'center', maxWidth: '600px', zIndex: 10, padding: '3rem 4rem', background: 'var(--bg-panel)' }}>
         <motion.div style={{ scale: iconScale, display: 'inline-block' }}>
           <CheckCircle2 size={72} color="var(--primary)" style={{ marginBottom: '1.5rem', filter: 'drop-shadow(0 0 12px var(--primary-glow))' }} />
         </motion.div>
@@ -36,34 +39,48 @@ const FinalEvolution = ({ scrollProgress }: Props) => {
         </p>
       </div>
 
-      {/* 真理晶体阵列 */}
+      {/* 真理晶体阵列 (并发多语言) */}
       <motion.div style={{ 
         display: 'grid', 
         gridTemplateColumns: 'repeat(3, 1fr)', 
-        gap: '30px', 
-        marginTop: '3rem',
+        gap: '40px', 
+        marginTop: '3.5rem',
         opacity: crystalsOpacity,
-        y: crystalsY
+        y: crystalsY,
+        zIndex: 10 // 确保覆盖逻辑线
       }}>
-        {[1, 2, 3].map(i => (
-          <div key={i} className="hud-panel" style={{ 
-            width: '90px', 
-            height: '90px', 
-            transform: 'rotate(45deg)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            background: 'rgba(88, 166, 255, 0.05)',
-            boxShadow: '0 0 15px rgba(88, 166, 255, 0.1)'
-          }}>
+        {syncedLangs.map(lang => (
+          <div key={lang} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+            <div className="hud-panel" style={{ 
+              width: '80px', 
+              height: '80px', 
+              transform: 'rotate(45deg)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              // 关键修复：使用不透明深色底色阻断逻辑线穿透
+              background: '#0a0d13', 
+              boxShadow: '0 0 20px rgba(0,0,0,0.8), inset 0 0 15px rgba(88, 166, 255, 0.1)',
+              border: '1px solid rgba(88, 166, 255, 0.4)'
+            }}>
+              <span style={{ 
+                transform: 'rotate(-45deg)', 
+                fontSize: '1rem', 
+                color: '#ffffff', 
+                fontFamily: 'Technical', 
+                fontWeight: 'bold',
+                textShadow: '0 0 8px rgba(88, 166, 255, 0.8)'
+              }}>L3</span>
+            </div>
+            {/* 赋予节点实际业务语义 */}
             <span style={{ 
-              transform: 'rotate(-45deg)', 
-              fontSize: '1.1rem', 
-              color: '#ffffff', 
+              marginTop: '1.5rem', 
               fontFamily: 'Technical', 
-              fontWeight: 'bold',
-              textShadow: '0 0 8px rgba(88, 166, 255, 0.8)'
-            }}>L3</span>
+              fontSize: '0.75rem', 
+              color: 'var(--primary)',
+              letterSpacing: '0.1em',
+              opacity: 0.8
+            }}>SYNC: {lang}</span>
           </div>
         ))}
       </motion.div>
@@ -74,15 +91,39 @@ const FinalEvolution = ({ scrollProgress }: Props) => {
         display: 'flex', 
         flexDirection: 'column', 
         alignItems: 'center',
-        color: 'var(--text-muted)' 
+        color: '#8b949e', // 提升对比度
+        zIndex: 10,
+        position: 'relative'
       }}>
         <motion.div
           animate={{ rotate: 360 }}
-          transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
+          transition={{ duration: 5, repeat: Infinity, ease: "linear" }}
+          style={{ 
+            background: 'var(--bg)', // 阻断逻辑线
+            borderRadius: '50%', 
+            padding: '4px',
+            display: 'flex'
+          }}
         >
-          <RotateCcw size={32} style={{ marginBottom: '1rem', opacity: 0.5 }} />
+          <RotateCcw size={28} color="rgba(88, 166, 255, 0.7)" style={{ filter: 'drop-shadow(0 0 5px rgba(88, 166, 255, 0.3))' }} />
         </motion.div>
-        <span style={{ fontFamily: 'Technical', fontSize: '0.85rem', letterSpacing: '0.1em' }}>RESTARTING CYCLE...</span>
+        
+        {/* 呼吸灯效与高亮文字 */}
+        <motion.span 
+          animate={{ opacity: [0.6, 1, 0.6], textShadow: ['0 0 0px var(--primary)', '0 0 8px var(--primary)', '0 0 0px var(--primary)'] }}
+          transition={{ duration: 2.5, repeat: Infinity, ease: "easeInOut" }}
+          style={{ 
+            fontFamily: 'Technical', 
+            fontSize: '0.85rem', 
+            letterSpacing: '0.15em',
+            marginTop: '1rem',
+            color: '#c9d1d9',
+            background: 'var(--bg)', // 阻断逻辑线
+            padding: '0 10px'
+          }}
+        >
+          RESTARTING CYCLE...
+        </motion.span>
       </div>
 
       <footer style={{ 
@@ -92,7 +133,9 @@ const FinalEvolution = ({ scrollProgress }: Props) => {
         textAlign: 'center', 
         color: 'var(--text-muted)',
         fontSize: '0.85rem',
-        opacity: 0.6
+        opacity: 0.6,
+        zIndex: 10,
+        background: 'var(--bg)' // 防止线穿过底部文字
       }}>
         © 2026 i18n-agent-skill | Continuous Globalization, Continuous Evolution.
       </footer>
