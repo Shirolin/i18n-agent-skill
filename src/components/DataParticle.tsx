@@ -1,47 +1,42 @@
 import { useEffect, useState } from 'react';
-import { motion, MotionValue } from 'framer-motion';
 
 const CHARS = ['{', '}', '[', ']', 't(', '"', "'", 'i18n', 'key', ';', '=>'];
 
-interface ParticleProps {
-  scrollProgress?: MotionValue<number>;
-}
-
 const SingleParticle = ({ p }: { p: any }) => {
   return (
-    <motion.div
-      animate={{ y: ['-10vh', '110vh'] }}
-      transition={{ duration: p.speed, repeat: Infinity, ease: 'linear', delay: p.delay }}
+    <div
       style={{
         position: 'absolute',
-        x: p.xOffset,
+        left: `${p.xOffset}px`,
         opacity: 0.6,
         color: 'var(--primary)',
         textShadow: '0 0 8px var(--primary-glow)',
         fontFamily: 'Technical',
         fontSize: '0.85rem',
         whiteSpace: 'nowrap',
-        filter: 'blur(0.5px)'
+        filter: 'blur(0.5px)',
+        animation: `fall ${p.speed}s linear infinite`,
+        animationDelay: `${p.delay}s`
       }}
     >
       {p.char}
-    </motion.div>
+    </div>
   );
 };
 
-const DataParticle = ({}: ParticleProps) => {
+const DataParticle = () => {
   const [particles, setParticles] = useState<any[]>([]);
 
   useEffect(() => {
-    // 初始化生成一批粒子，避免开始时的空窗期
-    const initialParticles = Array.from({ length: 30 }).map(() => {
+    // 纯 CSS 动画不需要动态计算进程，直接渲染 DOM 即可
+    const initialParticles = Array.from({ length: 30 }).map((_, index) => {
       const speed = 10 + Math.random() * 10; // 10s - 20s
       return {
-        id: Math.random(),
+        id: index,
         char: CHARS[Math.floor(Math.random() * CHARS.length)],
         xOffset: (Math.random() - 0.5) * 60,
         speed: speed,
-        delay: -(Math.random() * speed) // 随机负延迟，使粒子在加载时就分布在屏幕各处
+        delay: -(Math.random() * speed) // CSS animation-delay 完美支持负数
       };
     });
     setParticles(initialParticles);
@@ -58,9 +53,7 @@ const DataParticle = ({}: ParticleProps) => {
       height: '100vh',
       zIndex: 2,
       pointerEvents: 'none',
-      userSelect: 'none',
-      WebkitMaskImage: 'linear-gradient(to bottom, rgba(0,0,0,1) 85%, rgba(0,0,0,0) 100%)',
-      maskImage: 'linear-gradient(to bottom, rgba(0,0,0,1) 85%, rgba(0,0,0,0) 100%)'
+      userSelect: 'none'
     }}>
       {particles.map(p => (
         <SingleParticle key={p.id} p={p} />

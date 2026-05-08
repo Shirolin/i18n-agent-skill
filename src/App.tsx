@@ -45,7 +45,7 @@ function App() {
         />
       </div>
 
-      <DataParticle scrollProgress={smoothProgress} />
+      <DataParticle />
 
       <main style={{ position: 'relative', zIndex: 1 }}>
         <Hero />
