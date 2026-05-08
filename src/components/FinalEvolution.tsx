@@ -32,7 +32,7 @@ const FinalEvolution = ({ scrollProgress }: Props) => {
           L3 TRUTH SECURED
         </h2>
         <p style={{ color: 'var(--text-muted)', margin: '1.5rem 0 0', lineHeight: '1.8', fontSize: '1rem' }}>
-          人工 Commit 触发状态跃迁。所有翻译项已结晶为 <strong style={{ color: 'var(--text)' }}>L3 级 Approved 状态</strong>，实现逻辑幂等，驱动项目持续演进。
+          人工 Commit 确认最终翻译。所有翻译项已锁定为 <strong style={{ color: 'var(--text)' }}>L3 终审状态</strong>，确保内容一致且不可篡改，驱动项目稳健演进。
         </p>
       </div>
 
@@ -53,9 +53,17 @@ const FinalEvolution = ({ scrollProgress }: Props) => {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            background: 'rgba(88, 166, 255, 0.05)'
+            background: 'rgba(88, 166, 255, 0.05)',
+            boxShadow: '0 0 15px rgba(88, 166, 255, 0.1)'
           }}>
-            <span style={{ transform: 'rotate(-45deg)', fontSize: '0.85rem', color: 'var(--primary)', fontFamily: 'Technical', fontWeight: 'bold' }}>L3</span>
+            <span style={{ 
+              transform: 'rotate(-45deg)', 
+              fontSize: '1.1rem', 
+              color: '#ffffff', 
+              fontFamily: 'Technical', 
+              fontWeight: 'bold',
+              textShadow: '0 0 8px rgba(88, 166, 255, 0.8)'
+            }}>L3</span>
           </div>
         ))}
       </motion.div>

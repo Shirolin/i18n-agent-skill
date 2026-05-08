@@ -52,14 +52,17 @@ const DataParticle = ({ scrollProgress }: ParticleProps) => {
   }, []);
 
   return (
-    <div style={{
+    <div 
+      aria-hidden="true"
+      style={{
       position: 'fixed',
       top: 0,
       left: '50%',
       width: 0,
       height: '100vh',
       zIndex: 2,
-      pointerEvents: 'none'
+      pointerEvents: 'none',
+      userSelect: 'none'
     }}>
       {particles.map(p => (
         <SingleParticle key={p.id} p={p} scrollProgress={scrollProgress} />
