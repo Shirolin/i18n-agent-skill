@@ -8,7 +8,9 @@
   },
   "scanner": {
     "title": "PRECISION EXTRACTION",
-    "desc": "Deep context parsing via Tree-sitter AST. Accurately identifies UI attributes while automatically filtering library paths and data noise."
+    "desc": "Deep context parsing via Tree-sitter AST. Accurately identifies UI attributes while automatically filtering library paths and data noise.",
+    "level": "Level 1: AST X-Ray Scan",
+    "blocked": "BLOCKED: ENDONYM"
   },
   "privacy": {
     "title": "PRIVACY DECONTAMINATION",
@@ -24,6 +26,8 @@
   "evolution": {
     "title": "L3 TRUTH SECURED",
     "desc": "Manual Commit confirms final translation. All items are locked into <1>L3 Approved State</1>, ensuring immutable consistency and robust evolution.",
+    "sync": "SYNC",
+    "restarting": "RESTARTING CYCLE...",
     "footer": "© 2026 i18n-agent-skill | Continuous Globalization, Continuous Evolution."
   }
 }

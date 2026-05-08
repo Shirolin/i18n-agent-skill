@@ -1,5 +1,6 @@
 import { useRef } from 'react';
 import { motion, MotionValue, useTransform } from 'framer-motion';
+import { useTranslation } from 'react-i18next';
 
 interface Props {
   scrollProgress: MotionValue<number>;
@@ -7,6 +8,7 @@ interface Props {
 
 const AuditEngine = ({ scrollProgress }: Props) => {
   const containerRef = useRef<HTMLDivElement>(null);
+  const { t } = useTranslation();
   
   // 控制 Audit 报告面板的平滑出现 (假设在页面 1/2 到 3/4 处)
   const panelOpacity = useTransform(scrollProgress, [0.6, 0.65], [0, 1]);
@@ -41,12 +43,12 @@ const AuditEngine = ({ scrollProgress }: Props) => {
 
         <div style={{ position: 'absolute', top: '200px', left: '0', transform: 'translateY(-50%)', textAlign: 'center', width: '200px' }}>
           <div className="hud-panel" style={{ padding: '0.5rem', display: 'inline-block', fontSize: '0.85rem', color: 'var(--primary)' }}>
-            SOURCE CODE
+            {t('audit.src_code')}
           </div>
         </div>
         <div style={{ position: 'absolute', top: '200px', right: '0', transform: 'translateY(-50%)', textAlign: 'center', width: '200px' }}>
           <div className="hud-panel" style={{ padding: '0.5rem', display: 'inline-block', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-            LOCALE FILES
+            {t('audit.locales')}
           </div>
         </div>
 
@@ -68,11 +70,11 @@ const AuditEngine = ({ scrollProgress }: Props) => {
           }}
         >
           <div style={{ fontFamily: 'Technical', fontSize: '1.1rem', color: 'var(--text)', marginBottom: '0.5rem' }}>
-            AUDIT REPORT
+            {t('audit.report_title')}
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-            <span>MISSING: <span style={{ color: 'var(--accent)' }}>5</span></span>
-            <span>DEAD KEYS: <span style={{ color: 'var(--primary)' }}>1</span></span>
+            <span>{t('audit.missing')}: <span style={{ color: 'var(--accent)' }}>5</span></span>
+            <span>{t('audit.dead')}: <span style={{ color: 'var(--primary)' }}>1</span></span>
           </div>
         </motion.div>
       </div>

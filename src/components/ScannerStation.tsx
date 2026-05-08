@@ -58,7 +58,7 @@ const ScannerStation = ({ scrollProgress }: Props) => {
             <div style={{ fontFamily: 'Technical', fontSize: '0.95rem', color: 'var(--text-muted)' }}>
               <div style={{ color: 'var(--primary)', marginBottom: '1.5rem', fontWeight: 'bold' }}>
                 <span style={{ marginRight: '10px' }}>▶</span>
-                Level 1: AST X-Ray Scan
+                {t('scanner.level')}
               </div>
               <pre style={{ lineHeight: '2', margin: 0 }}>
                 {`import { something } from 'lib-noise';`} <br/>
@@ -69,7 +69,7 @@ const ScannerStation = ({ scrollProgress }: Props) => {
                 
                 {`const x = "简体中文";`} 
                 <motion.span style={{ color: 'var(--accent)', opacity: opacityEndonym, marginLeft: '10px' }}>
-                  // BLOCKED: ENDONYM
+                  // {t('scanner.blocked')}
                 </motion.span> <br/>
                 
                 {`const y = "Choose...";`} <br/>

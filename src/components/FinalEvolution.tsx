@@ -84,7 +84,7 @@ const FinalEvolution = ({ scrollProgress }: Props) => {
               color: 'var(--primary)',
               letterSpacing: '0.1em',
               opacity: 0.8
-            }}>SYNC: {lang}</span>
+            }}>{t('evolution.sync')}: {lang}</span>
           </div>
         ))}
       </motion.div>
@@ -148,7 +148,7 @@ const FinalEvolution = ({ scrollProgress }: Props) => {
             padding: '0 10px'
           }}
         >
-          RESTARTING CYCLE...
+          {t('evolution.restarting')}
         </motion.span>
       </div>
 

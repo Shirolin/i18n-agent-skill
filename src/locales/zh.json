@@ -8,7 +8,9 @@
   },
   "scanner": {
     "title": "高精语义提取",
-    "desc": "利用 Tree-sitter AST 深度解析代码上下文。精准识别 UI 属性，自动过滤库路径与数据干扰项。"
+    "desc": "利用 Tree-sitter AST 深度解析代码上下文。精准识别 UI 属性，自动过滤库路径与数据干扰项。",
+    "level": "级别 1：AST 透视扫描",
+    "blocked": "拦截：内生语言词"
   },
   "privacy": {
     "title": "隐私洗涤脱敏",
@@ -18,12 +20,14 @@
     "src_code": "源代码",
     "locales": "语言文件",
     "report_title": "审计报告",
-    "missing": "缺失翻译",
-    "dead": "冗余死键"
+    "missing": "缺失",
+    "dead": "死键"
   },
   "evolution": {
     "title": "L3 级真理锁定",
     "desc": "人工 Commit 确认最终翻译。所有翻译项已锁定为 <1>L3 终审状态</1>，确保内容一致且不可篡改，驱动项目稳健演进。",
+    "sync": "同步中",
+    "restarting": "正在重启循环...",
     "footer": "© 2026 i18n-agent-skill | 持续全球化，持续进化。"
   }
 }
