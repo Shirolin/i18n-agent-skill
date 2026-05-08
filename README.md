@@ -179,7 +179,7 @@ We guarantee that **zero source code** is uploaded to third-party servers. All A
 
 If you find **i18n-agent-skill** helpful, please consider:
 - Giving the project a **Star** ⭐ to show your support.
-- **Afdian (爱发电)**: [https://ifdian.net/a/shirolin](https://ifdian.net/a/shirolin)
+- **Afdian**: [https://ifdian.net/a/shirolin](https://ifdian.net/a/shirolin)
 - **Ko-fi**: [https://ko-fi.com/shirolin](https://ko-fi.com/shirolin)
 
 ---
