@@ -16,22 +16,52 @@ body {
 #root {
   min-height: 100vh;
   position: relative;
-  /* 精密点状网格背景 */
-  background-image: radial-gradient(var(--grid-dot) 1px, transparent 1px);
-  background-size: 32px 32px;
+  /* 更密集的精密网格 */
+  background-image: 
+    radial-gradient(var(--grid-dot) 1px, transparent 1px),
+    radial-gradient(var(--grid-dot) 1px, transparent 1px);
+  background-size: 24px 24px, 120px 120px;
+  background-position: 0 0, 12px 12px;
 }
 
 /* 全局滚动条工业化定制 */
 ::-webkit-scrollbar {
-  width: 6px;
+  width: 4px;
 }
 ::-webkit-scrollbar-track {
   background: var(--bg);
 }
 ::-webkit-scrollbar-thumb {
-  background: var(--line-color);
-  border-radius: 3px;
-}
-::-webkit-scrollbar-thumb:hover {
   background: var(--primary);
+  border-radius: 0;
+}
+
+/* HUD 面板通用样式 */
+.hud-panel {
+  background: var(--bg-panel);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: var(--border-hud);
+  box-shadow: var(--shadow-hud);
+  border-radius: 4px;
+  position: relative;
+}
+
+/* 十字准星装饰角 */
+.hud-panel::before, .hud-panel::after {
+  content: '';
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  border: 1px solid var(--primary);
+  opacity: 0.5;
+  pointer-events: none;
+}
+.hud-panel::before {
+  top: -1px; left: -1px;
+  border-right: none; border-bottom: none;
+}
+.hud-panel::after {
+  bottom: -1px; right: -1px;
+  border-left: none; border-top: none;
 }

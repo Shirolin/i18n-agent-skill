@@ -1,11 +1,17 @@
 :root {
-  --bg: #0d1117;
+  --bg: #05080c;
+  --bg-panel: rgba(13, 17, 23, 0.7);
   --primary: #58a6ff;
+  --primary-glow: rgba(88, 166, 255, 0.4);
   --accent: #d29922;
   --text: #c9d1d9;
   --text-muted: #8b949e;
-  --grid-dot: rgba(88, 166, 255, 0.07);
-  --line-color: rgba(88, 166, 255, 0.15);
+  --grid-dot: rgba(88, 166, 255, 0.15);
+  --line-color: rgba(88, 166, 255, 0.2);
+  
+  /* HUD Elements */
+  --border-hud: 1px solid rgba(88, 166, 255, 0.3);
+  --shadow-hud: 0 0 20px rgba(0, 0, 0, 0.5), inset 0 0 10px rgba(88, 166, 255, 0.05);
 }
 
 @font-face {

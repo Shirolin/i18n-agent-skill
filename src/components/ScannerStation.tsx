@@ -1,10 +1,18 @@
 import { useRef } from 'react';
-import { motion } from 'framer-motion';
-import { useScrollProgress } from '../hooks/useScrollProgress';
+import { motion, MotionValue, useTransform } from 'framer-motion';
 
-const ScannerStation = () => {
+interface Props {
+  scrollProgress: MotionValue<number>;
+}
+
+const ScannerStation = ({ scrollProgress }: Props) => {
   const containerRef = useRef<HTMLDivElement>(null);
-  const progress = useScrollProgress(containerRef);
+  
+  // 将全局滚动进度映射到局部组件的特定动效
+  // 假设 ScannerStation 位于页面顶部到 1/4 处
+  const laserTop = useTransform(scrollProgress, [0, 0.25], ['0%', '100%']);
+  const highlightColor = useTransform(scrollProgress, [0.1, 0.15], ['var(--text-muted)', 'var(--primary)']);
+  const opacityEndonym = useTransform(scrollProgress, [0.2, 0.25], [0, 1]);
 
   return (
     <section 
@@ -17,17 +25,12 @@ const ScannerStation = () => {
         position: 'relative'
       }}
     >
-      <div style={{ 
+      <div className="hud-panel" style={{ 
         width: '100%', 
         maxWidth: '800px', 
-        backgroundColor: 'rgba(255,255,255,0.02)',
-        border: '1px solid var(--line-color)',
-        borderRadius: '8px',
-        padding: '2rem',
-        position: 'relative',
-        overflow: 'hidden'
+        padding: '2.5rem',
       }}>
-        {/* 激光扫描线 */}
+        {/* 激光扫描线 - 现在平滑移动 */}
         <motion.div 
           style={{
             position: 'absolute',
@@ -37,18 +40,27 @@ const ScannerStation = () => {
             background: 'linear-gradient(90deg, transparent, var(--primary), transparent)',
             boxShadow: '0 0 15px var(--primary)',
             zIndex: 10,
-            top: `${progress * 100}%`
+            top: laserTop
           }}
         />
 
-        <div style={{ fontFamily: 'Technical', fontSize: '0.9rem', color: 'var(--text-muted)' }}>
-          <div style={{ color: 'var(--primary)', marginBottom: '1rem' }}>// Level 1: AST X-Ray Scan</div>
-          <pre style={{ lineHeight: '1.8' }}>
+        <div style={{ fontFamily: 'Technical', fontSize: '0.95rem', color: 'var(--text-muted)' }}>
+          <div style={{ color: 'var(--primary)', marginBottom: '1.5rem', fontWeight: 'bold' }}>
+            <span style={{ marginRight: '10px' }}>▶</span>
+            Level 1: AST X-Ray Scan
+          </div>
+          <pre style={{ lineHeight: '2' }}>
             {`import { something } from 'lib-noise';`} <br/>
-            <span style={{ color: progress > 0.4 ? 'var(--primary)' : 'inherit', transition: 'color 0.3s' }}>
+            
+            <motion.span style={{ color: highlightColor }}>
               {`<Select label="Select Language" />`}
-            </span> <br/>
-            {`const x = "简体中文";`} <span style={{ color: 'var(--accent)', opacity: progress > 0.7 ? 1 : 0 }}>// BLOCKED: ENDONYM</span> <br/>
+            </motion.span> <br/>
+            
+            {`const x = "简体中文";`} 
+            <motion.span style={{ color: 'var(--accent)', opacity: opacityEndonym, marginLeft: '10px' }}>
+              // BLOCKED: ENDONYM
+            </motion.span> <br/>
+            
             {`const y = "Choose...";`} <br/>
             {`export const App = () => { ... }`}
           </pre>
@@ -63,8 +75,8 @@ const ScannerStation = () => {
         textAlign: 'right',
         maxWidth: '300px'
       }}>
-        <h3 style={{ color: 'var(--primary)', fontFamily: 'Technical' }}>PRECISION EXTRACTION</h3>
-        <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>
+        <h3 style={{ color: 'var(--primary)', fontFamily: 'Technical', textShadow: '0 0 10px var(--primary-glow)' }}>PRECISION EXTRACTION</h3>
+        <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', marginTop: '1rem', lineHeight: '1.6' }}>
           利用 Tree-sitter AST 深度解析代码上下文。精准识别 UI 属性，自动过滤库路径与数据干扰项。
         </p>
       </div>
