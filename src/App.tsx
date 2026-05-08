@@ -22,6 +22,7 @@ function App() {
 
   return (
     <div className="pipeline-container" style={{ position: 'relative' }}>
+      <div className="noise-overlay" />
       {/* 贯穿全屏的动态导管 (The Spine) */}
       <div style={{
         position: 'fixed',

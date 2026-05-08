@@ -11,12 +11,14 @@ body {
   color: var(--text);
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
   overflow-x: hidden;
+  /* 平滑字体渲染 */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 #root {
   min-height: 100vh;
   position: relative;
-  /* 更密集的精密网格 */
   background-image: 
     radial-gradient(var(--grid-dot) 1px, transparent 1px),
     radial-gradient(var(--grid-dot) 1px, transparent 1px);
@@ -24,7 +26,19 @@ body {
   background-position: 0 0, 12px 12px;
 }
 
-/* 全局滚动条工业化定制 */
+/* 工业级噪点遮罩 */
+.noise-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none;
+  z-index: 9999;
+  opacity: 0.04;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+}
+
 ::-webkit-scrollbar {
   width: 4px;
 }
@@ -32,29 +46,44 @@ body {
   background: var(--bg);
 }
 ::-webkit-scrollbar-thumb {
-  background: var(--primary);
+  background: rgba(88, 166, 255, 0.4);
   border-radius: 0;
 }
-
-/* HUD 面板通用样式 */
-.hud-panel {
-  background: var(--bg-panel);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: var(--border-hud);
-  box-shadow: var(--shadow-hud);
-  border-radius: 4px;
-  position: relative;
+::-webkit-scrollbar-thumb:hover {
+  background: var(--primary);
 }
 
-/* 十字准星装饰角 */
+/* 高级全息面板样式 */
+.hud-panel {
+  background: linear-gradient(135deg, rgba(13, 17, 23, 0.8), rgba(13, 17, 23, 0.5));
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(88, 166, 255, 0.15);
+  box-shadow: 
+    0 10px 30px rgba(0, 0, 0, 0.8), 
+    inset 0 0 0 1px rgba(255, 255, 255, 0.05),
+    inset 0 0 20px rgba(88, 166, 255, 0.03);
+  border-radius: 6px;
+  position: relative;
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.hud-panel:hover {
+  border-color: rgba(88, 166, 255, 0.3);
+  box-shadow: 
+    0 10px 40px rgba(0, 0, 0, 0.9), 
+    inset 0 0 0 1px rgba(255, 255, 255, 0.08),
+    inset 0 0 30px rgba(88, 166, 255, 0.05);
+}
+
+/* 极其精细的十字准星 */
 .hud-panel::before, .hud-panel::after {
   content: '';
   position: absolute;
-  width: 10px;
-  height: 10px;
+  width: 8px;
+  height: 8px;
   border: 1px solid var(--primary);
-  opacity: 0.5;
+  opacity: 0.3;
   pointer-events: none;
 }
 .hud-panel::before {
