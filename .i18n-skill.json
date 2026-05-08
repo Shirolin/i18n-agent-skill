@@ -1,0 +1,26 @@
+{
+  "source_dirs": [
+    "src"
+  ],
+  "ignore_dirs": [
+    "node_modules",
+    "dist",
+    ".git",
+    ".venv"
+  ],
+  "locales_dir": "src/locales",
+  "enabled_langs": [
+    "en",
+    "zh"
+  ],
+  "privacy_level": "basic",
+  "persona": {
+    "domain": "Industrial Engineering",
+    "audience": "Developers",
+    "tone": "Technical"
+  },
+  "protected_lang_key_patterns": [],
+  "ignored_keys": [],
+  "ignored_strings": [],
+  "preferred_format": ".json"
+}

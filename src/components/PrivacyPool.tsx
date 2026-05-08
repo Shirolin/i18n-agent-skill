@@ -1,6 +1,7 @@
 import { useRef } from 'react';
 import { motion, MotionValue, useTransform } from 'framer-motion';
 import { Shield, Lock } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 interface Props {
   scrollProgress: MotionValue<number>;
@@ -8,6 +9,7 @@ interface Props {
 
 const PrivacyPool = ({ scrollProgress }: Props) => {
   const containerRef = useRef<HTMLDivElement>(null);
+  const { t } = useTranslation();
   
   // 映射脱敏动效的平滑过渡 (假设在页面 1/4 到 1/2 处)
   const lockOpacity = useTransform(scrollProgress, [0.35, 0.45], [0.2, 1]);
@@ -27,10 +29,10 @@ const PrivacyPool = ({ scrollProgress }: Props) => {
         {/* 左栏：说明文字 */}
         <div style={{ flex: 1, textAlign: 'right' }}>
           <h3 style={{ color: 'var(--accent)', fontFamily: 'Technical', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '0.8rem', textShadow: '0 0 10px rgba(210, 153, 34, 0.3)' }}>
-            PRIVACY DECONTAMINATION <Shield size={24} />
+            {t('privacy.title')} <Shield size={24} />
           </h3>
           <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem', marginTop: '1rem', lineHeight: '1.6' }}>
-            Built-in Privacy Shield automatically intercepts sensitive data. API Keys and PII are 100% masked before text leaves your local environment.
+            {t('privacy.desc')}
           </p>
         </div>
 
