@@ -20,52 +20,62 @@ const PrivacyPool = ({ scrollProgress }: Props) => {
 
   return (
     <section ref={containerRef} style={{ height: '120vh', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
-      <div style={{ textAlign: 'right', maxWidth: '350px', position: 'absolute', right: 'calc(50% + 180px)' }}>
-        <h3 style={{ color: 'var(--accent)', fontFamily: 'Technical', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '0.8rem', textShadow: '0 0 10px rgba(210, 153, 34, 0.3)' }}>
-          PRIVACY DECONTAMINATION <Shield size={24} />
-        </h3>
-        <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem', marginTop: '1rem', lineHeight: '1.6' }}>
-          内置隐私护盾，自动拦截敏感数据。在文本离开本地环境前，API Keys 和个人隐私已完成 100% 脱敏。
-        </p>
-      </div>
-
-      <div className="hud-panel" style={{
-        width: '320px',
-        height: '420px',
-        borderColor: 'var(--accent)',
-        background: 'rgba(210, 153, 34, 0.05)',
-        boxShadow: '0 0 30px rgba(0,0,0,0.5), inset 0 0 20px rgba(210, 153, 34, 0.1)',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-      }}>
-        {/* 脱敏动效区 */}
-        <motion.div
-          animate={{ y: [0, -5, 0] }}
-          transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
-          style={{ 
-            fontSize: '0.85rem', 
-            fontFamily: 'Technical', 
-            color: 'var(--accent)',
-            position: 'relative',
-            height: '20px',
-            width: '100%',
-            textAlign: 'center',
-            filter: textBlur
-          }}
-        >
-          <motion.span style={{ position: 'absolute', width: '100%', left: 0, opacity: rawOpacity }}>
-            sk-proj-a1b2c3d4e5f6...
-          </motion.span>
-          <motion.span style={{ position: 'absolute', width: '100%', left: 0, opacity: maskedOpacity }}>
-            [MASKED_API_KEY]
-          </motion.span>
-        </motion.div>
+      
+      {/* 限制宽度的双栏对称容器 */}
+      <div style={{ width: '100%', maxWidth: '1000px', display: 'flex', alignItems: 'center', gap: '4rem' }}>
         
-        <motion.div style={{ marginTop: '2rem', opacity: lockOpacity, scale: lockScale }}>
-          <Lock size={48} color="var(--accent)" style={{ filter: 'drop-shadow(0 0 8px rgba(210, 153, 34, 0.6))' }} />
-        </motion.div>
+        {/* 左栏：说明文字 */}
+        <div style={{ flex: 1, textAlign: 'right' }}>
+          <h3 style={{ color: 'var(--accent)', fontFamily: 'Technical', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '0.8rem', textShadow: '0 0 10px rgba(210, 153, 34, 0.3)' }}>
+            PRIVACY DECONTAMINATION <Shield size={24} />
+          </h3>
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem', marginTop: '1rem', lineHeight: '1.6' }}>
+            内置隐私护盾，自动拦截敏感数据。在文本离开本地环境前，API Keys 和个人隐私已完成 100% 脱敏。
+          </p>
+        </div>
+
+        {/* 右栏：脱敏池动画 */}
+        <div style={{ flex: 1, display: 'flex', justifyContent: 'flex-start' }}>
+          <div className="hud-panel" style={{
+            width: '320px',
+            height: '420px',
+            borderColor: 'var(--accent)',
+            background: 'rgba(210, 153, 34, 0.05)',
+            boxShadow: '0 0 30px rgba(0,0,0,0.5), inset 0 0 20px rgba(210, 153, 34, 0.1)',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}>
+            {/* 脱敏动效区 */}
+            <motion.div
+              animate={{ y: [0, -5, 0] }}
+              transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+              style={{ 
+                fontSize: '0.85rem', 
+                fontFamily: 'Technical', 
+                color: 'var(--accent)',
+                position: 'relative',
+                height: '20px',
+                width: '100%',
+                textAlign: 'center',
+                filter: textBlur
+              }}
+            >
+              <motion.span style={{ position: 'absolute', width: '100%', left: 0, opacity: rawOpacity }}>
+                sk-proj-a1b2c3d4e5f6...
+              </motion.span>
+              <motion.span style={{ position: 'absolute', width: '100%', left: 0, opacity: maskedOpacity }}>
+                [MASKED_API_KEY]
+              </motion.span>
+            </motion.div>
+            
+            <motion.div style={{ marginTop: '2rem', opacity: lockOpacity, scale: lockScale }}>
+              <Lock size={48} color="var(--accent)" style={{ filter: 'drop-shadow(0 0 8px rgba(210, 153, 34, 0.6))' }} />
+            </motion.div>
+          </div>
+        </div>
+
       </div>
     </section>
   );
