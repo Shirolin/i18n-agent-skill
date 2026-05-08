@@ -26,8 +26,9 @@ const ScannerStation = ({ scrollProgress }: Props) => {
       }}
     >
       <div className="hud-panel" style={{ 
-        width: '100%', 
-        maxWidth: '800px', 
+        position: 'absolute',
+        right: 'calc(50% + 50px)',
+        width: '450px', 
         padding: '2.5rem',
       }}>
         {/* 激光扫描线 - 现在平滑移动 */}
@@ -69,11 +70,11 @@ const ScannerStation = ({ scrollProgress }: Props) => {
 
       <div style={{ 
         position: 'absolute', 
-        right: '5%', 
+        left: 'calc(50% + 50px)', 
         top: '50%', 
         transform: 'translateY(-50%)',
-        textAlign: 'right',
-        maxWidth: '300px'
+        textAlign: 'left',
+        maxWidth: '350px'
       }}>
         <h3 style={{ color: 'var(--primary)', fontFamily: 'Technical', textShadow: '0 0 10px var(--primary-glow)' }}>PRECISION EXTRACTION</h3>
         <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', marginTop: '1rem', lineHeight: '1.6' }}>

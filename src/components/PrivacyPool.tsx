@@ -20,9 +20,9 @@ const PrivacyPool = ({ scrollProgress }: Props) => {
 
   return (
     <section ref={containerRef} style={{ height: '120vh', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
-      <div style={{ textAlign: 'left', maxWidth: '400px', position: 'absolute', left: '10%' }}>
-        <h3 style={{ color: 'var(--accent)', fontFamily: 'Technical', display: 'flex', alignItems: 'center', gap: '0.8rem', textShadow: '0 0 10px rgba(210, 153, 34, 0.3)' }}>
-          <Shield size={24} /> PRIVACY DECONTAMINATION
+      <div style={{ textAlign: 'right', maxWidth: '350px', position: 'absolute', right: 'calc(50% + 180px)' }}>
+        <h3 style={{ color: 'var(--accent)', fontFamily: 'Technical', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '0.8rem', textShadow: '0 0 10px rgba(210, 153, 34, 0.3)' }}>
+          PRIVACY DECONTAMINATION <Shield size={24} />
         </h3>
         <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem', marginTop: '1rem', lineHeight: '1.6' }}>
           内置隐私护盾，自动拦截敏感数据。在文本离开本地环境前，API Keys 和个人隐私已完成 100% 脱敏。
