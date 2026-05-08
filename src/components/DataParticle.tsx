@@ -7,6 +7,30 @@ interface ParticleProps {
   scrollProgress: MotionValue<number>;
 }
 
+const SingleParticle = ({ p, scrollProgress }: { p: any, scrollProgress: MotionValue<number> }) => {
+  const yPos = useTransform(scrollProgress, [0, 1], ['-10vh', `${100 + p.speed * 50}vh`]);
+  const opacity = useTransform(scrollProgress, [0, 0.1, 0.9, 1], [0, 0.6, 0.6, 0]);
+
+  return (
+    <motion.div
+      style={{
+        position: 'absolute',
+        top: yPos,
+        x: p.xOffset,
+        opacity: opacity,
+        color: 'var(--primary)',
+        textShadow: '0 0 8px var(--primary-glow)',
+        fontFamily: 'Technical',
+        fontSize: '0.85rem',
+        whiteSpace: 'nowrap',
+        filter: 'blur(0.5px)'
+      }}
+    >
+      {p.char}
+    </motion.div>
+  );
+};
+
 const DataParticle = ({ scrollProgress }: ParticleProps) => {
   const [particles, setParticles] = useState<any[]>([]);
 
@@ -37,32 +61,9 @@ const DataParticle = ({ scrollProgress }: ParticleProps) => {
       zIndex: 2,
       pointerEvents: 'none'
     }}>
-      {particles.map(p => {
-        // 利用 useTransform 让粒子随着滚动向下疾驰
-        // 当页面向下滚动时，粒子的 top 值增加
-        const yPos = useTransform(scrollProgress, [0, 1], ['-10vh', `${100 + p.speed * 50}vh`]);
-        const opacity = useTransform(scrollProgress, [0, 0.1, 0.9, 1], [0, 0.6, 0.6, 0]);
-
-        return (
-          <motion.div
-            key={p.id}
-            style={{
-              position: 'absolute',
-              top: yPos,
-              x: p.xOffset,
-              opacity: opacity,
-              color: 'var(--primary)',
-              textShadow: '0 0 8px var(--primary-glow)',
-              fontFamily: 'Technical',
-              fontSize: '0.85rem',
-              whiteSpace: 'nowrap',
-              filter: 'blur(0.5px)'
-            }}
-          >
-            {p.char}
-          </motion.div>
-        );
-      })}
+      {particles.map(p => (
+        <SingleParticle key={p.id} p={p} scrollProgress={scrollProgress} />
+      ))}
     </div>
   );
 };
