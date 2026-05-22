@@ -81,13 +81,13 @@ Unlike fragile RegEx-based extractors, our engine uses **Tree-sitter AST** to na
 
 ### 2. Privacy Shield (Secure by Design)
 Built for enterprise security. Your source code and sensitive data stay in your local environment.
-- **Local Masking**: Automatically identifies and masks PII (Emails, API Keys, IPs) before AI interaction.
+- **Local Masking**: Automatically masks extracted text and returned code context before AI interaction. Basic mode covers emails and API keys; strict mode also covers IPs, phone numbers, and ID numbers.
 - **Deterministic Hashing**: Tracks changes via local hashes without ever uploading content.
 
 ### 3. State-Based Quality Evolution
 Manages the translation lifecycle to prevent regressions and improve phrasing over time.
 - **State Machine**: Tracks every key from `DRAFT` to `REVIEWED` and `APPROVED`.
-- **Glossary Learning**: Automatically learns preferred terminology from manual human corrections.
+- **Glossary Memory**: Saves confirmed terminology in the local glossary for later reuse.
 - **Typography Linter**: Built-in rules for CJK-Western spacing and professional punctuation.
 
 ---
@@ -112,9 +112,9 @@ Manages the translation lifecycle to prevent regressions and improve phrasing ov
 | :--- | :--- | :--- |
 | `/i18n-init` | **Initialization** | Scans project structure and generates an explicit `.i18n-skill.json` configuration. |
 | `/i18n-status` | **Health Check** | Verifies dependencies, environment isolation, and current VCS (Git) state. |
-| `/i18n-scan` | **Extraction** | Precision scan of source code to find hardcoded strings. Use `--path` for specific components. |
+| `/i18n-scan` | **Extraction** | Precision scan of source code to find hardcoded strings. Use `--path` for specific components or `--vcs` for current Git diff hunks. |
 | `/i18n-audit` | **Gap Analysis** | Compares locale files against source code to find missing keys or detect unused "dead keys". |
-| `/i18n-sync` | **Smart Staging** | Generates translation proposals. Merges new keys into a staging area with Markdown preview. |
+| `/i18n-sync` | **Smart Staging** | Generates translation proposals. Preserves an existing locale format and writes a Markdown preview in the staging area. |
 | `/i18n-commit` | **Apply Changes** | Formally writes approved proposals to physical locale files and updates quality snapshots. |
 | `/i18n-cleanup` | **Debt Control** | Specifically identifies and reports unused i18n keys to keep locale files lean. |
 | `/i18n-audit-quality` | **Expert Audit** | Generates a quality report focusing on phrasing, variable safety, and typography. |

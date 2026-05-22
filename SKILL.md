@@ -74,7 +74,7 @@ When the user expresses an intent related to internationalization, map it to the
 - `/i18n-status`: Check project configuration and environment health.
 - `/i18n-init`: Initialize project configuration (.i18n-skill.json). **Returns .gitignore recommendations** to keep your workspace clean.
 - `/i18n-audit [--lang lang]`: **Validation Phase (Entry Point)**. Compare locale files against source code AND detect un-extracted hardcoded strings. Defaults to `all` enabled languages if `--lang` is omitted.
-- `/i18n-scan [--path path]`: **Manual Extraction Phase**. Precise extraction of hardcoded strings. Defaults to `source_dirs` from config if `--path` is omitted. Usually triggered automatically by `/i18n-audit`.
+- `/i18n-scan [--path path] [--vcs]`: **Manual Extraction Phase**. Precise extraction of hardcoded strings. Defaults to `source_dirs` from config if `--path` is omitted; `--vcs` limits results to current Git diff hunks. Usually triggered automatically by `/i18n-audit`.
 - `/i18n-cleanup [--lang lang]`: Generate a detailed report of unused keys to reduce technical debt.
 - `/i18n-sync --lang <lang> --data <json_or_file>`: Generate translation proposals. **Must inform user of the Preview path after execution.**
 - `/i18n-commit --proposal <id_or_all>`: Apply proposals. Supports `UUID`, `language code`, or `all`.

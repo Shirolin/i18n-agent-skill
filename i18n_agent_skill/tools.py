@@ -28,6 +28,7 @@ from i18n_agent_skill.models import (
     TranslationStatus,
 )
 from i18n_agent_skill.snapshot import TranslationSnapshotManager
+from i18n_agent_skill.vcs import get_git_hunks
 
 # Global Constants
 CACHE_FILE = ".i18n-cache.json"
@@ -80,9 +81,14 @@ def set_workspace_root(path: str):
 
 
 def _validate_safe_path(path: str) -> str:
-    ws_root = os.path.normpath(os.path.abspath(WORKSPACE_ROOT)).lower()
-    target_path = os.path.normpath(os.path.abspath(os.path.join(WORKSPACE_ROOT, path)))
-    if not target_path.lower().startswith(ws_root):
+    ws_root = os.path.normcase(os.path.realpath(os.path.abspath(WORKSPACE_ROOT)))
+    target_path = os.path.realpath(os.path.abspath(os.path.join(WORKSPACE_ROOT, path)))
+    normalized_target = os.path.normcase(target_path)
+    try:
+        common_path = os.path.commonpath([ws_root, normalized_target])
+    except ValueError as exc:
+        raise PermissionError(f"Access Denied: Path '{path}' is outside project.") from exc
+    if common_path != ws_root:
         raise PermissionError(f"Access Denied: Path '{path}' is outside project.")
     return target_path
 
@@ -174,11 +180,15 @@ QUERY_STRINGS = {
         (jsx_attribute (property_identifier) @attr_name)
         (jsx_self_closing_element
             name: (identifier) @comp (#eq? @comp "Trans")
-            attribute: (jsx_attribute (property_identifier) @attr_name (#eq? @attr_name "i18nKey") (string) @key)
+            attribute: (jsx_attribute
+                (property_identifier) @attr_name (#eq? @attr_name "i18nKey")
+                (string) @key)
         )
         (jsx_opening_element
             name: (identifier) @comp (#eq? @comp "Trans")
-            attribute: (jsx_attribute (property_identifier) @attr_name (#eq? @attr_name "i18nKey") (string) @key)
+            attribute: (jsx_attribute
+                (property_identifier) @attr_name (#eq? @attr_name "i18nKey")
+                (string) @key)
         )
         (call_expression
             function: [
@@ -326,6 +336,12 @@ async def _load_project_config() -> ProjectConfig:
     return ProjectConfig()
 
 
+async def _save_project_config(config: ProjectConfig):
+    config_path = _validate_safe_path(CONFIG_FILE)
+    async with aiofiles.open(config_path, "w", encoding="utf-8") as f:
+        await f.write(json.dumps(config.model_dump(mode="json"), indent=2, ensure_ascii=False))
+
+
 async def extract_raw_strings(
     file_path: str,
     use_cache: bool = True,
@@ -369,15 +385,23 @@ async def extract_raw_strings(
             ),
         )
     scanner = TreeSitterScanner(content, os.path.splitext(file_path)[1].lower())
-    results, seen, p_lvl = [], set(), privacy_level or PrivacyLevel.BASIC
+    results, seen, p_lvl = [], set(), privacy_level or config.privacy_level or PrivacyLevel.BASIC
     lines = content.splitlines()
     for text, line, origin in scanner.scan():
         if _is_natural_language(text, origin, config.ignored_strings):
             if (text, line) in seen:
                 continue
-            masked, is_m = _mask_sensitive_data(text, p_lvl)
+            masked, text_is_masked = _mask_sensitive_data(text, p_lvl)
             ctx = "\n".join(lines[max(0, line - 2) : min(line + 1, len(lines))])
-            results.append(ExtractedString(text=masked, line=line, context=ctx, is_masked=is_m))
+            masked_ctx, context_is_masked = _mask_sensitive_data(ctx, p_lvl)
+            results.append(
+                ExtractedString(
+                    text=masked,
+                    line=line,
+                    context=masked_ctx,
+                    is_masked=text_is_masked or context_is_masked,
+                )
+            )
             seen.add((text, line))
     if use_cache and shared_cache is not None:
         shared_cache[safe_p] = {"hash": content_hash, "results": [r.model_dump() for r in results]}
@@ -391,6 +415,9 @@ async def orchestrate_scan(
     path: str | None = None, use_cache: bool = True, vcs_mode: bool = False
 ) -> dict:
     config = await _load_project_config()
+    git_hunks = get_git_hunks(WORKSPACE_ROOT) if vcs_mode else {}
+    if vcs_mode and not git_hunks:
+        return {"results": []}
     scan_paths = [path] if path else (config.source_dirs or ["src"])
     cache_path, shared_cache = os.path.join(WORKSPACE_ROOT, CACHE_FILE), {}
     if use_cache and os.path.exists(cache_path):
@@ -400,6 +427,23 @@ async def orchestrate_scan(
         except Exception:
             pass
     all_res = []
+
+    def changed_lines(file_path: str) -> set[int] | None:
+        if not vcs_mode:
+            return None
+        rel_path = os.path.relpath(file_path, WORKSPACE_ROOT).replace("\\", "/")
+        return git_hunks.get(rel_path)
+
+    def append_results(file_path: str, output: ExtractOutput):
+        if not output.results:
+            return
+        line_filter = changed_lines(file_path)
+        if vcs_mode and not line_filter:
+            return
+        for result in output.results:
+            if line_filter is None or result.line in line_filter:
+                all_res.append(result.model_dump())
+
     for p in scan_paths:
         abs_p = os.path.join(WORKSPACE_ROOT, p)
         if os.path.isdir(abs_p):
@@ -419,12 +463,10 @@ async def orchestrate_scan(
                             use_cache=use_cache,
                             shared_cache=shared_cache,
                         )
-                        if out.results:
-                            all_res.extend([r.model_dump() for r in out.results])
+                        append_results(os.path.join(root, filename), out)
         elif os.path.exists(abs_p):
             out = await extract_raw_strings(abs_p, use_cache=use_cache, shared_cache=shared_cache)
-            if out.results:
-                all_res.extend([r.model_dump() for r in out.results])
+            append_results(abs_p, out)
     if use_cache:
         try:
             async with aiofiles.open(cache_path, "w", encoding="utf-8") as f_out:
@@ -434,8 +476,30 @@ async def orchestrate_scan(
     return {"results": all_res}
 
 
+LOCALE_EXTENSIONS = [".json", ".yaml", ".yml", ".ts", ".js"]
+
+
+def _existing_locale_path(target_dir: str, lang: str) -> str | None:
+    for ext in LOCALE_EXTENSIONS:
+        target_path = os.path.join(target_dir, f"{lang}{ext}")
+        if os.path.exists(_validate_safe_path(target_path)):
+            return target_path
+    return None
+
+
+def _resolve_locale_target_path(config: ProjectConfig, lang: str) -> str:
+    existing = _existing_locale_path(config.locales_dir, lang)
+    if existing:
+        return existing
+    preferred = config.preferred_format or ".json"
+    preferred_ext = preferred if preferred.startswith(".") else f".{preferred}"
+    if preferred_ext not in LOCALE_EXTENSIONS:
+        preferred_ext = ".json"
+    return os.path.join(config.locales_dir, f"{lang}{preferred_ext}")
+
+
 async def _load_locale_data(target_dir: str, lang: str) -> dict:
-    for ext in [".json", ".yaml", ".yml", ".ts", ".js"]:
+    for ext in LOCALE_EXTENSIONS:
         target_path = os.path.join(target_dir, f"{lang}{ext}")
         p = _validate_safe_path(target_path)
         if os.path.exists(p):
@@ -560,8 +624,9 @@ async def propose_sync_i18n(
         if existing_reasoning and reasoning not in existing_reasoning
         else reasoning
     )
+    target_file = _resolve_locale_target_path(config, lang_code)
     proposal_data = {
-        "target_file": os.path.join(config.locales_dir, f"{lang_code}.json"),
+        "target_file": target_file,
         "content": final_data,
         "lang": lang_code,
         "reason": combined_reason,
@@ -570,16 +635,34 @@ async def propose_sync_i18n(
         await f.write(json.dumps(proposal_data, indent=2, ensure_ascii=False))
     flat_disk, flat_final = _flatten_dict(disk_data), _flatten_dict(final_data)
     accumulated = {k: v for k, v in flat_final.items() if flat_disk.get(k) != v}
+    preview_path = os.path.join(WORKSPACE_ROOT, PROPOSALS_DIR, f"proposal_{lang_code}.md")
+    preview_lines = [
+        f"# i18n proposal: {lang_code}",
+        "",
+        f"Target file: `{target_file}`",
+        "",
+        f"Reason: {combined_reason or 'No reason provided.'}",
+        "",
+        "## Changes",
+        "",
+    ]
+    preview_lines.extend(
+        f"- `{key}`: {json.dumps(value, ensure_ascii=False)}" for key, value in accumulated.items()
+    )
+    if not accumulated:
+        preview_lines.append("- No changes.")
+    async with aiofiles.open(preview_path, "w", encoding="utf-8") as f:
+        await f.write("\n".join(preview_lines) + "\n")
     return SyncProposal(
         proposal_id=lang_code,
         lang_code=lang_code,
         changes_count=len(accumulated),
         diff_summary=accumulated,
         reasoning=combined_reason,
-        file_path=proposal_data["target_file"],
+        file_path=target_file,
         validation_errors=[],
         style_suggestions=[],
-        preview_file_path="",
+        preview_file_path=preview_path,
     )
 
 
@@ -643,7 +726,7 @@ async def check_project_status() -> ProjectStatus:
         config=await _load_project_config(),
         workspace_root=WORKSPACE_ROOT,
         status_message="Ready",
-        has_glossary=False,
+        has_glossary=os.path.exists(_validate_safe_path(GLOSSARY_FILE)),
         cache_size=0,
     )
 
@@ -655,7 +738,7 @@ async def initialize_project_config(auto: bool = False) -> dict:
         if os.path.exists(os.path.join(WORKSPACE_ROOT, p)):
             locales_dir = p
             break
-    
+
     config = {
         "source_dirs": source_dirs or ["."],
         "ignore_dirs": ["node_modules", "dist", ".git", ".venv"],
@@ -665,22 +748,22 @@ async def initialize_project_config(auto: bool = False) -> dict:
         "persona": {
             "domain": "Industrial Engineering",
             "audience": "Developers",
-            "tone": "Technical"
+            "tone": "Technical",
         },
         "protected_lang_key_patterns": [],
         "ignored_keys": [],
         "ignored_strings": [],
-        "preferred_format": ".json"
+        "preferred_format": ".json",
     }
-    
+
     config_path = os.path.join(WORKSPACE_ROOT, CONFIG_FILE)
     async with aiofiles.open(config_path, "w", encoding="utf-8") as f:
         await f.write(json.dumps(config, indent=2, ensure_ascii=False))
-        
+
     return {
         "message": f"Config initialized at {config_path}",
         "config": config,
-        "recommended_gitignore": [CACHE_FILE, PROPOSALS_DIR, f"!{CONFIG_FILE}"]
+        "recommended_gitignore": [CACHE_FILE, PROPOSALS_DIR, f"!{CONFIG_FILE}"],
     }
 
 
@@ -692,7 +775,7 @@ async def distill_project_persona() -> dict:
         "domain": config.persona.domain,
         "audience": config.persona.audience,
         "tone": config.persona.tone,
-        "samples": [s["text"] for s in samples if isinstance(s, dict)]
+        "samples": [s["text"] for s in samples if isinstance(s, dict)],
     }
 
 
@@ -838,10 +921,43 @@ async def sync_manual_modifications(lang_code: str) -> str:
 
 
 async def load_project_glossary() -> dict:
-    return {}
+    glossary_path = _validate_safe_path(GLOSSARY_FILE)
+    if not os.path.exists(glossary_path):
+        return {}
+    try:
+        async with aiofiles.open(glossary_path, encoding="utf-8") as f:
+            loaded = json.loads(await f.read())
+        return loaded if isinstance(loaded, dict) else {}
+    except (json.JSONDecodeError, OSError):
+        return {}
 
 
 async def update_project_glossary(text: str, translation: str) -> str:
+    glossary_path = _validate_safe_path(GLOSSARY_FILE)
+    document = await load_project_glossary()
+    if not document:
+        document = {
+            "project_name": os.path.basename(WORKSPACE_ROOT),
+            "version": "1.0.0",
+            "glossary": [],
+            "rules": {
+                "cjk_spacing": True,
+                "fullwidth_punctuation": True,
+                "forbidden_terms": [],
+            },
+        }
+    entries = document.setdefault("glossary", [])
+    if not isinstance(entries, list):
+        entries = []
+        document["glossary"] = entries
+    for entry in entries:
+        if isinstance(entry, dict) and entry.get("term") == text:
+            entry["translation"] = translation
+            break
+    else:
+        entries.append({"term": text, "translation": translation, "context": "", "priority": 1})
+    async with aiofiles.open(glossary_path, "w", encoding="utf-8") as f:
+        await f.write(json.dumps(document, indent=2, ensure_ascii=False))
     return "Learned"
 
 

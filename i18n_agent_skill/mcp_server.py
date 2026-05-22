@@ -21,7 +21,7 @@ async def scan_strings(path: str | None = None, use_cache: bool = True, vcs_mode
     Args:
         path: Path to scan. If omitted, defaults to 'source_dirs' in .i18n-skill.json.
         use_cache: Whether to use hash caching for performance.
-        vcs_mode: If True, only scans files modified in Git (VCS-aware).
+        vcs_mode: If True, only returns strings from current Git diff hunks.
     """
     return await tools.orchestrate_scan(path, use_cache, vcs_mode)
 
@@ -55,7 +55,7 @@ async def propose_sync(new_pairs: dict, lang_code: str, reason: str = "Manual sy
         new_pairs: A flat dictionary of { "key": "translation" } to be merged.
         lang_code: Target language code.
         reason: Justification for the change (e.g., 'Fixing typo', 'New feature extraction').
-    Returns: A SyncProposal including a link to a Markdown Preview file.
+    Returns: A SyncProposal including the preserved locale target path and Markdown preview path.
     """
     return await tools.propose_sync_i18n(new_pairs, lang_code, reason)
 
@@ -84,7 +84,7 @@ async def refine_proposal(proposal_id: str, feedback: str):
 @mcp.tool()
 async def save_glossary(term: str, translation: str):
     """
-    Save a confirmed term translation into GLOSSARY.json to ensure future consistency.
+    Save a confirmed term translation into local GLOSSARY.json for future reuse.
     """
     return await tools.update_project_glossary(term, translation)
 

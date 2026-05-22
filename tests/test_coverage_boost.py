@@ -1,3 +1,4 @@
+import json
 import os
 import shutil
 import tempfile
@@ -9,9 +10,14 @@ from i18n_agent_skill.tools import (
     _load_locale_data,
     _save_locale_data,
     _validate_safe_path,
+    check_project_status,
     extract_raw_strings,
     initialize_project_config,
+    load_project_glossary,
+    propose_sync_i18n,
+    save_project_persona,
     set_workspace_root,
+    update_project_glossary,
 )
 
 
@@ -111,3 +117,67 @@ async def test_extract_invalid_path(temp_workspace):
     assert res.error is not None
     assert res.error.error_code == "PATH_ERR"
     assert "File not found" in res.error.message
+
+
+@pytest.mark.asyncio
+async def test_save_persona_persists_partial_update(temp_workspace):
+    await initialize_project_config()
+
+    result = await save_project_persona({"tone": "Friendly"})
+
+    with open(os.path.join(temp_workspace, ".i18n-skill.json"), encoding="utf-8") as f:
+        config = json.load(f)
+    assert result == "Persona updated and saved."
+    assert config["persona"]["tone"] == "Friendly"
+    assert config["persona"]["domain"] == "Industrial Engineering"
+
+
+@pytest.mark.asyncio
+async def test_proposal_preserves_existing_ts_locale_format(temp_workspace):
+    locales_dir = os.path.join(temp_workspace, "locales")
+    ts_file = os.path.join(locales_dir, "zh-CN.ts")
+    await _save_locale_data(ts_file, {"existing": "已有"})
+
+    proposal = await propose_sync_i18n({"ui.title": "标题"}, "zh-CN", "Keep TS")
+
+    assert proposal.file_path == os.path.join("locales", "zh-CN.ts")
+    assert proposal.preview_file_path
+    assert os.path.exists(proposal.preview_file_path)
+
+
+@pytest.mark.asyncio
+async def test_proposal_uses_preferred_format_for_new_locale(temp_workspace):
+    config = {
+        "locales_dir": "locales",
+        "source_dirs": ["src"],
+        "enabled_langs": ["en", "zh-CN"],
+        "preferred_format": ".yml",
+    }
+    with open(os.path.join(temp_workspace, ".i18n-skill.json"), "w", encoding="utf-8") as f:
+        json.dump(config, f)
+
+    proposal = await propose_sync_i18n({"ui.title": "标题"}, "zh-CN", "Create YAML")
+
+    assert proposal.file_path == os.path.join("locales", "zh-CN.yml")
+
+
+@pytest.mark.asyncio
+async def test_glossary_persists_updates_and_status(temp_workspace):
+    first = await update_project_glossary("Dashboard", "仪表盘")
+    glossary_path = os.path.join(temp_workspace, "GLOSSARY.json")
+    with open(glossary_path, encoding="utf-8") as f:
+        saved = json.load(f)
+    saved["rules"]["forbidden_terms"] = ["控制台"]
+    with open(glossary_path, "w", encoding="utf-8") as f:
+        json.dump(saved, f)
+
+    second = await update_project_glossary("Dashboard", "面板")
+    loaded = await load_project_glossary()
+    status = await check_project_status()
+
+    assert first == "Learned"
+    assert second == "Learned"
+    assert len(loaded["glossary"]) == 1
+    assert loaded["glossary"][0]["translation"] == "面板"
+    assert loaded["rules"]["forbidden_terms"] == ["控制台"]
+    assert status.has_glossary is True
