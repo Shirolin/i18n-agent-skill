@@ -38,8 +38,9 @@
 帮我在当前项目中配置好这个 i18n 技能并完成初始化：https://github.com/Shirolin/i18n-agent-skill
 ```
 
-AI 将自动完成克隆，运行安装程序，并立即执行 `./i18n init --auto`。
+AI 应完成克隆和安装，然后使用当前环境里真实存在的入口执行初始化。
 `init` 会先识别项目当前 i18n 资产，再选择同步、引导或诊断路径。
+不要默认假设 `./i18n` 一定存在，只有安装器在目标项目根目录生成代理后才能直接使用。
 
 ### 方式二：手动安装
 
@@ -55,9 +56,26 @@ cd .agents/skills/i18n-agent-skill
 
 安装完成后，在项目根目录下运行初始化命令：
 ```bash
-# 如果使用 MCP/平台支持可直接输入 /i18n-init，或直接运行：
+# 如果平台已经映射 slash 命令：
+/i18n-init
+
+# 如果安装器已生成项目级代理：
+./i18n init          # Linux / macOS
+.\i18n.ps1 init      # Windows (PowerShell)
+
+# 直接 Python 入口：
 python -m i18n_agent_skill init
 ```
+
+### 选择正确入口
+
+根据你当前环境里真实可用的入口执行：
+
+- **Slash 命令**：`/i18n-init`、`/i18n-status` 等，仅在 MCP/平台已映射时可用。
+- **项目代理**：`./i18n` 或 `.\i18n.ps1`，仅在安装器已在目标项目根目录生成代理后可用。
+- **直接 Python**：`python -m i18n_agent_skill <command>`，始终对应底层 CLI。
+
+`init --auto` 当前只是兼容性的引导标记，并不会自动保存 persona，也不会跳过确认步骤。
 
 ### 升级
 
@@ -111,18 +129,57 @@ git pull
 
 | 指令 | 能力 | 详细功能说明 |
 | :--- | :--- | :--- |
-| `/i18n-init` | **项目初始化** | 先识别项目 i18n 状态，再同步现有语言资产或生成安全的 bootstrap 配置，并在歧义场景返回诊断。 |
+| `/i18n-init` | **项目初始化** | 先识别项目 i18n 状态，再返回 `sync`、`bootstrap`、`reconcile`、`unsupported` 或 `hard_fail`，并附带下一步动作。 |
 | `/i18n-status` | **环境自检** | 验证依赖环境、隔离沙箱就绪度及当前 VCS (Git) 状态。 |
 | `/i18n-scan` | **文案提取** | 对源码进行精准 AST 扫描以发现硬编码文案。支持使用 `--path` 指定组件，或用 `--vcs` 限定当前 Git diff hunk。 |
-| `/i18n-audit` | **缺漏审计** | 对比语言包与源码，找出缺失的翻译项或探测未引用的“死键”。 |
+| `/i18n-audit` | **缺漏审计** | 对比语言包与源码，找出缺失翻译项，并报告尚未提取的硬编码文案候选。 |
 | `/i18n-sync` | **智能暂存** | 生成翻译同步建议书，保留已有 locale 格式并在暂存区写入 Markdown 预览。 |
 | `/i18n-commit` | **正式提交** | 将已批准的建议正式写入物理磁盘，并更新质量回归快照。 |
-| `/i18n-cleanup` | **技术债清理** | 专门识别并报告语言包中冗余的 Key，保持翻译文件精简。 |
+| `/i18n-cleanup` | **技术债清理** | 仅做 dead key 报告（不直接删文件）。请先人工复核，禁止直接运行临时删除脚本改写 locale。 |
 | `/i18n-audit-quality` | **专家级巡检** | 生成质量报告，重点审查表达习惯、变量安全及排版规范。 |
 | `/i18n-pivot-sync` | **语义对齐** | 基于开发者熟悉的母语（如中文）作为基准，对齐并优化目标语言。 |
-| `/i18n-fix` | **自动修复** | 诊断环境或配置异常，并自动提出恢复方案建议。 |
 
 ---
+
+## 🧭 推荐工作流
+
+### 已完成 i18n 的项目
+
+1. 运行 `i18n init`
+2. 确认 `mode=sync`
+3. 运行 `i18n status`
+4. 运行 `i18n audit --lang all`
+5. 日常增量开发优先使用 `i18n scan --vcs`，只看当前改动
+
+### 新项目 / 首次接入 i18n
+
+1. 运行 `i18n init`
+2. 确认 `mode=bootstrap`
+3. 创建基准语言文件，通常是 `src/locales/en.json`
+4. 基准语言存在后再逐步增加目标语言
+5. 运行 `i18n status`，然后 `i18n audit --lang all`
+
+### 结构存在歧义的项目
+
+1. 运行 `i18n init`
+2. 如果返回 `mode=reconcile`，先停止
+3. 审核输出里的 locale root 候选
+4. 先确认唯一正确的 locale root，再继续 `audit`、`sync` 或 `cleanup`
+
+### 可选的 Persona 流程
+
+如果你需要 persona 驱动的优化流程，请显式执行：
+
+1. `i18n distill-persona`
+2. 人工确认
+3. `i18n save-persona --data ...`
+
+### Cleanup 安全边界
+
+- `i18n cleanup` 是 **只读报告**
+- 不会生成删除脚本
+- locale 键必须手工分批删除
+- 每批删除后都要跑 VCS diff、type-check 和测试
 
 ## 🤖 集成方式
 

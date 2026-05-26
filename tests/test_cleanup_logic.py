@@ -66,8 +66,13 @@ async def test_cli_cleanup_all_logic(complex_mock_project, monkeypatch, capsys):
     output = json.loads(captured.out)
 
     # Assertions
+    assert output["mode"] == "report_only"
     assert output["language"] == "all"
     assert output["total_dead_keys"] == 2
+    assert "Do not run ad-hoc deletion scripts" in output["safety_notice"]
+    assert len(output["recommended_next_steps"]) == 3
+    assert output["next_steps"] == output["recommended_next_steps"]
+    assert "manually" in output["suggested_action"]
 
     results = output["results"]
     assert len(results) == 2

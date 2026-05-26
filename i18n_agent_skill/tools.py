@@ -713,16 +713,53 @@ async def orchestrate_audit(lang_code: str = "all", base_lang: str = "en") -> di
         if s["text"] not in all_vals and s["text"] not in seen:
             unextracted.append(s)
             seen.add(s["text"])
+
+    def build_noise_notice() -> str:
+        if not unextracted:
+            return "No unextracted hardcoded-string candidates were found."
+        return (
+            "unextracted_hardcoded_count is a candidate-noise metric, "
+            "not a direct release blocker. Use scan --vcs for incremental "
+            "work and tighten source_dirs/ignored_strings if noise stays high."
+        )
+
     if lang_code == "all":
         results: dict[str, Any] = {
             "unextracted_hardcoded_count": len(unextracted),
             "unextracted_samples": unextracted[:10],
         }
+        total_missing_keys = 0
+        audited_languages = []
         for target_l in config.enabled_langs:
             if target_l == base_lang:
                 continue
             missing = await get_missing_keys(target_l, base_lang=base_lang)
             results[target_l] = {"missing_count": len(missing), "missing_keys": missing}
+            total_missing_keys += len(missing)
+            audited_languages.append(target_l)
+        results["message"] = "Audit complete."
+        results["coverage_summary"] = {
+            "base_language": base_lang,
+            "audited_languages": audited_languages,
+            "total_missing_keys": total_missing_keys,
+        }
+        results["noise_notice"] = build_noise_notice()
+        if total_missing_keys:
+            results["suggested_action"] = (
+                "Fix missing locale keys first, then rerun audit --lang all to confirm coverage."
+            )
+        elif unextracted:
+            results["suggested_action"] = (
+                "Coverage is complete. Review unextracted samples and use "
+                "scan --vcs for current work."
+            )
+        else:
+            results["suggested_action"] = "Coverage and extraction checks are both clean."
+        results["next_steps"] = [
+            "Treat missing_count as the translation coverage signal for each target language.",
+            "Use i18n scan --vcs to measure only the current code change set.",
+            "Use i18n cleanup --lang all separately for report-only dead-key review.",
+        ]
         return results
     else:
         missing = await get_missing_keys(lang_code, base_lang=base_lang)
@@ -736,6 +773,23 @@ async def orchestrate_audit(lang_code: str = "all", base_lang: str = "en") -> di
             "unextracted_hardcoded_count": len(unextracted),
             "unextracted_samples": unextracted[:15],
             "message": f"Audit complete for '{lang_code}'.",
+            "coverage_summary": {
+                "base_language": base_lang,
+                "target_language": lang_code,
+                "missing_keys_count": len(missing),
+            },
+            "noise_notice": build_noise_notice(),
+            "suggested_action": (
+                "Resolve missing keys before considering dead-key cleanup."
+                if missing
+                else "Coverage is complete for this language. Review dead keys "
+                "manually in small batches."
+            ),
+            "next_steps": [
+                "Treat missing_keys_count as the translation coverage signal for this language.",
+                "Review dead_keys manually; cleanup is report-only and does not edit locale files.",
+                "Use VCS diff + type-check/test after each small locale cleanup batch.",
+            ],
         }
 
 
@@ -882,6 +936,10 @@ async def initialize_project_config(auto: bool = False) -> dict:
             "warnings": [parse_error],
             "requires_confirmation": False,
             "suggested_action": "Fix or remove .i18n-skill.json and rerun init.",
+            "next_steps": [
+                "Fix or remove the malformed .i18n-skill.json file.",
+                "Rerun i18n init after the config is readable again.",
+            ],
             "detected_locale_dirs": [],
             "detected_locale_files": [],
             "detected_languages": [],
@@ -907,6 +965,12 @@ async def initialize_project_config(auto: bool = False) -> dict:
             "warnings": [],
             "requires_confirmation": True,
             "suggested_action": "Choose one locale root and rerun init.",
+            "next_steps": [
+                "Review candidate_locale_roots and choose the single source "
+                "of truth for locale files.",
+                "Do not run audit or sync yet; resolve the locale-root ambiguity first.",
+                "Rerun i18n init after confirming the intended locale root.",
+            ],
             "detected_locale_dirs": detected_locale_dirs,
             "detected_locale_files": detected_locale_files,
             "detected_languages": detected_languages,
@@ -926,6 +990,11 @@ async def initialize_project_config(auto: bool = False) -> dict:
             "warnings": [],
             "requires_confirmation": False,
             "suggested_action": "Verify locale directory and filename conventions.",
+            "next_steps": [
+                "Verify that locale filenames use language-code stems such as en, zh_CN, or fr.",
+                "If the project does not use file-backed locale assets, "
+                "do not continue with sync/audit yet.",
+            ],
             "detected_locale_dirs": detected_locale_dirs,
             "detected_locale_files": detected_locale_files,
             "detected_languages": detected_languages,
@@ -955,6 +1024,11 @@ async def initialize_project_config(auto: bool = False) -> dict:
         if not config_data.get("preferred_format"):
             config_data["preferred_format"] = ".json"
         warnings.append("Bootstrap mode: no existing locale assets were detected.")
+        next_steps = [
+            f"Create the base locale file at {bootstrap_locale_dir}/en.json.",
+            "Add target languages only after the base locale file exists.",
+            "Run i18n status, then i18n audit --lang all after the first locale files are created.",
+        ]
     else:
         assert selected_candidate is not None
         config_data["locales_dir"] = selected_candidate["dir"]
@@ -995,6 +1069,12 @@ async def initialize_project_config(auto: bool = False) -> dict:
             migrations.append(
                 f"Initialized from detected locale assets: {selected_candidate['dir']}"
             )
+        next_steps = [
+            "Run i18n status to confirm the generated config and detected languages.",
+            "Run i18n audit --lang all to confirm full-language coverage.",
+            "Use i18n scan --vcs for daily incremental checks instead of "
+            "treating full-audit noise as new work.",
+        ]
 
     final_config = ProjectConfig(**config_data)
     await _save_project_config(final_config)
@@ -1007,12 +1087,46 @@ async def initialize_project_config(auto: bool = False) -> dict:
         "warnings": warnings,
         "requires_confirmation": False,
         "suggested_action": "Run i18n status and i18n audit to validate project coverage.",
+        "next_steps": next_steps,
         "detected_locale_dirs": detected_locale_dirs,
         "detected_locale_files": detected_locale_files,
         "detected_languages": detected_languages,
         "migrations": migrations,
         "recommended_gitignore": recommended_gitignore,
         "auto_mode": auto,
+    }
+
+
+async def generate_cleanup_report(lang_code: str = "en") -> dict:
+    status_report = await check_project_status()
+    langs = [lang_code] if lang_code != "all" else status_report.config.enabled_langs
+
+    all_results = []
+    for lang in langs:
+        dead = await get_dead_keys(lang_code=lang)
+        all_results.append({"language": lang, "dead_keys_count": len(dead), "dead_keys": dead})
+
+    total_dead = sum(int(cast(int, r["dead_keys_count"])) for r in all_results)
+    next_steps = [
+        "Review dead keys manually and confirm business usage before any deletion.",
+        "Use VCS diff + type-check/test after each small deletion batch.",
+        "Create backups before file mutations.",
+    ]
+    return {
+        "mode": "report_only",
+        "language": lang_code,
+        "results": all_results,
+        "total_dead_keys": total_dead,
+        "message": f"Found {total_dead} unused keys across {len(langs)} language(s).",
+        "safety_notice": (
+            "Cleanup only reports dead keys. Do not run ad-hoc deletion "
+            "scripts against locale files."
+        ),
+        "recommended_next_steps": next_steps,
+        "next_steps": next_steps,
+        "suggested_action": (
+            "Review and delete locale keys manually in small verified batches only."
+        ),
     }
 
 

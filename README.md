@@ -38,8 +38,9 @@ Copy the following prompt and send it to your AI coding assistant (e.g., Cursor,
 Setup this i18n skill for my current project and initialize it: https://github.com/Shirolin/i18n-agent-skill
 ```
 
-AI will clone the repo, run the installer, and automatically perform `./i18n init --auto`.
-`init` now detects project locale assets first and then chooses sync/bootstrap/diagnostic behavior.
+AI should clone the repo, run the installer, then initialize the project with a valid entrypoint.
+`init` detects project locale assets first and then chooses sync/bootstrap/diagnostic behavior.
+Do not assume `./i18n` exists until the installer has generated a project-level proxy.
 
 ### Option 2: Manual Installation
 
@@ -55,9 +56,26 @@ cd .agents/skills/i18n-agent-skill
 
 After installation, run the initialization command in your project root:
 ```bash
-# Shortcut if using MCP/Platform support, or run directly:
+# If your platform maps slash commands:
+/i18n-init
+
+# If the installer generated a project-level proxy:
+./i18n init          # Linux / macOS
+.\i18n.ps1 init      # Windows (PowerShell)
+
+# Direct Python entrypoint:
 python -m i18n_agent_skill init
 ```
+
+### Choose the Right Entrypoint
+
+Use the command form that actually exists in your environment:
+
+- **Slash command**: `/i18n-init`, `/i18n-status`, etc. Only when your MCP/platform maps them.
+- **Project proxy**: `./i18n` or `.\i18n.ps1` only after the installer has generated them in the target project root.
+- **Direct Python**: `python -m i18n_agent_skill <command>` always reflects the underlying CLI.
+
+`init --auto` is currently a compatibility flag for guided setup. It does **not** auto-save persona or skip confirmation steps.
 
 ### Updating
 
@@ -111,18 +129,57 @@ Manages the translation lifecycle to prevent regressions and improve phrasing ov
 
 | Command | Capability | Detailed Functional Description |
 | :--- | :--- | :--- |
-| `/i18n-init` | **Initialization** | Detects project i18n state first, then syncs existing locale assets or bootstraps a safe starter config with diagnostics. |
+| `/i18n-init` | **Initialization** | Detects project i18n state first, then returns `sync`, `bootstrap`, `reconcile`, `unsupported`, or `hard_fail` with concrete next steps. |
 | `/i18n-status` | **Health Check** | Verifies dependencies, environment isolation, and current VCS (Git) state. |
 | `/i18n-scan` | **Extraction** | Precision scan of source code to find hardcoded strings. Use `--path` for specific components or `--vcs` for current Git diff hunks. |
-| `/i18n-audit` | **Gap Analysis** | Compares locale files against source code to find missing keys or detect unused "dead keys". |
+| `/i18n-audit` | **Gap Analysis** | Compares locale files against source code to find missing keys and report unextracted hardcoded-string candidates. |
 | `/i18n-sync` | **Smart Staging** | Generates translation proposals. Preserves an existing locale format and writes a Markdown preview in the staging area. |
 | `/i18n-commit` | **Apply Changes** | Formally writes approved proposals to physical locale files and updates quality snapshots. |
-| `/i18n-cleanup` | **Debt Control** | Specifically identifies and reports unused i18n keys to keep locale files lean. |
+| `/i18n-cleanup` | **Debt Control** | Report-only dead-key detection. Review keys first; do not run ad-hoc deletion scripts directly on locale files. |
 | `/i18n-audit-quality` | **Expert Audit** | Generates a quality report focusing on phrasing, variable safety, and typography. |
 | `/i18n-pivot-sync` | **Projection** | Optimizes target languages based on a familiar reference language (e.g., zh-CN). |
-| `/i18n-fix` | **Auto-Repair** | Diagnoses environment or configuration issues and proposes recovery steps. |
 
 ---
+
+## 🧭 Recommended Workflows
+
+### Already-Internationalized Project
+
+1. Run `i18n init`.
+2. Confirm `mode=sync`.
+3. Run `i18n status`.
+4. Run `i18n audit --lang all`.
+5. During day-to-day development, prefer `i18n scan --vcs` to measure only the current change set.
+
+### New Project / First i18n Bootstrap
+
+1. Run `i18n init`.
+2. Confirm `mode=bootstrap`.
+3. Create the base locale file, usually `src/locales/en.json`.
+4. Add target languages after the base locale exists.
+5. Run `i18n status`, then `i18n audit --lang all`.
+
+### Ambiguous Existing Project
+
+1. Run `i18n init`.
+2. If `mode=reconcile`, stop there.
+3. Review the reported locale root candidates.
+4. Confirm the intended locale root before running `audit`, `sync`, or `cleanup`.
+
+### Optional Persona Workflow
+
+If you want persona-aware optimization, do it explicitly:
+
+1. `i18n distill-persona`
+2. Human review and confirmation
+3. `i18n save-persona --data ...`
+
+### Cleanup Safety
+
+- `i18n cleanup` is **report-only**.
+- It does **not** generate deletion scripts.
+- Delete locale keys manually in small batches.
+- Run VCS diff, type-check, and tests after each batch.
 
 ## 🤖 Integration Blueprint
 

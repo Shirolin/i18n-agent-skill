@@ -40,11 +40,12 @@ async def audit_missing(lang_code: str = "all", base_lang: str = "en"):
 @mcp.tool()
 async def cleanup_unused(lang_code: str = "en"):
     """
-    [Cleanup Phase] Identify i18n keys present in locale files but never used in source code.
+    [Cleanup Phase] Report-only dead-key detection for locale files.
+    This tool does not mutate locale files.
     Args:
         lang_code: Language file to audit for dead keys.
     """
-    return await tools.get_dead_keys(lang_code)
+    return await tools.generate_cleanup_report(lang_code)
 
 
 @mcp.tool()

@@ -4,7 +4,7 @@ import json
 import os
 import subprocess
 import sys
-from typing import Any, cast
+from typing import Any
 
 
 # =================================================================
@@ -43,8 +43,8 @@ from i18n_agent_skill.tools import (  # noqa: E402
     check_project_status,
     commit_i18n_changes,
     distill_project_persona,
+    generate_cleanup_report,
     generate_quality_report,
-    get_dead_keys,
     initialize_project_config,
     optimize_translations,
     orchestrate_audit,
@@ -139,7 +139,7 @@ async def cli_main():
     init_parser.add_argument(
         "--auto",
         action="store_true",
-        help="One-step setup: automatically infer persona and finalize configuration.",
+        help="Compatibility flag for guided setup; does not skip confirmation steps.",
     )
 
     # 7. optimize
@@ -262,24 +262,7 @@ async def cli_main():
             _print_json({"error": "Invalid JSON string for persona data."})
 
     elif args.command == "cleanup":
-        status_report = await check_project_status()
-        langs = [args.lang] if args.lang != "all" else status_report.config.enabled_langs
-
-        all_results = []
-        for lang in langs:
-            dead = await get_dead_keys(lang_code=lang)
-            all_results.append({"language": lang, "dead_keys_count": len(dead), "dead_keys": dead})
-
-        total_dead = sum(int(cast(int, r["dead_keys_count"])) for r in all_results)
-
-        _print_json(
-            {
-                "language": args.lang,
-                "results": all_results,
-                "total_dead_keys": total_dead,
-                "message": (f"Found {total_dead} unused keys across {len(langs)} language(s)."),
-            }
-        )
+        _print_json(await generate_cleanup_report(args.lang))
 
     elif args.command == "scan":
         scan_res = await orchestrate_scan(
