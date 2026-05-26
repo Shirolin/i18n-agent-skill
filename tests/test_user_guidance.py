@@ -123,3 +123,8 @@ def test_docs_no_longer_advertise_fake_one_step_entrypoint():
             "must not be passed directly to `sync`" in content
             or "不能直接传给 `sync`" in content
         )
+        assert (
+            "pending_confirmation" in content
+            or "summary" in content
+            or "cleanup" in content
+        )

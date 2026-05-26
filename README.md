@@ -185,12 +185,14 @@ If you want persona-aware optimization, do it explicitly:
 ### Translation Optimization Workflow
 
 1. Run `i18n optimize --lang <lang>`.
-2. Treat `temp/opt_<lang>.json` as an optimization task file, not a locale patch.
-3. Read only its `targets` entries and produce a flat `{key: translation}` JSON object.
-4. Run `i18n sync --lang <lang> --data <pure-json-or-file>`.
-5. Run `i18n commit --proposal <lang>`, then `i18n audit --lang <lang>` and type-check/tests.
+2. Review the returned `summary` and `pending_confirmation` fields first.
+3. Treat `temp/opt_<lang>.json` as an optimization task file, not a locale patch.
+4. Read only its `targets` entries and produce a flat `{key: translation}` JSON object.
+5. Run `i18n sync --lang <lang> --data <pure-json-or-file>`.
+6. Run `i18n commit --proposal <lang>`, then `i18n audit --lang <lang>` and type-check/tests.
 
 `dynamic_glossary` is reference context only. It must never be written into locale files.
+`temp/opt_<lang>.json` is an intermediate artifact. Review its `cleanup` guidance before deleting it.
 
 ## 🤖 Integration Blueprint
 

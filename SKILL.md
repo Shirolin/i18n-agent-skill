@@ -116,11 +116,13 @@ When the user expresses an intent related to internationalization, map it to the
 
 5. **Translation optimization**
    - `/i18n-optimize --lang <lang>`
+   - Read `summary` and `pending_confirmation` before taking any follow-up action
    - Treat `temp/opt_<lang>.json` as a task file, not a locale patch
    - Rewrite only the `targets` entries into a flat `{key: translation}` payload
    - `/i18n-sync --lang <lang> --data <pure-json-or-file>`
    - `/i18n-commit --proposal <lang>`
    - `/i18n-audit --lang <lang>` and type-check/test
+   - Delete the `temp` task file only when the returned `cleanup` guidance says it is safe
 
 ## Guiding Principles
 

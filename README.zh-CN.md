@@ -185,12 +185,14 @@ git pull
 ### 文案优化工作流
 
 1. 运行 `i18n optimize --lang <lang>`
-2. 把 `temp/opt_<lang>.json` 当成优化任务文件，而不是 locale patch
-3. 只处理其中的 `targets`，产出纯 `{key: translation}` JSON
-4. 运行 `i18n sync --lang <lang> --data <纯 JSON 或文件>`
-5. 运行 `i18n commit --proposal <lang>`，然后再跑 `i18n audit --lang <lang>` 和 type-check/测试
+2. 先看返回结果里的 `summary` 和 `pending_confirmation`
+3. 把 `temp/opt_<lang>.json` 当成优化任务文件，而不是 locale patch
+4. 只处理其中的 `targets`，产出纯 `{key: translation}` JSON
+5. 运行 `i18n sync --lang <lang> --data <纯 JSON 或文件>`
+6. 运行 `i18n commit --proposal <lang>`，然后再跑 `i18n audit --lang <lang>` 和 type-check/测试
 
 `dynamic_glossary` 只是参考上下文，绝不能写入 locale 文件。
+`temp/opt_<lang>.json` 是中间产物，是否删除要看它的 `cleanup` 提示。
 
 ## 🤖 集成方式
 

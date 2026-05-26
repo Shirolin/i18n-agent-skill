@@ -1252,22 +1252,78 @@ async def optimize_translations(lang_code: str, include_approved: bool = False) 
 
     os.makedirs(os.path.join(WORKSPACE_ROOT, "temp"), exist_ok=True)
     task_p = os.path.join(WORKSPACE_ROOT, "temp", f"opt_{lang_code}.json")
-    next_steps = [
-        "Rewrite only the targets entries into your final translations.",
-        "Produce a flat {key: translation} JSON object from those targets.",
-        f"Run i18n sync --lang {lang_code} --data <pure-json-or-file>.",
-        f"Run i18n commit --proposal {lang_code}, then audit/type-check.",
-    ]
+    summary = {
+        "language": lang_code,
+        "target_count": len(targets),
+        "glossary_count": len(glossary),
+        "changes_count": len(targets),
+        "task_file_path": task_p,
+    }
+    if targets:
+        pending_confirmation = [
+            "Confirm the rewritten target translations before generating a sync payload.",
+            "Confirm that dynamic_glossary is reference context only "
+            "and must not enter locale files.",
+            "Confirm that temp/opt task files are intermediate artifacts, "
+            "not final diff evidence.",
+        ]
+        proceed = {
+            "requires_confirmation": True,
+            "ready_for_sync": False,
+            "reason": "Human review is still required before sync can continue.",
+        }
+        cleanup = {
+            "temporary_files": [task_p],
+            "safe_to_delete_now": False,
+            "when_to_delete": (
+                "Delete the optimize task file only after the translations have been reviewed, "
+                "synced, committed, and no longer need to be referenced."
+            ),
+        }
+        next_steps = [
+            "Review the summary and pending_confirmation items first.",
+            "Rewrite only the targets entries into your final translations.",
+            "Produce a flat {key: translation} JSON object from those targets.",
+            f"Run i18n sync --lang {lang_code} --data <pure-json-or-file>.",
+            f"Run i18n commit --proposal {lang_code}, then audit/type-check.",
+        ]
+        suggested_action = (
+            "Review and confirm the optimize task before generating the sync payload."
+        )
+    else:
+        pending_confirmation = []
+        proceed = {
+            "requires_confirmation": False,
+            "ready_for_sync": False,
+            "reason": "No optimization targets were found for this language.",
+        }
+        cleanup = {
+            "temporary_files": [task_p],
+            "safe_to_delete_now": True,
+            "when_to_delete": (
+                "The optimize task file can be deleted now because there are no pending targets."
+            ),
+        }
+        next_steps = [
+            "No optimization targets were found for this language.",
+            "If you do not need to inspect the intermediate task file, delete it from temp/.",
+            f"Run i18n audit --lang {lang_code} or type-check if you want "
+            "to re-verify project health.",
+        ]
+        suggested_action = (
+            "No optimize follow-up is required unless you want to inspect the task file."
+        )
     task_data = {
         "artifact_type": OPTIMIZE_TASK_ARTIFACT,
         "language": lang_code,
         "do_not_sync_directly": True,
         "targets": targets,
         "dynamic_glossary": glossary,
-        "suggested_action": (
-            "Do not pass this file directly to sync. Use only the targets field to create "
-            "a pure key-value payload first."
-        ),
+        "summary": summary,
+        "pending_confirmation": pending_confirmation,
+        "cleanup": cleanup,
+        "proceed": proceed,
+        "suggested_action": suggested_action,
         "next_steps": next_steps,
     }
     async with aiofiles.open(task_p, "w", encoding="utf-8") as f:
@@ -1276,6 +1332,10 @@ async def optimize_translations(lang_code: str, include_approved: bool = False) 
         "artifact_type": OPTIMIZE_TASK_ARTIFACT,
         "task_file_path": task_p,
         "do_not_sync_directly": True,
+        "summary": summary,
+        "pending_confirmation": pending_confirmation,
+        "cleanup": cleanup,
+        "proceed": proceed,
         "suggested_action": task_data["suggested_action"],
         "next_steps": next_steps,
     }

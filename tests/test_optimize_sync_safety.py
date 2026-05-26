@@ -50,12 +50,25 @@ async def test_optimize_artifact_is_self_describing(optimize_workspace):
 
     assert result["artifact_type"] == "optimize_task"
     assert result["do_not_sync_directly"] is True
+    assert result["summary"]["language"] == "zh_CN"
+    assert result["summary"]["target_count"] == 1
+    assert result["summary"]["glossary_count"] == 0
+    assert result["summary"]["changes_count"] == 1
+    assert result["pending_confirmation"]
+    assert result["cleanup"]["temporary_files"] == [result["task_file_path"]]
+    assert result["cleanup"]["safe_to_delete_now"] is False
+    assert result["proceed"]["requires_confirmation"] is True
+    assert result["proceed"]["ready_for_sync"] is False
     assert result["next_steps"]
 
     task_file = Path(result["task_file_path"])
     task_data = json.loads(task_file.read_text(encoding="utf-8"))
     assert task_data["artifact_type"] == "optimize_task"
     assert task_data["do_not_sync_directly"] is True
+    assert task_data["summary"]["changes_count"] == 1
+    assert task_data["pending_confirmation"]
+    assert task_data["cleanup"]["temporary_files"] == [result["task_file_path"]]
+    assert task_data["proceed"]["requires_confirmation"] is True
     assert "targets" in task_data
 
 
@@ -122,3 +135,28 @@ async def test_sync_accepts_plain_key_value_file(optimize_workspace, monkeypatch
     assert output["proposal_id"] == "zh_CN"
     assert output["preview_file_path"]
     assert (optimize_workspace / ".i18n-proposals" / "proposal_zh_CN.json").exists()
+
+
+@pytest.mark.asyncio
+async def test_optimize_without_targets_returns_noop_confirmation_and_cleanup(
+    optimize_workspace,
+):
+    snapshot_mgr = tools.TranslationSnapshotManager(str(optimize_workspace))
+    await snapshot_mgr.update_snapshot(
+        "app.title", "你好", 10, status=tools.TranslationStatus.APPROVED
+    )
+
+    result = await tools.optimize_translations("zh_CN")
+
+    assert result["summary"]["target_count"] == 0
+    assert result["summary"]["glossary_count"] == 1
+    assert result["summary"]["changes_count"] == 0
+    assert result["pending_confirmation"] == []
+    assert result["proceed"]["requires_confirmation"] is False
+    assert result["proceed"]["ready_for_sync"] is False
+    assert result["cleanup"]["safe_to_delete_now"] is True
+    assert any("No optimization targets" in step for step in result["next_steps"])
+
+    task_data = json.loads(Path(result["task_file_path"]).read_text(encoding="utf-8"))
+    assert task_data["pending_confirmation"] == []
+    assert task_data["cleanup"]["safe_to_delete_now"] is True
