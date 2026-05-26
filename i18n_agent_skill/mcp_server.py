@@ -54,11 +54,15 @@ async def propose_sync(new_pairs: dict, lang_code: str, reason: str = "Manual sy
     [Sync Phase] Generate a translation synchronization proposal.
     Args:
         new_pairs: A flat dictionary of { "key": "translation" } to be merged.
+            Do not pass optimize task artifacts with targets/dynamic_glossary directly.
         lang_code: Target language code.
         reason: Justification for the change (e.g., 'Fixing typo', 'New feature extraction').
     Returns: A SyncProposal including the preserved locale target path and Markdown preview path.
     """
-    return await tools.propose_sync_i18n(new_pairs, lang_code, reason)
+    try:
+        return await tools.propose_sync_i18n(new_pairs, lang_code, reason)
+    except tools.SyncInputValidationError as exc:
+        return exc.payload
 
 
 @mcp.tool()
@@ -118,6 +122,7 @@ async def optimize_targets(lang_code: str, include_approved: bool = False):
     Args:
         lang_code: Target language.
         include_approved: If True, even approved entries will be exported for re-polishing.
+    The exported optimize task is not a sync payload and must not be passed directly to sync.
     """
     return await tools.optimize_translations(lang_code, include_approved)
 

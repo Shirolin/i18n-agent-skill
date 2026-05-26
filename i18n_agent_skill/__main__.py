@@ -40,6 +40,7 @@ def bootstrap_venv():
 
 from i18n_agent_skill import tools  # noqa: E402
 from i18n_agent_skill.tools import (  # noqa: E402
+    SyncInputValidationError,
     check_project_status,
     commit_i18n_changes,
     distill_project_persona,
@@ -289,7 +290,11 @@ async def cli_main():
                     }
                 )
                 return
-        sync_res = await propose_sync_i18n(new_pairs, args.lang, args.reason)
+        try:
+            sync_res = await propose_sync_i18n(new_pairs, args.lang, args.reason)
+        except SyncInputValidationError as exc:
+            _print_json(exc.payload)
+            return
         _print_json(sync_res.model_dump())
 
     elif args.command == "commit":

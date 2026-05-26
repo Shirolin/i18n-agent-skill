@@ -133,11 +133,12 @@ git pull
 | `/i18n-status` | **环境自检** | 验证依赖环境、隔离沙箱就绪度及当前 VCS (Git) 状态。 |
 | `/i18n-scan` | **文案提取** | 对源码进行精准 AST 扫描以发现硬编码文案。支持使用 `--path` 指定组件，或用 `--vcs` 限定当前 Git diff hunk。 |
 | `/i18n-audit` | **缺漏审计** | 对比语言包与源码，找出缺失翻译项，并报告尚未提取的硬编码文案候选。 |
-| `/i18n-sync` | **智能暂存** | 生成翻译同步建议书，保留已有 locale 格式并在暂存区写入 Markdown 预览。 |
+| `/i18n-sync` | **智能暂存** | 仅接受纯 `{key: translation}` 负载来生成翻译同步建议。会拒绝 optimize 任务文件和其他包装结构。 |
 | `/i18n-commit` | **正式提交** | 将已批准的建议正式写入物理磁盘，并更新质量回归快照。 |
 | `/i18n-cleanup` | **技术债清理** | 仅做 dead key 报告（不直接删文件）。请先人工复核，禁止直接运行临时删除脚本改写 locale。 |
 | `/i18n-audit-quality` | **专家级巡检** | 生成质量报告，重点审查表达习惯、变量安全及排版规范。 |
 | `/i18n-pivot-sync` | **语义对齐** | 基于开发者熟悉的母语（如中文）作为基准，对齐并优化目标语言。 |
+| `/i18n-optimize` | **优化任务导出** | 导出包含 `targets` 和 `dynamic_glossary` 的优化任务文件。这个文件不是 sync 负载，不能直接传给 `sync`。 |
 
 ---
 
@@ -180,6 +181,16 @@ git pull
 - 不会生成删除脚本
 - locale 键必须手工分批删除
 - 每批删除后都要跑 VCS diff、type-check 和测试
+
+### 文案优化工作流
+
+1. 运行 `i18n optimize --lang <lang>`
+2. 把 `temp/opt_<lang>.json` 当成优化任务文件，而不是 locale patch
+3. 只处理其中的 `targets`，产出纯 `{key: translation}` JSON
+4. 运行 `i18n sync --lang <lang> --data <纯 JSON 或文件>`
+5. 运行 `i18n commit --proposal <lang>`，然后再跑 `i18n audit --lang <lang>` 和 type-check/测试
+
+`dynamic_glossary` 只是参考上下文，绝不能写入 locale 文件。
 
 ## 🤖 集成方式
 

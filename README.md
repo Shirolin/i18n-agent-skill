@@ -133,11 +133,12 @@ Manages the translation lifecycle to prevent regressions and improve phrasing ov
 | `/i18n-status` | **Health Check** | Verifies dependencies, environment isolation, and current VCS (Git) state. |
 | `/i18n-scan` | **Extraction** | Precision scan of source code to find hardcoded strings. Use `--path` for specific components or `--vcs` for current Git diff hunks. |
 | `/i18n-audit` | **Gap Analysis** | Compares locale files against source code to find missing keys and report unextracted hardcoded-string candidates. |
-| `/i18n-sync` | **Smart Staging** | Generates translation proposals. Preserves an existing locale format and writes a Markdown preview in the staging area. |
+| `/i18n-sync` | **Smart Staging** | Generates translation proposals from a flat `{key: translation}` payload. It rejects optimize task files and other wrapped artifacts. |
 | `/i18n-commit` | **Apply Changes** | Formally writes approved proposals to physical locale files and updates quality snapshots. |
 | `/i18n-cleanup` | **Debt Control** | Report-only dead-key detection. Review keys first; do not run ad-hoc deletion scripts directly on locale files. |
 | `/i18n-audit-quality` | **Expert Audit** | Generates a quality report focusing on phrasing, variable safety, and typography. |
 | `/i18n-pivot-sync` | **Projection** | Optimizes target languages based on a familiar reference language (e.g., zh-CN). |
+| `/i18n-optimize` | **Optimization Task Export** | Exports an optimize task file containing `targets` and `dynamic_glossary`. This file is not a sync payload and must not be passed directly to `sync`. |
 
 ---
 
@@ -180,6 +181,16 @@ If you want persona-aware optimization, do it explicitly:
 - It does **not** generate deletion scripts.
 - Delete locale keys manually in small batches.
 - Run VCS diff, type-check, and tests after each batch.
+
+### Translation Optimization Workflow
+
+1. Run `i18n optimize --lang <lang>`.
+2. Treat `temp/opt_<lang>.json` as an optimization task file, not a locale patch.
+3. Read only its `targets` entries and produce a flat `{key: translation}` JSON object.
+4. Run `i18n sync --lang <lang> --data <pure-json-or-file>`.
+5. Run `i18n commit --proposal <lang>`, then `i18n audit --lang <lang>` and type-check/tests.
+
+`dynamic_glossary` is reference context only. It must never be written into locale files.
 
 ## 🤖 Integration Blueprint
 

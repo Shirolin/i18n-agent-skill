@@ -35,6 +35,7 @@ CACHE_FILE = ".i18n-cache.json"
 PROPOSALS_DIR = ".i18n-proposals"
 GLOSSARY_FILE = "GLOSSARY.json"
 CONFIG_FILE = ".i18n-skill.json"
+OPTIMIZE_TASK_ARTIFACT = "optimize_task"
 
 DEPENDENCIES_INSTALLED = True
 
@@ -113,6 +114,71 @@ def _unflatten_dict(d: dict, sep: str = ".") -> dict:
             d_ref = d_ref.setdefault(part, {})
         d_ref[parts[-1]] = v
     return res
+
+
+class SyncInputValidationError(ValueError):
+    def __init__(self, payload: dict[str, Any]):
+        super().__init__(str(payload.get("error", "Invalid sync input.")))
+        self.payload = payload
+
+
+def _invalid_sync_input_payload(
+    message: str, *, artifact_type: str | None = None
+) -> dict[str, Any]:
+    next_steps = [
+        "Process only the targets field and produce a flat {key: translation} object.",
+        "Rerun i18n sync with that pure key-value JSON payload.",
+        "After sync succeeds, run i18n commit --proposal <lang> and then audit/type-check.",
+    ]
+    payload: dict[str, Any] = {
+        "error_code": "INVALID_SYNC_INPUT",
+        "error": message,
+        "suggested_action": (
+            "sync only accepts flat {key: translation} pairs and will not auto-unwrap task files."
+        ),
+        "next_steps": next_steps,
+    }
+    if artifact_type:
+        payload["artifact_type"] = artifact_type
+    return payload
+
+
+def _validate_sync_pairs(new_pairs: Any) -> dict[str, str]:
+    if not isinstance(new_pairs, dict):
+        raise SyncInputValidationError(
+            _invalid_sync_input_payload("sync expects a JSON object of flat key-value pairs.")
+        )
+
+    artifact_type = (
+        cast(str | None, new_pairs.get("artifact_type")) if isinstance(new_pairs, dict) else None
+    )
+    if (
+        artifact_type == OPTIMIZE_TASK_ARTIFACT
+        or "targets" in new_pairs
+        or "dynamic_glossary" in new_pairs
+    ):
+        raise SyncInputValidationError(
+            _invalid_sync_input_payload(
+                "This optimize task artifact cannot be passed directly to sync.",
+                artifact_type=artifact_type or OPTIMIZE_TASK_ARTIFACT,
+            )
+        )
+
+    validated: dict[str, str] = {}
+    for key, value in new_pairs.items():
+        if not isinstance(key, str):
+            raise SyncInputValidationError(
+                _invalid_sync_input_payload("sync keys must be strings in a flat key-value object.")
+            )
+        if not isinstance(value, str):
+            raise SyncInputValidationError(
+                _invalid_sync_input_payload(
+                    "sync only accepts flat string translations. "
+                    f"Key '{key}' has a non-string value."
+                )
+            )
+        validated[key] = value
+    return validated
 
 
 def _deep_update(
@@ -797,6 +863,7 @@ async def propose_sync_i18n(
     new_pairs: dict, lang_code: str, reasoning: str, **kwargs
 ) -> SyncProposal:
     config = await _load_project_config()
+    validated_pairs = _validate_sync_pairs(new_pairs)
     temp_file = os.path.join(WORKSPACE_ROOT, PROPOSALS_DIR, f"proposal_{lang_code}.json")
     os.makedirs(os.path.dirname(temp_file), exist_ok=True)
     disk_data = await _load_locale_data(config.locales_dir, lang_code)
@@ -809,7 +876,9 @@ async def propose_sync_i18n(
                 existing_reasoning = p_data.get("reason", "")
         except Exception:
             pass
-    final_data = _deep_update(base_data, _unflatten_dict(new_pairs), ConflictStrategy.OVERWRITE)
+    final_data = _deep_update(
+        base_data, _unflatten_dict(validated_pairs), ConflictStrategy.OVERWRITE
+    )
 
     combined_reason = (
         f"{existing_reasoning}\n+ {reasoning}"
@@ -1183,10 +1252,33 @@ async def optimize_translations(lang_code: str, include_approved: bool = False) 
 
     os.makedirs(os.path.join(WORKSPACE_ROOT, "temp"), exist_ok=True)
     task_p = os.path.join(WORKSPACE_ROOT, "temp", f"opt_{lang_code}.json")
-    task_data = {"targets": targets, "dynamic_glossary": glossary}
+    next_steps = [
+        "Rewrite only the targets entries into your final translations.",
+        "Produce a flat {key: translation} JSON object from those targets.",
+        f"Run i18n sync --lang {lang_code} --data <pure-json-or-file>.",
+        f"Run i18n commit --proposal {lang_code}, then audit/type-check.",
+    ]
+    task_data = {
+        "artifact_type": OPTIMIZE_TASK_ARTIFACT,
+        "language": lang_code,
+        "do_not_sync_directly": True,
+        "targets": targets,
+        "dynamic_glossary": glossary,
+        "suggested_action": (
+            "Do not pass this file directly to sync. Use only the targets field to create "
+            "a pure key-value payload first."
+        ),
+        "next_steps": next_steps,
+    }
     async with aiofiles.open(task_p, "w", encoding="utf-8") as f:
         await f.write(json.dumps(task_data, indent=2, ensure_ascii=False))
-    return {"task_file_path": task_p}
+    return {
+        "artifact_type": OPTIMIZE_TASK_ARTIFACT,
+        "task_file_path": task_p,
+        "do_not_sync_directly": True,
+        "suggested_action": task_data["suggested_action"],
+        "next_steps": next_steps,
+    }
 
 
 async def generate_quality_report(lang_code: str) -> EvaluationReport:

@@ -119,3 +119,7 @@ def test_docs_no_longer_advertise_fake_one_step_entrypoint():
             "do not run ad-hoc deletion scripts" in content.lower()
             or "禁止直接运行临时删除脚本" in content
         )
+        assert (
+            "must not be passed directly to `sync`" in content
+            or "不能直接传给 `sync`" in content
+        )

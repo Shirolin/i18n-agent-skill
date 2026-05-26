@@ -83,10 +83,10 @@ When the user expresses an intent related to internationalization, map it to the
 - `/i18n-audit [--lang lang]`: **Validation Phase (Entry Point)**. Compare locale files against source code and detect un-extracted hardcoded-string candidates. Defaults to `all` enabled languages if `--lang` is omitted.
 - `/i18n-scan [--path path] [--vcs]`: **Manual Extraction Phase**. Precise extraction of hardcoded strings. Defaults to `source_dirs` from config if `--path` is omitted; `--vcs` limits results to current Git diff hunks. Usually triggered automatically by `/i18n-audit`.
 - `/i18n-cleanup [--lang lang]`: Generate a detailed **report-only** dead-key list. Do not run ad-hoc deletion scripts against locale files. Never imply that cleanup edits files automatically.
-- `/i18n-sync --lang <lang> --data <json_or_file>`: Generate translation proposals. **Must inform user of the Preview path after execution.**
+- `/i18n-sync --lang <lang> --data <json_or_file>`: Generate translation proposals from a flat `{key: translation}` payload only. Reject optimize task artifacts such as `temp/opt_<lang>.json`. **Must inform user of the Preview path after execution.**
 - `/i18n-commit --proposal <id_or_all>`: Apply proposals. Supports `UUID`, `language code`, or `all`.
 - `/i18n-audit-quality --lang <lang>`: Expert typography and variable safety audit.
-- `/i18n-optimize --lang <lang> [--all]`: High-fidelity translation optimization based on project persona.
+- `/i18n-optimize --lang <lang> [--all]`: Export an optimization task file with `targets` and `dynamic_glossary`. This artifact is not a sync payload and must not be passed directly to `sync`.
 
 ## Golden Paths
 
@@ -113,6 +113,14 @@ When the user expresses an intent related to internationalization, map it to the
    - Human reviews keys
    - Human deletes small batches manually
    - Run diff + type-check/test after each batch
+
+5. **Translation optimization**
+   - `/i18n-optimize --lang <lang>`
+   - Treat `temp/opt_<lang>.json` as a task file, not a locale patch
+   - Rewrite only the `targets` entries into a flat `{key: translation}` payload
+   - `/i18n-sync --lang <lang> --data <pure-json-or-file>`
+   - `/i18n-commit --proposal <lang>`
+   - `/i18n-audit --lang <lang>` and type-check/test
 
 ## Guiding Principles
 
