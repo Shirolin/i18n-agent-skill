@@ -6,6 +6,7 @@ import tempfile
 import aiofiles
 import pytest
 
+from i18n_agent_skill import tools
 from i18n_agent_skill.tools import (
     _load_locale_data,
     _save_locale_data,
@@ -181,3 +182,18 @@ async def test_glossary_persists_updates_and_status(temp_workspace):
     assert loaded["glossary"][0]["translation"] == "面板"
     assert loaded["rules"]["forbidden_terms"] == ["控制台"]
     assert status.has_glossary is True
+
+
+@pytest.mark.asyncio
+async def test_status_includes_vcs_info_when_available(temp_workspace, monkeypatch):
+    expected_vcs = {
+        "branch": "main",
+        "commit_hash": "deadbee",
+        "uncommitted_changes_count": 2,
+        "is_dirty": True,
+    }
+    monkeypatch.setattr(tools, "get_vcs_status", lambda _root: expected_vcs)
+
+    status = await check_project_status()
+
+    assert status.vcs_info == expected_vcs

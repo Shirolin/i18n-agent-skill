@@ -28,7 +28,7 @@ from i18n_agent_skill.models import (
     TranslationStatus,
 )
 from i18n_agent_skill.snapshot import TranslationSnapshotManager
-from i18n_agent_skill.vcs import get_git_hunks
+from i18n_agent_skill.vcs import get_git_hunks, get_vcs_status
 
 # Global Constants
 CACHE_FILE = ".i18n-cache.json"
@@ -477,6 +477,144 @@ async def orchestrate_scan(
 
 
 LOCALE_EXTENSIONS = [".json", ".yaml", ".yml", ".ts", ".js"]
+STANDARD_LOCALE_DIRS = ["src/locales", "locales", "public/locales"]
+EXTENDED_LOCALE_DIRS = ["i18n", "translations", "messages", "lang"]
+LANG_STEM_RE = re.compile(r"^[A-Za-z]{2,3}(?:[_-][A-Za-z0-9]{2,8})*$")
+SOURCE_CODE_EXTENSIONS = {".js", ".jsx", ".ts", ".tsx", ".vue", ".py"}
+
+
+def _sort_languages(langs: set[str]) -> list[str]:
+    ordered = sorted(langs)
+    if "en" in ordered:
+        ordered.remove("en")
+        ordered.insert(0, "en")
+    return ordered
+
+
+def _normalize_extension(ext: str | None) -> str | None:
+    if not ext:
+        return None
+    fixed = ext if ext.startswith(".") else f".{ext}"
+    if fixed in LOCALE_EXTENSIONS:
+        return fixed
+    return None
+
+
+def _collect_source_dirs() -> list[str]:
+    return ["src"] if os.path.isdir(os.path.join(WORKSPACE_ROOT, "src")) else ["."]
+
+
+def _has_extractable_source() -> bool:
+    for root, _, files in os.walk(WORKSPACE_ROOT):
+        if ".git" in root.replace("\\", "/").split("/"):
+            continue
+        for filename in files:
+            if os.path.splitext(filename)[1].lower() in SOURCE_CODE_EXTENSIONS:
+                return True
+    return False
+
+
+def _scan_locale_candidate(rel_dir: str) -> dict[str, Any]:
+    abs_dir = _validate_safe_path(rel_dir)
+    locale_files: list[str] = []
+    invalid_files: list[str] = []
+    langs: set[str] = set()
+    exts: set[str] = set()
+
+    for filename in os.listdir(abs_dir):
+        full_path = os.path.join(abs_dir, filename)
+        if not os.path.isfile(full_path):
+            continue
+        stem, ext = os.path.splitext(filename)
+        ext = ext.lower()
+        if ext not in LOCALE_EXTENSIONS:
+            continue
+        locale_files.append(os.path.join(rel_dir, filename).replace("\\", "/"))
+        exts.add(ext)
+        if LANG_STEM_RE.match(stem):
+            langs.add(stem)
+        else:
+            invalid_files.append(filename)
+
+    return {
+        "dir": rel_dir.replace("\\", "/"),
+        "files": sorted(locale_files),
+        "invalid_files": sorted(invalid_files),
+        "langs": _sort_languages(langs),
+        "extensions": sorted(exts),
+    }
+
+
+def _detect_locale_candidates(existing_locale_dir: str | None = None) -> list[dict[str, Any]]:
+    ordered_dirs: list[str] = []
+    seen = set()
+    for rel_dir in [*STANDARD_LOCALE_DIRS, *EXTENDED_LOCALE_DIRS]:
+        if rel_dir in seen:
+            continue
+        seen.add(rel_dir)
+        if os.path.isdir(os.path.join(WORKSPACE_ROOT, rel_dir)):
+            ordered_dirs.append(rel_dir)
+    if existing_locale_dir and existing_locale_dir not in seen:
+        if os.path.isdir(os.path.join(WORKSPACE_ROOT, existing_locale_dir)):
+            ordered_dirs.append(existing_locale_dir)
+
+    candidates: list[dict[str, Any]] = []
+    for rel_dir in ordered_dirs:
+        try:
+            candidates.append(_scan_locale_candidate(rel_dir))
+        except PermissionError:
+            continue
+    return candidates
+
+
+def _infer_preferred_format(extensions: list[str]) -> str | None:
+    return extensions[0] if len(extensions) == 1 else None
+
+
+def _load_existing_init_config() -> tuple[ProjectConfig | None, dict[str, Any] | None, str | None]:
+    config_path = os.path.join(WORKSPACE_ROOT, CONFIG_FILE)
+    if not os.path.exists(config_path):
+        return None, None, None
+    try:
+        with open(config_path, encoding="utf-8") as f:
+            raw = json.load(f)
+        return ProjectConfig(**raw), raw, None
+    except Exception as exc:
+        return None, None, str(exc)
+
+
+def _classify_init_mode(
+    candidates: list[dict[str, Any]], existing_locale_dir: str | None
+) -> tuple[str, dict[str, Any] | None, str]:
+    with_langs = [c for c in candidates if c["langs"]]
+    if with_langs:
+        if len(with_langs) == 1:
+            return "sync", with_langs[0], "Detected a clear locale asset root."
+        if existing_locale_dir:
+            for candidate in with_langs:
+                if candidate["dir"] == existing_locale_dir.replace("\\", "/"):
+                    return "sync", candidate, "Existing config locale root is still valid."
+        return (
+            "reconcile",
+            None,
+            "Multiple locale roots contain valid language files. Confirmation is required.",
+        )
+
+    any_supported_files = any(candidate["files"] for candidate in candidates)
+    any_invalid = any(candidate["invalid_files"] for candidate in candidates)
+    if any_supported_files and any_invalid:
+        return (
+            "unsupported",
+            None,
+            "Locale-like files were found, but filenames are not language-code based.",
+        )
+    if _has_extractable_source():
+        return "bootstrap", None, "No locale assets found. Initializing bootstrap config."
+    return (
+        "bootstrap",
+        None,
+        "No locale assets found. Initializing bootstrap config with minimal defaults.",
+    )
 
 
 def _existing_locale_path(target_dir: str, lang: str) -> str | None:
@@ -728,42 +866,153 @@ async def check_project_status() -> ProjectStatus:
         status_message="Ready",
         has_glossary=os.path.exists(_validate_safe_path(GLOSSARY_FILE)),
         cache_size=0,
+        vcs_info=get_vcs_status(WORKSPACE_ROOT),
     )
 
 
 async def initialize_project_config(auto: bool = False) -> dict:
-    source_dirs = ["src"] if os.path.exists(os.path.join(WORKSPACE_ROOT, "src")) else []
-    locales_dir = "locales"
-    for p in ["src/locales", "locales", "public/locales"]:
-        if os.path.exists(os.path.join(WORKSPACE_ROOT, p)):
-            locales_dir = p
-            break
+    recommended_gitignore = [CACHE_FILE, PROPOSALS_DIR, f"!{CONFIG_FILE}"]
+    source_dirs = _collect_source_dirs()
 
-    config = {
-        "source_dirs": source_dirs or ["."],
-        "ignore_dirs": ["node_modules", "dist", ".git", ".venv"],
-        "locales_dir": locales_dir,
-        "enabled_langs": ["en", "zh"],
-        "privacy_level": "basic",
-        "persona": {
+    existing_config, _, parse_error = _load_existing_init_config()
+    if parse_error:
+        return {
+            "mode": "hard_fail",
+            "message": "Existing .i18n-skill.json is malformed and cannot be merged safely.",
+            "warnings": [parse_error],
+            "requires_confirmation": False,
+            "suggested_action": "Fix or remove .i18n-skill.json and rerun init.",
+            "detected_locale_dirs": [],
+            "detected_locale_files": [],
+            "detected_languages": [],
+            "migrations": [],
+            "recommended_gitignore": recommended_gitignore,
+        }
+
+    existing_locale_dir = existing_config.locales_dir if existing_config else None
+    candidates = _detect_locale_candidates(existing_locale_dir)
+    mode, selected_candidate, reason = _classify_init_mode(candidates, existing_locale_dir)
+    detected_locale_dirs = [c["dir"] for c in candidates if c["files"]]
+    detected_locale_files = [f for c in candidates for f in c["files"]]
+    detected_languages = (
+        selected_candidate["langs"] if selected_candidate else _sort_languages(set().union(*[
+            set(c["langs"]) for c in candidates
+        ]))
+    )
+
+    if mode == "reconcile":
+        return {
+            "mode": mode,
+            "message": reason,
+            "warnings": [],
+            "requires_confirmation": True,
+            "suggested_action": "Choose one locale root and rerun init.",
+            "detected_locale_dirs": detected_locale_dirs,
+            "detected_locale_files": detected_locale_files,
+            "detected_languages": detected_languages,
+            "candidate_locale_roots": [
+                {"dir": c["dir"], "languages": c["langs"], "extensions": c["extensions"]}
+                for c in candidates
+                if c["langs"]
+            ],
+            "migrations": [],
+            "recommended_gitignore": recommended_gitignore,
+        }
+
+    if mode in {"unsupported", "hard_fail"}:
+        return {
+            "mode": mode,
+            "message": reason,
+            "warnings": [],
+            "requires_confirmation": False,
+            "suggested_action": "Verify locale directory and filename conventions.",
+            "detected_locale_dirs": detected_locale_dirs,
+            "detected_locale_files": detected_locale_files,
+            "detected_languages": detected_languages,
+            "migrations": [],
+            "recommended_gitignore": recommended_gitignore,
+        }
+
+    base_config = existing_config or ProjectConfig()
+    config_data = base_config.model_dump(mode="json")
+    if existing_config is None:
+        config_data["ignore_dirs"] = ["node_modules", "dist", ".git", ".venv"]
+        config_data["privacy_level"] = "basic"
+        config_data["persona"] = {
             "domain": "Industrial Engineering",
             "audience": "Developers",
             "tone": "Technical",
-        },
-        "protected_lang_key_patterns": [],
-        "ignored_keys": [],
-        "ignored_strings": [],
-        "preferred_format": ".json",
-    }
+            "custom_guidelines": [],
+        }
+    config_data["source_dirs"] = source_dirs
+    migrations: list[str] = []
+    warnings: list[str] = []
 
+    if mode == "bootstrap":
+        bootstrap_locale_dir = "src/locales" if "src" in source_dirs else "locales"
+        config_data["locales_dir"] = bootstrap_locale_dir
+        config_data["enabled_langs"] = ["en"]
+        if not config_data.get("preferred_format"):
+            config_data["preferred_format"] = ".json"
+        warnings.append("Bootstrap mode: no existing locale assets were detected.")
+    else:
+        assert selected_candidate is not None
+        config_data["locales_dir"] = selected_candidate["dir"]
+        config_data["enabled_langs"] = selected_candidate["langs"]
+
+        inferred_format = _infer_preferred_format(selected_candidate["extensions"])
+        existing_format = _normalize_extension(
+            cast(str | None, config_data.get("preferred_format"))
+        )
+        if inferred_format:
+            config_data["preferred_format"] = inferred_format
+        elif existing_format and existing_format in selected_candidate["extensions"]:
+            config_data["preferred_format"] = existing_format
+        else:
+            config_data["preferred_format"] = None
+
+        if existing_config:
+            old_langs = existing_config.enabled_langs
+            new_langs = selected_candidate["langs"]
+            if old_langs != new_langs:
+                if "zh" in old_langs and "zh" not in new_langs:
+                    lang_summary = ", ".join(new_langs)
+                    migrations.append(
+                        f"Replaced stale language code 'zh' with detected set: {lang_summary}"
+                    )
+                else:
+                    old_summary = ", ".join(old_langs)
+                    new_summary = ", ".join(new_langs)
+                    migrations.append(
+                        f"Updated enabled_langs: {old_summary} -> {new_summary}"
+                    )
+            if existing_config.locales_dir != selected_candidate["dir"]:
+                new_dir = selected_candidate["dir"]
+                migrations.append(
+                    f"Updated locales_dir: {existing_config.locales_dir} -> {new_dir}"
+                )
+        else:
+            migrations.append(
+                f"Initialized from detected locale assets: {selected_candidate['dir']}"
+            )
+
+    final_config = ProjectConfig(**config_data)
+    await _save_project_config(final_config)
     config_path = os.path.join(WORKSPACE_ROOT, CONFIG_FILE)
-    async with aiofiles.open(config_path, "w", encoding="utf-8") as f:
-        await f.write(json.dumps(config, indent=2, ensure_ascii=False))
 
     return {
+        "mode": mode,
         "message": f"Config initialized at {config_path}",
-        "config": config,
-        "recommended_gitignore": [CACHE_FILE, PROPOSALS_DIR, f"!{CONFIG_FILE}"],
+        "config": final_config.model_dump(mode="json"),
+        "warnings": warnings,
+        "requires_confirmation": False,
+        "suggested_action": "Run i18n status and i18n audit to validate project coverage.",
+        "detected_locale_dirs": detected_locale_dirs,
+        "detected_locale_files": detected_locale_files,
+        "detected_languages": detected_languages,
+        "migrations": migrations,
+        "recommended_gitignore": recommended_gitignore,
+        "auto_mode": auto,
     }
 
 

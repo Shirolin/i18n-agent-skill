@@ -39,6 +39,7 @@ Setup this i18n skill for my current project and initialize it: https://github.c
 ```
 
 AI will clone the repo, run the installer, and automatically perform `./i18n init --auto`.
+`init` now detects project locale assets first and then chooses sync/bootstrap/diagnostic behavior.
 
 ### Option 2: Manual Installation
 
@@ -110,7 +111,7 @@ Manages the translation lifecycle to prevent regressions and improve phrasing ov
 
 | Command | Capability | Detailed Functional Description |
 | :--- | :--- | :--- |
-| `/i18n-init` | **Initialization** | Scans project structure and generates an explicit `.i18n-skill.json` configuration. |
+| `/i18n-init` | **Initialization** | Detects project i18n state first, then syncs existing locale assets or bootstraps a safe starter config with diagnostics. |
 | `/i18n-status` | **Health Check** | Verifies dependencies, environment isolation, and current VCS (Git) state. |
 | `/i18n-scan` | **Extraction** | Precision scan of source code to find hardcoded strings. Use `--path` for specific components or `--vcs` for current Git diff hunks. |
 | `/i18n-audit` | **Gap Analysis** | Compares locale files against source code to find missing keys or detect unused "dead keys". |

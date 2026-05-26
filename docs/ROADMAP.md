@@ -37,7 +37,7 @@ This document tracks planned features and architectural enhancements to keep **i
 - [ ] **Command Proxy (2026-05-05, Priority 🌟)**: Automatically generate a root-level `i18n` proxy script (sh/ps1) during installation to shorten the command path.
 - [ ] **Proactive .gitignore Patching (2026-05-05)**: Extend the installer to automatically add all i18n runtime files (`.i18n-*`) to `.gitignore` by default.
 - [ ] **Pre-flight venv Check (2026-05-05)**: Add robust diagnostics to the installer to detect missing Python modules or broken environments before attempting setup.
-- [ ] **One-Step Init (2026-05-05)**: Add `--auto` flag to `init` to allow AI to analyze samples and finalize the persona handshake in a single turn.
+- [ ] **One-Step Init (2026-05-05)**: Keep `--auto` as a workflow accelerator after init state classification is fully stabilized (sync/reconcile/bootstrap/unsupported).
 - [ ] **Bilingual AI Install Prompts (2026-05-05)**: Optimize README prompts to guide AI assistants to perform `init` immediately after installation.
 - [ ] **Parallel Processing**: Implement concurrent LLM requests for massive translation tasks.
 
