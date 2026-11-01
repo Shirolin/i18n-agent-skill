@@ -1,10 +1,10 @@
 # i18n-agent-skill 🌐
 
-[English](./README.md) | [简体中文] · [**🌐 官方文档与发布主页 ↗**](https://shirolin.github.io/i18n-agent-skill/)
+[English](./README.md) | **简体中文** · [**官方文档与交互主页 ↗**](https://shirolin.github.io/i18n-agent-skill/)
 
 > **面向 AI 助理的前端国际化 (i18n) 全生命周期自动化工业级方案。**
 
-[![Documentation](https://img.shields.io/badge/Documentation-在线文档-007ACC?logo=githubpages&logoColor=white)](https://shirolin.github.io/i18n-agent-skill/)
+[![Documentation](https://img.shields.io/badge/官方文档-在线预览-007ACC?logo=githubpages&logoColor=white)](https://shirolin.github.io/i18n-agent-skill/)
 [![Version](https://img.shields.io/badge/version-0.3.0-blue)](CHANGELOG.md)
 [![Spec: Agent Skill v4.0](https://img.shields.io/badge/Spec-Agent%20Skill%20v4.0-darkgreen)](https://github.com/FrancyJGLisboa/agent-skill-creator)
 [![Engine: Tree-sitter AST](https://img.shields.io/badge/Engine-Tree--sitter%20AST-orange)](https://tree-sitter.github.io/)
